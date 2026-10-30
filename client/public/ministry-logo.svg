@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="100%" height="100%">
+  <defs>
+    <!-- Royal Gold Gradient -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="35%" stop-color="#EAB308" />
+      <stop offset="70%" stop-color="#CA8A04" />
+      <stop offset="100%" stop-color="#A16207" />
+    </linearGradient>
+
+    <!-- Deep Ministry Blue Shield Gradient -->
+    <linearGradient id="navyShieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A" />
+      <stop offset="60%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+
+    <!-- Inner Glow Filter -->
+    <filter id="sealShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Outer Seal Ring -->
+  <circle cx="60" cy="60" r="56" fill="url(#navyShieldGrad)" stroke="url(#goldGrad)" stroke-width="3" filter="url(#sealShadow)" />
+  <circle cx="60" cy="60" r="50" fill="none" stroke="url(#goldGrad)" stroke-width="1" stroke-dasharray="2 3" opacity="0.8" />
+
+  <!-- Laurel Wreath (Left & Right) -->
+  <g fill="url(#goldGrad)" opacity="0.9">
+    <!-- Left Leaves -->
+    <ellipse cx="25" cy="50" rx="3.5" ry="7" transform="rotate(-30 25 50)" />
+    <ellipse cx="23" cy="62" rx="3.5" ry="7" transform="rotate(-10 23 62)" />
+    <ellipse cx="26" cy="74" rx="3.5" ry="7" transform="rotate(15 26 74)" />
+    <ellipse cx="33" cy="85" rx="3.5" ry="7" transform="rotate(40 33 85)" />
+    <ellipse cx="44" cy="92" rx="3.5" ry="7" transform="rotate(65 44 92)" />
+
+    <!-- Right Leaves -->
+    <ellipse cx="95" cy="50" rx="3.5" ry="7" transform="rotate(30 95 50)" />
+    <ellipse cx="97" cy="62" rx="3.5" ry="7" transform="rotate(10 97 62)" />
+    <ellipse cx="94" cy="74" rx="3.5" ry="7" transform="rotate(-15 94 74)" />
+    <ellipse cx="87" cy="85" rx="3.5" ry="7" transform="rotate(-40 87 85)" />
+    <ellipse cx="76" cy="92" rx="3.5" ry="7" transform="rotate(-65 76 92)" />
+  </g>
+
+  <!-- Central Heraldic Shield -->
+  <path d="M 40,32 L 80,32 C 80,32 82,62 60,78 C 38,62 40,32 40,32 Z" 
+        fill="url(#navyShieldGrad)" 
+        stroke="url(#goldGrad)" 
+        stroke-width="2" />
+
+  <!-- National Guiding Star Above Shield -->
+  <polygon points="60,18 62.5,24 69,24.5 64,28.5 65.5,35 60,31 54.5,35 56,28.5 51,24.5 57.5,24" 
+           fill="url(#goldGrad)" />
+
+  <!-- Open Book of Knowledge in Shield -->
+  <g stroke="url(#goldGrad)" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left Page -->
+    <path d="M 48,46 C 53,44 57,45 60,48 L 60,63 C 57,60 53,59 48,61 Z" fill="#1E293B" />
+    <!-- Right Page -->
+    <path d="M 72,46 C 67,44 63,45 60,48 L 60,63 C 63,60 67,59 72,61 Z" fill="#1E293B" />
+    <!-- Page Lines Left -->
+    <line x1="51" y1="50" x2="57" y2="49" opacity="0.75" />
+    <line x1="51" y1="54" x2="57" y2="53" opacity="0.75" />
+    <line x1="51" y1="58" x2="57" y2="57" opacity="0.75" />
+    <!-- Page Lines Right -->
+    <line x1="63" y1="49" x2="69" y2="50" opacity="0.75" />
+    <line x1="63" y1="53" x2="69" y2="54" opacity="0.75" />
+    <line x1="63" y1="57" x2="69" y2="58" opacity="0.75" />
+  </g>
+
+  <!-- Torch Flame of Enlightenment Above Book -->
+  <path d="M 60,37 C 62,39 63,42 60,45 C 57,42 58,39 60,37 Z" fill="#F59E0B" />
+  <circle cx="60" cy="42" r="1.5" fill="#FEF08A" />
+
+  <!-- Lower Official Ribbon / Scroll Banner -->
+  <g filter="url(#sealShadow)">
+    <path d="M 32,95 L 45,91 L 60,93 L 75,91 L 88,95 L 82,101 L 60,98 L 38,101 Z" 
+          fill="url(#goldGrad)" />
+    <!-- Tiny Stars on Ribbon ends -->
+    <circle cx="39" cy="96" r="1.2" fill="#0F172A" />
+    <circle cx="81" cy="96" r="1.2" fill="#0F172A" />
+  </g>
+</svg>

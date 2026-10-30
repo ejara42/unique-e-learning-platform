@@ -1,0 +1,38 @@
+{
+  "name": "edusphere-server",
+  "version": "1.0.0",
+  "description": "EduSphere Backend API Server - Node.js, Express, TypeScript, MongoDB",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "node ./node_modules/tsx/dist/cli.mjs tests/phase_a_mongodb.test.ts",
+    "test:all": "node ./node_modules/tsx/dist/cli.mjs tests/full_enterprise_suite.test.ts",
+    "test:security": "node ./node_modules/tsx/dist/cli.mjs tests/production_security_suite.test.ts",
+    "bootstrap:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/bootstrapAdmin.ts",
+    "reset:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/resetAdminPassword.ts",
+    "purge:demo-users": "node ./node_modules/tsx/dist/cli.mjs src/scripts/purgeDemoUsers.ts",
+    "verify:dr": "node ./node_modules/tsx/dist/cli.mjs src/scripts/verifyBackupRestore.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "stripe": "^23.0.1",
+    "uuid": "^11.0.5"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/node": "^22.10.7",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

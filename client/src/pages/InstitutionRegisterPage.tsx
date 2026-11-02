@@ -195,7 +195,7 @@ export const InstitutionRegisterPage: React.FC = () => {
                       type="text"
                       value={institutionName}
                       onChange={e => setInstitutionName(e.target.value)}
-                      placeholder="e.g. Addis Ababa University or Apex Science Academy"
+                      placeholder="e.g. Regional University or Academic Institution"
                       className="input-field"
                       style={{ paddingLeft: 42, height: 46 }}
                       required

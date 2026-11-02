@@ -140,7 +140,7 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     passwordPlaceholder: 'Minimum 8 characters with numbers & symbols',
     roleLabel: 'Select Your Academic Role',
     institutionLabel: 'Your School / University / Organization',
-    institutionPlaceholder: 'e.g. Addis Ababa University, Horizon School...',
+    institutionPlaceholder: 'e.g. Regional University, Learning Center...',
     rememberMe: 'Keep me authenticated',
     forgotPassword: 'Forgot password?',
     signInBtn: 'Sign In to Account',

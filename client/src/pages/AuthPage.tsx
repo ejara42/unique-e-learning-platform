@@ -220,11 +220,47 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
         flexDirection: 'column',
         justifyContent: 'center',
         padding: '48px 40px',
-        maxWidth: 580,
+        maxWidth: 620,
         margin: '0 auto',
         width: '100%',
         minHeight: '100vh',
+        background: 'linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%)',
       }}>
+        <div style={{
+          backgroundColor: '#FFFFFF',
+          border: '1px solid rgba(148,163,184,0.25)',
+          borderRadius: 'var(--radius-2xl)',
+          boxShadow: '0 28px 45px -28px rgba(15, 23, 42, 0.45)',
+          padding: '28px 28px 24px',
+        }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          marginBottom: 22,
+        }}>
+          <div>
+            <div style={{ fontSize: '0.76rem', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800, color: 'var(--primary)' }}>Secure access</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.03em', marginTop: 4 }}>{mode === 'signin' ? 'Welcome back' : 'Create account'}</div>
+          </div>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'var(--teal-50)',
+            border: '1px solid rgba(13,148,136,0.18)',
+            color: 'var(--teal-700)',
+            borderRadius: 999,
+            padding: '7px 10px',
+            fontSize: '0.74rem',
+            fontWeight: 800,
+          }}>
+            <ShieldCheck size={14} />
+            <span>Verified</span>
+          </div>
+        </div>
+
         {/* Toggle Mode Tabs (Sign In vs Register) */}
         <div style={{
           display: 'grid',
@@ -233,7 +269,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
           padding: 4,
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border-color)',
-          marginBottom: 32,
+          marginBottom: 28,
         }}>
           <button
             type="button"
@@ -285,8 +321,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
         </div>
 
         {/* Title */}
-        <div style={{ marginBottom: 26 }}>
-          <h2 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{ fontSize: '1.68rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 6, letterSpacing: '-0.02em' }}>
             {mode === 'signin' ? t.signInTitle : t.signUpTitle}
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.94rem' }}>
@@ -502,6 +538,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
             </div>
           </form>
         )}
+        </div>
       </div>
     </div>
   );

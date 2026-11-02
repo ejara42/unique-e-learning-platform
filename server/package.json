@@ -12,7 +12,6 @@
     "test:security": "node ./node_modules/tsx/dist/cli.mjs tests/production_security_suite.test.ts",
     "bootstrap:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/bootstrapAdmin.ts",
     "reset:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/resetAdminPassword.ts",
-    "purge:demo-users": "node ./node_modules/tsx/dist/cli.mjs src/scripts/purgeDemoUsers.ts",
     "verify:dr": "node ./node_modules/tsx/dist/cli.mjs src/scripts/verifyBackupRestore.ts"
   },
   "dependencies": {

@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+
+# node / app runtime caches
+node_modules/
+coverage/
+.dist/
+.docker/
+
+# misc
+npm-debug.log*
+.DS_Store

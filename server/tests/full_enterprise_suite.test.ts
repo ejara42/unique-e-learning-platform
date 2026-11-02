@@ -220,8 +220,8 @@ async function runFullEnterpriseAuditTests() {
     assert(tenants.length >= 5, 'Accredited institutions must be fully present');
 
     const apexUni = await repo.getTenantById('tenant-3');
-    assert(apexUni, 'Apex University must exist');
-    assert.strictEqual(apexUni?.name, 'Apex University');
+    assert(apexUni, 'Institution Partner must exist');
+    assert.strictEqual(apexUni?.name, 'Institution Partner');
 
     const cert = await repo.getCertificateByCode('EDU-2026-X89K-4921');
     assert(cert, 'Verified Certificate must be retrievable');

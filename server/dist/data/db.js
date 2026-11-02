@@ -54,7 +54,7 @@ class InMemoryDatabase {
             },
             {
                 id: 'tenant-3',
-                name: 'Apex University',
+                name: 'Institution Partner',
                 slug: 'apex-university',
                 domains: ['apex.edu'],
                 type: 'UNIVERSITY',
@@ -113,7 +113,7 @@ class InMemoryDatabase {
             {
                 id: 'course-1',
                 tenantId: 'tenant-3',
-                institutionName: 'Apex University',
+                institutionName: 'Institution Partner',
                 title: 'Introduction to Programming',
                 slug: 'introduction-to-programming',
                 tagline: 'Learn the basics of programming with hands-on examples, real-world projects and interactive exercises.',
@@ -254,7 +254,7 @@ class InMemoryDatabase {
             {
                 id: 'course-5',
                 tenantId: 'tenant-3',
-                institutionName: 'Apex University',
+                institutionName: 'Institution Partner',
                 title: 'Data Science Basics',
                 slug: 'data-science-basics',
                 tagline: 'Harness the power of data through statistical modeling, Python dataframes, and visualization.',
@@ -279,7 +279,7 @@ class InMemoryDatabase {
             {
                 id: 'course-6',
                 tenantId: null,
-                institutionName: 'EduSphere Open Academy',
+                institutionName: 'Institution Partner',
                 title: 'Full-Stack Web Development',
                 slug: 'full-stack-web-development',
                 tagline: 'Build end-to-end modern web applications with React, TypeScript, Node.js, and MongoDB.',
@@ -304,7 +304,7 @@ class InMemoryDatabase {
             {
                 id: 'course-7',
                 tenantId: null,
-                institutionName: 'EduSphere Open Academy',
+                institutionName: 'Institution Partner',
                 title: 'Digital Marketing Strategies',
                 slug: 'digital-marketing',
                 tagline: 'SEO, SEM, social media funnels, and data-driven marketing analytics.',
@@ -327,7 +327,7 @@ class InMemoryDatabase {
                 createdAt: '2026-03-15T10:00:00Z',
             },
         ];
-        // 4. Production Enrollments: Zero demo enrollments. Populated dynamically as learners register and enroll.
+        // 4. Production Enrollments: Populated dynamically as learners register and enroll.
         this.enrollments = [];
         // 5. Assessments (Midterm Exam for Course 1)
         this.assessments = [
@@ -395,10 +395,10 @@ class InMemoryDatabase {
                 certificateNumber: 'EDU-2026-X89K-4921',
                 verificationHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
                 learnerId: 'learner-alumni-1',
-                learnerName: 'Verified Alumni',
+                learnerName: 'Verified Learner',
                 courseId: 'course-2',
                 courseTitle: 'Cybersecurity Fundamentals',
-                institutionName: 'EduSphere Open Academy',
+                institutionName: 'Institution Partner',
                 issueDate: '2026-02-10',
                 gradePercentage: 92,
                 qrCodeData: 'https://edusphere.io/verify/EDU-2026-X89K-4921',
@@ -458,7 +458,7 @@ class InMemoryDatabase {
                 action: 'INSTITUTION_VERIFIED',
                 resourceType: 'TENANT',
                 resourceId: 'tenant-3',
-                details: 'Approved accreditation dossier for Apex University',
+                details: 'Approved accreditation dossier for Institution Partner',
                 ipAddress: '10.0.0.1',
                 timestamp: '2026-03-02T14:00:00Z',
             },

@@ -22,28 +22,75 @@ import {
 import { Button, Badge, ToastViewport, useToast } from '../components/ui';
 
 export const CourseDetailPage: React.FC = () => {
-  const { selectedCourseId, setCurrentPage, startExam, currentUser } = useApp();
+  const { selectedCourseId, setCurrentPage, startExam, openLesson, currentUser } = useApp();
   const { toast, showToast, dismissToast } = useToast();
   const [course, setCourse] = useState<ICourse | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'instructor' | 'reviews'>('overview');
-  const [expandedModule, setExpandedModule] = useState<string>('mod-1');
+  const [expandedModule, setExpandedModule] = useState<string | null>(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrollMsg, setEnrollMsg] = useState('');
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedCourseId) {
-      api.getCourse(selectedCourseId).then(res => setCourse(res.course));
-      if (currentUser) {
-        api.getMyCourses().then(res => {
-          const found = res.enrollments?.some(e => e.courseId === selectedCourseId);
-          setIsEnrolled(Boolean(found));
-        }).catch(() => {});
-      } else {
-        setIsEnrolled(false);
-      }
+    if (!selectedCourseId) {
+      setCourse(null);
+      setLoadError('No course selected.');
+      setIsEnrolled(false);
+      setExpandedModule(null);
+      return;
     }
+
+    let isMounted = true;
+
+    const loadCourse = async () => {
+      setCourse(null);
+      setLoadError(null);
+      setEnrollMsg('');
+
+      try {
+        const [courseRes, myCoursesRes] = await Promise.all([
+          api.getCourse(selectedCourseId),
+          currentUser ? api.getMyCourses() : Promise.resolve({ enrollments: [] as any[] })
+        ]);
+
+        if (!isMounted) return;
+
+        setCourse(courseRes.course);
+        setExpandedModule(courseRes.course?.modules?.[0]?.id ?? null);
+
+        if (currentUser) {
+          const found = myCoursesRes.enrollments?.some((e: any) => e.courseId === selectedCourseId);
+          setIsEnrolled(Boolean(found));
+        } else {
+          setIsEnrolled(false);
+        }
+      } catch (error: any) {
+        if (!isMounted) return;
+        setCourse(null);
+        setLoadError(error?.message || 'Unable to load this course right now.');
+      }
+    };
+
+    loadCourse();
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedCourseId, currentUser]);
+
+  useEffect(() => {
+    if (!course?.modules?.length) {
+      setExpandedModule(null);
+      return;
+    }
+
+    setExpandedModule(current => {
+      if (current === 'all') return 'all';
+      if (current && course.modules.some(module => module.id === current)) return current;
+      return course.modules[0].id;
+    });
+  }, [course]);
 
   if (!course) {
     return (
@@ -59,7 +106,9 @@ export const CourseDetailPage: React.FC = () => {
           padding: 40
         }}>
           <div className="spinner" style={{ width: 36, height: 36 }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Loading course curriculum and syllabus...</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+            {loadError || 'Loading course curriculum and syllabus...'}
+          </p>
         </div>
       </>
     );
@@ -194,34 +243,38 @@ export const CourseDetailPage: React.FC = () => {
                 display: 'flex',
                 flexWrap: 'wrap',
                 alignItems: 'center',
-                gap: 20,
+                gap: 12,
                 fontSize: '0.88rem',
                 color: '#CBD5E1',
-                paddingTop: 16,
+                paddingTop: 18,
                 borderTop: '1px solid rgba(255, 255, 255, 0.1)',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#FBBF24', fontWeight: 800 }}>
-                  <Star size={18} fill="#FBBF24" />
-                  <span>{course.rating.toFixed(1)}</span>
-                  <span style={{ color: '#94A3B8', fontWeight: 500 }}>
-                    ({(course.ratingCount / 1000).toFixed(1)}k evaluations)
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Users size={17} color="#94A3B8" />
-                  <span>{(course.enrolledCount / 1000).toFixed(1)}k Enrolled</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Clock size={17} color="#94A3B8" />
-                  <span>{course.durationHours} Hours Video</span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#5EEAD4' }}>
-                  <Award size={17} />
-                  <span>Verified Diploma Included</span>
-                </div>
+                {[
+                  { icon: <Star size={16} fill="#FBBF24" color="#FBBF24" />, label: `${course.rating.toFixed(1)}`, meta: `(${(course.ratingCount / 1000).toFixed(1)}k evaluations)` },
+                  { icon: <Users size={16} color="#A5B4FC" />, label: `${(course.enrolledCount / 1000).toFixed(1)}k Enrolled` },
+                  { icon: <Clock size={16} color="#A5B4FC" />, label: `${course.durationHours} Hours Video` },
+                  { icon: <Award size={16} color="#5EEAD4" />, label: 'Verified Diploma Included' },
+                ].map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 7,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(148,163,184,0.25)',
+                      borderRadius: 999,
+                      padding: '7px 12px',
+                      backdropFilter: 'blur(6px)',
+                    }}
+                  >
+                    {item.icon}
+                    <span style={{ color: index === 0 ? '#FBBF24' : '#E2E8F0', fontWeight: index === 0 ? 800 : 600 }}>
+                      {item.label}
+                    </span>
+                    {item.meta && <span style={{ color: '#94A3B8', fontWeight: 500 }}>{item.meta}</span>}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -427,11 +480,7 @@ export const CourseDetailPage: React.FC = () => {
 
                   <button
                     onClick={() => {
-                      if (expandedModule) {
-                        setExpandedModule('');
-                      } else {
-                        setExpandedModule(course.modules?.[0]?.id || '');
-                      }
+                      setExpandedModule(current => current === 'all' ? null : 'all');
                     }}
                     style={{
                       background: 'none',
@@ -442,13 +491,13 @@ export const CourseDetailPage: React.FC = () => {
                       cursor: 'pointer',
                     }}
                   >
-                    {expandedModule ? 'Collapse All' : 'Expand All'}
+                    {expandedModule === 'all' ? 'Collapse All' : 'Expand All'}
                   </button>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {course.modules?.map((module, mIdx) => {
-                    const isExpanded = expandedModule === module.id;
+                    const isExpanded = expandedModule === 'all' || expandedModule === module.id;
                     return (
                       <div
                         key={module.id}
@@ -462,7 +511,10 @@ export const CourseDetailPage: React.FC = () => {
                       >
                         {/* Module Header Bar */}
                         <div
-                          onClick={() => setExpandedModule(isExpanded ? '' : module.id)}
+                          onClick={() => setExpandedModule(current => {
+                            if (current === 'all') return module.id;
+                            return isExpanded ? null : module.id;
+                          })}
                           style={{
                             padding: '16px 20px',
                             backgroundColor: isExpanded ? 'var(--slate-50)' : '#FFFFFF',
@@ -549,7 +601,7 @@ export const CourseDetailPage: React.FC = () => {
                                     <Button
                                       size="sm"
                                       variant="secondary"
-                                      onClick={() => showToast({ title: 'Lesson launched', description: `Opening "${lesson.title}" in the learning player.`, tone: 'info' })}
+                                      onClick={() => openLesson(lesson.id)}
                                     >
                                       Watch
                                     </Button>
@@ -586,10 +638,10 @@ export const CourseDetailPage: React.FC = () => {
                       {course.instructorName}
                     </h3>
                     <p style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '0.92rem', marginBottom: 4 }}>
-                      Lead Systems Architect & Adjunct Faculty Member
+                      Course Instructor
                     </p>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>
-                      Apex University & EduSphere Open Academy Network
+                      Accredited Learning Partner Network
                     </p>
                   </div>
                 </div>
@@ -620,7 +672,7 @@ export const CourseDetailPage: React.FC = () => {
                       ))}
                     </div>
                     <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-                      Overall Course Rating • Based on verified scholar evaluations
+                      Overall Course Rating • Based on verified learner evaluations
                     </div>
                   </div>
                 </div>
@@ -628,7 +680,7 @@ export const CourseDetailPage: React.FC = () => {
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--navy-950)' }}>
-                      Verified Enrolled Scholar
+                      Verified Learner
                     </div>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>February 14, 2026</span>
                   </div>
@@ -645,11 +697,11 @@ export const CourseDetailPage: React.FC = () => {
             position: 'sticky',
             top: 90,
             padding: 24,
-            boxShadow: 'var(--shadow-lg)',
-            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-xl)',
+            border: '1px solid rgba(79, 70, 229, 0.15)',
             borderRadius: 'var(--radius-xl)',
+            background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)',
           }}>
-            {/* Thumbnail Banner */}
             <div style={{
               borderRadius: 'var(--radius-lg)',
               overflow: 'hidden',
@@ -671,29 +723,66 @@ export const CourseDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Institution Brand */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Offered by</div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--navy-950)' }}>
-                {course.institutionName || 'EduSphere Academy'}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Offered by</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--navy-950)', marginTop: 6 }}>
+                {course.institutionName || 'Institution Partner'}
               </div>
             </div>
 
-            {/* Pricing Tag */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'baseline',
-              padding: '14px 0',
+              padding: '16px 0 18px',
               borderTop: '1px solid var(--border-color)',
+              borderBottom: '1px solid var(--border-color)',
+              marginBottom: 18,
             }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>Tuition</span>
-              <span style={{ fontWeight: 800, color: 'var(--teal-700)', fontSize: '1.45rem' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 700 }}>Tuition</span>
+              <span style={{ fontWeight: 800, color: 'var(--teal-700)', fontSize: '1.6rem', letterSpacing: '-0.03em' }}>
                 {course.price === 0 ? 'Free' : `$${course.price}`}
               </span>
             </div>
 
-            {/* Enrollment Feedback Message */}
+            <div style={{
+              display: 'grid',
+              gap: 10,
+              padding: '0 0 14px',
+            }}>
+              {[
+                'Structured curriculum with guided milestones',
+                'Certificate of completion and learner verification',
+                'Flexible self-paced access across devices',
+              ].map((item) => (
+                <div
+                  key={item}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    fontSize: '0.86rem',
+                    color: 'var(--slate-700)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <div style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    backgroundColor: 'var(--teal-50)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <CheckCircle size={12} color="var(--teal-600)" />
+                  </div>
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+
             {enrollMsg && (
               <div style={{
                 backgroundColor: 'var(--teal-50)',
@@ -713,18 +802,21 @@ export const CourseDetailPage: React.FC = () => {
               </div>
             )}
 
-            {/* Main Action Button */}
             <Button
               onClick={isEnrolled ? () => setCurrentPage('my-courses') : handleEnroll}
               variant={isEnrolled ? 'teal' : 'primary'}
               size="lg"
               isLoading={isEnrolling}
-              style={{ width: '100%', marginTop: 12, justifyContent: 'center' }}
+              style={{
+                width: '100%',
+                marginTop: 12,
+                justifyContent: 'center',
+                boxShadow: '0 16px 30px -12px rgba(79, 70, 229, 0.5)',
+              }}
             >
               {isEnrolled ? 'Go to My Courses' : 'Enroll Now'}
             </Button>
 
-            {/* Midterm Exam CTA Button */}
             <Button
               onClick={() => startExam('assessment-1')}
               variant="secondary"
@@ -734,7 +826,6 @@ export const CourseDetailPage: React.FC = () => {
               <ShieldCheck size={16} /> Open Midterm Exam
             </Button>
 
-            {/* Guarantee Note */}
             <div style={{
               display: 'flex',
               alignItems: 'center',

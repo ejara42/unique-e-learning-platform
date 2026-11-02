@@ -226,7 +226,7 @@ export const CertificateVerifyPage: React.FC = () => {
                 <div>
                   <div style={{ color: 'var(--text-muted)' }}>ISSUING INSTITUTION</div>
                   <div style={{ fontWeight: 800, color: 'var(--navy-950)' }}>
-                    {certData.institutionName || 'EduSphere National Academy'}
+                    {certData.institutionName || 'Institution Partner'}
                   </div>
                 </div>
                 <div>
@@ -254,7 +254,7 @@ export const CertificateVerifyPage: React.FC = () => {
                 gap: 20,
               }}>
                 <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontFamily: 'cursive', fontSize: '1.3rem', color: '#1E293B' }}>Dr. Almaz Bekele</div>
+                  <div style={{ fontFamily: 'cursive', fontSize: '1.3rem', color: '#1E293B' }}>Authorized Signatory</div>
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', borderTop: '1px solid #94A3B8', paddingTop: 4, minWidth: 160 }}>
                     Academic Director
                   </div>

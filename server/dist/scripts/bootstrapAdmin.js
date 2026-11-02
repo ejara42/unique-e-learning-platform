@@ -89,9 +89,6 @@ function parseArgs() {
             options.fullName = args[i + 1];
             i++;
         }
-        else if (args[i] === '--purge-demo') {
-            options.purgeDemo = true;
-        }
         else if (args[i] === '--password') {
             console.error('\n❌ Security Violation: Passing passwords via command-line arguments (--password) is prohibited.\n' +
                 '   Command line arguments are captured in OS process tables (ps, Task Manager) and shell history.\n' +
@@ -167,37 +164,12 @@ async function bootstrapPlatformAdmin(opts) {
             $or: [{ globalRole: 'PLATFORM_SUPERADMIN' }, { activeRole: 'PLATFORM_ADMIN' }]
         }).lean());
         if (existingAdmin) {
-            const isLegacyDemo = existingAdmin.email === 'admin@edusphere.io' || existingAdmin.id === 'user-admin';
-            let shouldPurgeDemo = Boolean(opts?.purgeDemo);
-            if (isLegacyDemo && !shouldPurgeDemo && process.stdin.isTTY) {
-                console.log(`⚠️  Notice: Baseline demo persona (${existingAdmin.email}) was detected in the database.`);
-                console.log('   In accordance with production hardening, demo personas must be removed to establish root governance.');
-                const confirm = await askPrompt('   Do you want to purge legacy demo personas now and proceed? (yes/no): ');
-                if (confirm.toLowerCase() === 'yes' || confirm.toLowerCase() === 'y') {
-                    shouldPurgeDemo = true;
-                }
+            const abortMsg = `Aborted: Platform SuperAdmin already exists (${existingAdmin.email}). The bootstrap routine can only initialize the first root administrator.`;
+            console.warn(`⚠️  ${abortMsg}`);
+            if (!opts?.preserveConnection) {
+                await (0, mongoConnection_1.disconnectMongoDB)();
             }
-            if (isLegacyDemo && shouldPurgeDemo) {
-                console.log(`\n🧹 Purging legacy demo personas (@edusphere.io) to allow first legitimate administrator bootstrap...`);
-                const delRes = await models_1.UserModel.deleteMany({
-                    $or: [
-                        { email: { $regex: /@edusphere\.io$/i } },
-                        { id: { $in: ['user-admin', 'user-instadmin', 'user-instructor', 'user-student'] } }
-                    ]
-                });
-                console.log(`✅ Purged ${delRes.deletedCount} legacy demo persona(s). Continuing provisioning...\n`);
-            }
-            else {
-                const abortMsg = `Aborted: Platform SuperAdmin already exists (${existingAdmin.email}). The bootstrap routine can only initialize the first root administrator.`;
-                console.warn(`⚠️  ${abortMsg}`);
-                if (isLegacyDemo) {
-                    console.warn(`   Run 'npm --prefix server run purge:demo-users' to remove demo personas, or rerun bootstrap and confirm the purge prompt.\n`);
-                }
-                if (!opts?.preserveConnection) {
-                    await (0, mongoConnection_1.disconnectMongoDB)();
-                }
-                return { success: false, message: abortMsg };
-            }
+            return { success: false, message: abortMsg };
         }
         // 6. Check if target email already exists
         const emailInUse = (await models_1.UserModel.findOne({ email }).lean());
@@ -290,7 +262,6 @@ if (require.main === module) {
                 email,
                 fullName,
                 password,
-                purgeDemo: cliArgs.purgeDemo,
             });
             process.exit(res.success ? 0 : 1);
         }

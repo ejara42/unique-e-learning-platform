@@ -84,7 +84,7 @@ async function runPhaseATests() {
       learnerName: 'Sara Ahmed',
       courseId: 'course-1',
       courseTitle: 'Full-Stack Distributed Systems Engineering',
-      institutionName: 'Apex University',
+      institutionName: 'Institution Partner',
       gradePercentage: 94,
       qrCodeData: 'https://edusphere.io/verify/EDU-2026-TEST-9999',
       status: 'VALID',
@@ -186,8 +186,8 @@ async function runPhaseATests() {
     assert.strictEqual(db.users.length, 0, 'Production user store must NOT contain hardcoded demo accounts!');
 
     const apexUni = db.tenants.find(t => t.id === 'tenant-3');
-    assert(apexUni, 'Apex University tenant must exist');
-    assert.strictEqual(apexUni?.name, 'Apex University');
+    assert(apexUni, 'Institution Partner tenant must exist');
+    assert.strictEqual(apexUni?.name, 'Institution Partner');
     assert.strictEqual(apexUni?.status, 'VERIFIED');
 
     // Confirm hardcoded demo accounts no longer exist
@@ -201,7 +201,7 @@ async function runPhaseATests() {
   // TEST 7: Cross-Institution Tampering Barrier
   // ---------------------------------------------------------------------------
   await test('7. Cross-Tenant Barrier: Institution Admin cannot mutate another institution records', () => {
-    // Simulating Institution Admin of Tenant 3 (Apex University) attempting to approve admission for Tenant 1
+    // Simulating Institution Admin of Tenant 3 (Institution Partner) attempting to approve admission for Tenant 1
     const apexAdmin = {
       id: 'user-instadmin-3',
       institutionId: 'tenant-3',

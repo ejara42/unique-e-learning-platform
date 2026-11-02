@@ -14,6 +14,7 @@ export type AppPage =
   | 'institution-register'
   | 'admin-dashboard'
   | 'live-classroom'
+  | 'lesson-player'
   | 'exam-player'
   | 'certificate-verify';
 
@@ -24,6 +25,8 @@ interface AppContextType {
   setCurrentUser: (user: IUser | null) => void;
   selectedCourseId: string | null;
   setSelectedCourseId: (id: string | null) => void;
+  selectedLessonId: string | null;
+  setSelectedLessonId: (id: string | null) => void;
   selectedAssessmentId: string | null;
   setSelectedAssessmentId: (id: string | null) => void;
   verificationCode: string;
@@ -39,6 +42,7 @@ interface AppContextType {
 
   // Navigation shortcuts
   openCourse: (courseId: string) => void;
+  openLesson: (lessonId: string) => void;
   startExam: (assessmentId: string) => void;
   openLiveClass: (sessionId: string) => void;
   openVerification: (certCode: string) => void;
@@ -63,6 +67,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentPage, setCurrentPage] = useState<AppPage>('landing');
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>('course-1');
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>('assessment-1');
   const [verificationCode, setVerificationCode] = useState<string>('');
   const [activeLiveSessionId, setActiveLiveSessionId] = useState<string | null>('live-1');
@@ -218,7 +223,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const openCourse = (courseId: string) => {
     setSelectedCourseId(courseId);
+    setSelectedLessonId(null);
     setCurrentPage('course-detail');
+  };
+
+  const openLesson = (lessonId: string) => {
+    setSelectedLessonId(lessonId);
+    setCurrentPage('lesson-player');
   };
 
   const startExam = (assessmentId: string) => {
@@ -247,6 +258,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUser,
         selectedCourseId,
         setSelectedCourseId,
+        selectedLessonId,
+        setSelectedLessonId,
         selectedAssessmentId,
         setSelectedAssessmentId,
         verificationCode,
@@ -258,6 +271,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         switchUserRole,
         logoutUser,
         openCourse,
+        openLesson,
         startExam,
         openLiveClass,
         openVerification,

@@ -11,6 +11,7 @@ import { TeacherCourseStudio } from './pages/TeacherCourseStudio';
 import { InstitutionRegisterPage } from './pages/InstitutionRegisterPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { LiveClassroomPage } from './pages/LiveClassroomPage';
+import { LessonPlayerPage } from './pages/LessonPlayerPage';
 import { AssessmentExamPlayer } from './pages/AssessmentExamPlayer';
 import { CertificateVerifyPage } from './pages/CertificateVerifyPage';
 
@@ -35,6 +36,7 @@ export const App: React.FC = () => {
         {currentPage === 'institution-register' && <InstitutionRegisterPage />}
         {currentPage === 'admin-dashboard' && <AdminDashboard />}
         {currentPage === 'live-classroom' && <LiveClassroomPage />}
+        {currentPage === 'lesson-player' && <LessonPlayerPage />}
         {currentPage === 'exam-player' && <AssessmentExamPlayer />}
         {currentPage === 'certificate-verify' && <CertificateVerifyPage />}
       </div>

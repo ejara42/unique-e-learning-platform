@@ -212,7 +212,7 @@ export const AssessmentExamPlayer: React.FC = () => {
                     {result.certificate.certificateNumber}
                   </div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--primary)', marginTop: 2 }}>
-                    Issued by {result.certificate.institutionName || 'EduSphere Academy'}
+                    Issued by {result.certificate.institutionName || 'Institution Partner'}
                   </div>
                 </div>
 

@@ -86,14 +86,14 @@ async function runAdversarialSecuritySuite() {
       // Mock Mongoose model find to verify operational recovery without needing live daemon socket
       const originalFind = TenantModel.find;
       (TenantModel as any).find = () => ({
-        lean: async () => [{ _id: 'tenant-recovered-1', name: 'Apex University', slug: 'apex-uni' }]
+        lean: async () => [{ _id: 'tenant-recovered-1', name: 'Institution Partner', slug: 'institution-partner' }]
       });
 
       try {
         // Operations must succeed now
         const tenants = await repo.getTenants();
         assert(Array.isArray(tenants), 'Operations must immediately recover');
-        assert.strictEqual(tenants[0].name, 'Apex University');
+        assert.strictEqual(tenants[0].name, 'Institution Partner');
       } finally {
         TenantModel.find = originalFind;
       }

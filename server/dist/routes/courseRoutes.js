@@ -71,7 +71,7 @@ router.post('/', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INST
         }
         const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         const institutionId = req.user?.institutionId || null;
-        let institutionName = 'EduSphere Open Academy';
+        let institutionName = 'Institution Partner';
         if (institutionId) {
             const tenant = await dbRepository_1.repo.getTenantById(institutionId);
             if (tenant)

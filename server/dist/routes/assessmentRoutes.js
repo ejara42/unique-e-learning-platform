@@ -132,7 +132,7 @@ router.post('/:id/submit', auth_1.requireAuth, async (req, res) => {
                 learnerName: req.user?.fullName || 'Verified Learner',
                 courseId: assessment.courseId,
                 courseTitle: course?.title || 'Academic Certification Program',
-                institutionName: course?.institutionName || 'Apex University',
+                institutionName: course?.institutionName || 'Institution Partner',
                 issueDate: new Date().toISOString(),
                 gradePercentage: percentageScore,
                 qrCodeData: `https://edusphere.io/verify/${certNumber}`,

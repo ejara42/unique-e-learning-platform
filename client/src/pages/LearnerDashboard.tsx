@@ -52,10 +52,15 @@ export const LearnerDashboard: React.FC = () => {
           alignItems: 'flex-start',
           flexWrap: 'wrap',
           gap: 16,
-          marginBottom: 32,
+          marginBottom: 30,
+          padding: '24px 26px',
+          borderRadius: 'var(--radius-2xl)',
+          border: '1px solid rgba(79, 70, 229, 0.12)',
+          background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.06), rgba(255,255,255,1) 42%, rgba(13,148,136,0.04))',
+          boxShadow: '0 18px 25px -20px rgba(79, 70, 229, 0.6)',
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--primary)', fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--primary)', fontSize: 'var(--text-xs)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
               <Sparkles size={14} />
               <span>Learner Workspace</span>
             </div>
@@ -63,7 +68,7 @@ export const LearnerDashboard: React.FC = () => {
               <span>{t.welcome}, {currentUser?.fullName || t.roleStudent}</span>
               <span style={{ fontSize: '1.6rem' }}>👋</span>
             </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginTop: 4, maxWidth: 640 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginTop: 6, maxWidth: 640, lineHeight: 1.6 }}>
               Track your enrolled curriculum, continue learning from where you left off, and verify your credentials.
             </p>
           </div>
@@ -173,7 +178,16 @@ export const LearnerDashboard: React.FC = () => {
                 const isCompleted = enr.status === 'COMPLETED' || enr.progressPercentage === 100;
 
                 return (
-                  <div key={enr.id} className="card card-hover" style={{ padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div key={enr.id} className="card card-hover" style={{
+                    padding: 20,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid rgba(148,163,184,0.24)',
+                    boxShadow: '0 18px 28px -24px rgba(15, 23, 42, 0.35)',
+                    background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)',
+                  }}>
                     <div>
                       <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
                         <img
@@ -182,7 +196,7 @@ export const LearnerDashboard: React.FC = () => {
                           style={{ width: 80, height: 80, borderRadius: 'var(--radius-lg)', objectFit: 'cover', flexShrink: 0 }}
                         />
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                             {course.category}
                           </span>
                           <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--navy-900)', marginTop: 2, marginBottom: 4, lineHeight: 1.3 }}>
@@ -195,7 +209,6 @@ export const LearnerDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Progress Bar */}
                       <div style={{ marginBottom: 18 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', fontWeight: 600, marginBottom: 6 }}>
                           <span style={{ color: 'var(--text-muted)' }}>Progress</span>
@@ -203,7 +216,7 @@ export const LearnerDashboard: React.FC = () => {
                             {enr.progressPercentage || 0}%
                           </span>
                         </div>
-                        <div style={{ width: '100%', height: 6, backgroundColor: 'var(--slate-200)', borderRadius: 'var(--radius-full)' }}>
+                        <div style={{ width: '100%', height: 8, backgroundColor: 'var(--slate-200)', borderRadius: 'var(--radius-full)' }}>
                           <div
                             style={{
                               width: `${Math.min(100, Math.max(0, enr.progressPercentage || 0))}%`,
@@ -262,7 +275,17 @@ export const LearnerDashboard: React.FC = () => {
                   key={course.id}
                   onClick={() => openCourse(course.id)}
                   className="card card-hover"
-                  style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+                  style={{
+                    padding: 0,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid rgba(148,163,184,0.24)',
+                    background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)',
+                    boxShadow: '0 20px 30px -22px rgba(15, 23, 42, 0.38)',
+                  }}
                 >
                   <img
                     src={course.thumbnailUrl}
@@ -271,7 +294,7 @@ export const LearnerDashboard: React.FC = () => {
                   />
                   <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                     <div>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: 4 }}>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.05em' }}>
                         {course.category}
                       </div>
                       <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--navy-900)', marginBottom: 8, lineHeight: 1.3 }}>

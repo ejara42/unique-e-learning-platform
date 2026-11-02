@@ -32,8 +32,8 @@ export const LiveClassroomPage: React.FC = () => {
   const [secondsAttended, setSecondsAttended] = useState(720); // 12 mins
 
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string; isTeacher?: boolean }>>([
-    { sender: 'Faculty Lead (Instructor)', text: 'Welcome to today’s interactive live session! Please feel free to raise hand or ask questions in chat.', time: '14:02', isTeacher: true },
-    { sender: 'Academic Moderator', text: 'Attendance telemetry and live session recording are active.', time: '14:03', isTeacher: true },
+    { sender: 'Instructor', text: 'Welcome to today’s interactive live session! Please feel free to raise hand or ask questions in chat.', time: '14:02', isTeacher: true },
+    { sender: 'Session Moderator', text: 'Attendance telemetry and live session recording are active.', time: '14:03', isTeacher: true },
   ]);
   const [newMsg, setNewMsg] = useState('');
 
@@ -66,10 +66,10 @@ export const LiveClassroomPage: React.FC = () => {
   };
 
   const participants = [
-    { name: 'Faculty Lead (Instructor)', role: 'Instructor (Host)', isSpeaking: true },
+    { name: 'Instructor', role: 'Host', isSpeaking: true },
     ...(currentUser ? [{ name: `${currentUser.fullName} (You)`, role: currentUser.activeRole.replace('_', ' '), isSpeaking: false }] : []),
-    { name: 'Abebe Kebede', role: 'Student Participant', isSpeaking: false },
-    { name: 'Sara Tesfaye', role: 'Student Participant', isSpeaking: false },
+    { name: 'Learner', role: 'Participant', isSpeaking: false },
+    { name: 'Learner', role: 'Participant', isSpeaking: false },
   ];
 
   return (
@@ -110,7 +110,7 @@ export const LiveClassroomPage: React.FC = () => {
               Live Coding Lab: Python Functions & Recursion
             </h2>
             <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
-              Introduction to Programming • Apex University & EduSphere Network
+              Introduction to Programming • Live Learning Session
             </div>
           </div>
         </div>
@@ -192,7 +192,7 @@ export const LiveClassroomPage: React.FC = () => {
               gap: 8,
             }}>
               <Volume2 size={15} color="#34D399" />
-              <span>Dr. Almaz Bekele (Faculty Instructor)</span>
+              <span>Instructor</span>
             </div>
             <div style={{
               position: 'absolute',

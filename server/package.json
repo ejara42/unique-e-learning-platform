@@ -4,7 +4,7 @@
   "description": "EduSphere Backend API Server - Node.js, Express, TypeScript, MongoDB",
   "main": "dist/server.js",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.0.0 <23.0.0"
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",

@@ -201,4 +201,97 @@ export const api = {
   async verifyCertificate(code: string): Promise<{ valid: boolean; certificate?: ICertificate; message: string }> {
     return request(`/certificates/verify/${code}`);
   },
+
+  // Payments (Stripe Checkout)
+  async createCheckoutSession(courseId: string, successUrl?: string, cancelUrl?: string): Promise<{
+    message: string;
+    session: {
+      sessionId: string;
+      paymentUrl: string;
+      amount: number;
+      currency: string;
+      status: string;
+    };
+  }> {
+    return request('/payments/create-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify({ courseId, successUrl, cancelUrl }),
+    });
+  },
+
+  // Storage & Persistent Cloudflare R2 Uploads
+  async getPresignedUpload(params: {
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    category: 'COURSE_MATERIAL' | 'IMAGE' | 'VIDEO_SOURCE' | 'VERIFICATION_DOC';
+    isPublic?: boolean;
+  }): Promise<{
+    message: string;
+    assetId: string;
+    uploadUrl: string;
+    downloadUrl: string;
+    key: string;
+    headers?: Record<string, string>;
+  }> {
+    return request('/storage/presigned-upload', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+  async confirmUpload(assetId: string): Promise<{ message: string; asset: any }> {
+    return request('/storage/confirm-upload', {
+      method: 'POST',
+      body: JSON.stringify({ assetId }),
+    });
+  },
+  async uploadFile(
+    file: File,
+    category: 'COURSE_MATERIAL' | 'IMAGE' | 'VIDEO_SOURCE' | 'VERIFICATION_DOC' = 'COURSE_MATERIAL',
+    isPublic: boolean = false
+  ): Promise<{ assetId: string; fileUrl: string }> {
+    const presigned = await this.getPresignedUpload({
+      fileName: file.name,
+      fileType: file.type || 'application/octet-stream',
+      fileSize: file.size,
+      category,
+      isPublic,
+    });
+
+    const putRes = await fetch(presigned.uploadUrl, {
+      method: 'PUT',
+      headers: presigned.headers || { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    });
+
+    if (!putRes.ok) {
+      throw new Error(`Direct storage upload failed with HTTP status ${putRes.status}`);
+    }
+
+    const confirmed = await this.confirmUpload(presigned.assetId);
+    return {
+      assetId: presigned.assetId,
+      fileUrl: confirmed.asset?.fileUrl || presigned.downloadUrl || presigned.uploadUrl.split('?')[0],
+    };
+  },
+
+  // Password Recovery & Security Tokens
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    return request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    });
+  },
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    return request('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  },
 };

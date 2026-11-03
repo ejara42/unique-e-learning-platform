@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { 
@@ -16,26 +16,61 @@ import {
   ShieldCheck,
   Clock,
   Volume2,
-  Sparkles
+  Sparkles,
+  GraduationCap,
+  User,
+  Radio
 } from 'lucide-react';
 import { Button, Badge } from '../components/ui';
 
 export const LiveClassroomPage: React.FC = () => {
   const { currentUser, setCurrentPage } = useApp();
   const [micOn, setMicOn] = useState(true);
-  const [videoOn, setVideoOn] = useState(true);
+  const [videoOn, setVideoOn] = useState(false);
   const [screenShare, setScreenShare] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [isRecording, setIsRecording] = useState(true);
   const [chatOpen, setChatOpen] = useState(true);
   const [rosterOpen, setRosterOpen] = useState(false);
-  const [secondsAttended, setSecondsAttended] = useState(720); // 12 mins
+  const [secondsAttended, setSecondsAttended] = useState(0);
+  const [hasCameraStream, setHasCameraStream] = useState(false);
+  const userVideoRef = useRef<HTMLVideoElement>(null);
 
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string; isTeacher?: boolean }>>([
-    { sender: 'Instructor', text: 'Welcome to today’s interactive live session! Please feel free to raise hand or ask questions in chat.', time: '14:02', isTeacher: true },
-    { sender: 'Session Moderator', text: 'Attendance telemetry and live session recording are active.', time: '14:03', isTeacher: true },
+    { 
+      sender: 'Live Classroom System', 
+      text: 'Interactive live session connected. Real-time audio, video, and attendance telemetry are active.', 
+      time: 'Just now', 
+      isTeacher: true 
+    },
   ]);
   const [newMsg, setNewMsg] = useState('');
+
+  // Handle local webcam stream when video is toggled on
+  useEffect(() => {
+    let mediaStream: MediaStream | null = null;
+    if (videoOn && navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false })
+        .then(stream => {
+          mediaStream = stream;
+          if (userVideoRef.current) {
+            userVideoRef.current.srcObject = stream;
+            setHasCameraStream(true);
+          }
+        })
+        .catch(() => {
+          setHasCameraStream(false);
+        });
+    } else {
+      setHasCameraStream(false);
+    }
+
+    return () => {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [videoOn]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -50,10 +85,10 @@ export const LiveClassroomPage: React.FC = () => {
     setChatMessages([
       ...chatMessages,
       {
-        sender: currentUser?.fullName || 'Student Participant',
+        sender: currentUser?.fullName || 'Participant',
         text: newMsg,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isTeacher: currentUser?.activeRole === 'INSTRUCTOR',
+        isTeacher: currentUser?.activeRole === 'INSTRUCTOR' || currentUser?.activeRole === 'PLATFORM_ADMIN',
       },
     ]);
     setNewMsg('');
@@ -65,12 +100,37 @@ export const LiveClassroomPage: React.FC = () => {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const participants = [
-    { name: 'Instructor', role: 'Host', isSpeaking: true },
-    ...(currentUser ? [{ name: `${currentUser.fullName} (You)`, role: currentUser.activeRole.replace('_', ' '), isSpeaking: false }] : []),
-    { name: 'Learner', role: 'Participant', isSpeaking: false },
-    { name: 'Learner', role: 'Participant', isSpeaking: false },
-  ];
+  const isInstructor = currentUser?.activeRole === 'INSTRUCTOR' || currentUser?.activeRole === 'PLATFORM_ADMIN';
+
+  // Roster includes only genuine active participants: Stage Host + Current User
+  const participants = isInstructor
+    ? [
+        { 
+          name: `${currentUser?.fullName || 'Instructor'} (You - Host)`, 
+          role: 'Instructor', 
+          isSpeaking: micOn 
+        }
+      ]
+    : [
+        { 
+          name: 'Faculty Lead / Instructor', 
+          role: 'Host', 
+          isSpeaking: true 
+        },
+        ...(currentUser ? [{ 
+          name: `${currentUser.fullName} (You)`, 
+          role: currentUser.activeRole.replace('_', ' '), 
+          isSpeaking: micOn 
+        }] : [])
+      ];
+
+  const userInitials = (currentUser?.fullName || 'User')
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div style={{
@@ -159,24 +219,45 @@ export const LiveClassroomPage: React.FC = () => {
           overflowY: 'auto',
           alignContent: 'center',
         }}>
-          {/* Teacher Primary Feed */}
+          {/* Teacher Primary Stage Feed */}
           <div style={{
-            backgroundColor: 'var(--navy-900)',
+            backgroundColor: '#0F172A',
+            background: 'radial-gradient(circle at 50% 40%, rgba(79, 70, 229, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%)',
             borderRadius: 'var(--radius-xl)',
             overflow: 'hidden',
-            border: '2px solid rgba(79, 70, 229, 0.4)',
+            border: '2px solid rgba(79, 70, 229, 0.5)',
             boxShadow: 'var(--shadow-xl)',
             position: 'relative',
             minHeight: 280,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            padding: 24,
           }}>
-            <img 
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80" 
-              alt="Faculty Lead" 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
+            <div style={{
+              width: 84,
+              height: 84,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(79, 70, 229, 0.2)',
+              border: '2px solid rgba(129, 140, 248, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+              boxShadow: '0 0 30px rgba(79, 70, 229, 0.35)',
+            }}>
+              <GraduationCap size={44} color="#818CF8" />
+            </div>
+
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FFFFFF', marginBottom: 4 }}>
+              {isInstructor ? (currentUser?.fullName || 'Faculty Lead') : 'Faculty Lead Instructor'}
+            </h3>
+            <p style={{ fontSize: '0.82rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Radio size={14} color="#34D399" />
+              Live Interactive Audio & Video Stream Active
+            </p>
+
             <div style={{
               position: 'absolute',
               bottom: 14,
@@ -192,7 +273,7 @@ export const LiveClassroomPage: React.FC = () => {
               gap: 8,
             }}>
               <Volume2 size={15} color="#34D399" />
-              <span>Instructor</span>
+              <span>{isInstructor ? `${currentUser?.fullName} (Host)` : 'Instructor'}</span>
             </div>
             <div style={{
               position: 'absolute',
@@ -211,7 +292,8 @@ export const LiveClassroomPage: React.FC = () => {
 
           {/* User Participant Feed */}
           <div style={{
-            backgroundColor: 'var(--navy-900)',
+            backgroundColor: '#0F172A',
+            background: 'radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.95) 100%)',
             borderRadius: 'var(--radius-xl)',
             overflow: 'hidden',
             border: '1px solid rgba(255, 255, 255, 0.12)',
@@ -222,15 +304,59 @@ export const LiveClassroomPage: React.FC = () => {
             justifyContent: 'center',
           }}>
             {videoOn ? (
-              <img 
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80" 
-                alt="Your Feed" 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
+              hasCameraStream ? (
+                <video 
+                  ref={userVideoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                />
+              ) : (
+                <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.8rem',
+                    fontWeight: 800,
+                    color: '#FFFFFF',
+                    marginBottom: 12,
+                    boxShadow: '0 8px 24px rgba(79, 70, 229, 0.3)',
+                  }}>
+                    {userInitials}
+                  </div>
+                  <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#FFFFFF', marginBottom: 2 }}>
+                    {currentUser?.fullName || 'Participant'}
+                  </p>
+                  <p style={{ fontSize: '0.78rem', color: '#34D399', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#34D399' }} />
+                    Live Camera Feed Active
+                  </p>
+                </div>
+              )
             ) : (
-              <div style={{ textAlign: 'center', color: '#94A3B8' }}>
-                <VideoOff size={44} style={{ marginBottom: 10, opacity: 0.6 }} />
-                <p style={{ fontSize: '0.88rem' }}>Your camera is turned off</p>
+              <div style={{ textAlign: 'center', color: '#94A3B8', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 12,
+                }}>
+                  <VideoOff size={32} style={{ opacity: 0.6 }} />
+                </div>
+                <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#E2E8F0', marginBottom: 2 }}>
+                  {currentUser?.fullName || 'You'}
+                </p>
+                <p style={{ fontSize: '0.78rem', color: '#64748B' }}>Your camera is turned off</p>
               </div>
             )}
             <div style={{
@@ -248,7 +374,7 @@ export const LiveClassroomPage: React.FC = () => {
               gap: 8,
             }}>
               {micOn ? <Mic size={14} color="#34D399" /> : <MicOff size={14} color="#EF4444" />}
-              <span>{currentUser?.fullName || 'You (Participant)'}</span>
+              <span>{currentUser?.fullName ? `${currentUser.fullName} (You)` : 'You (Participant)'}</span>
             </div>
           </div>
         </div>

@@ -128,6 +128,14 @@ export const AssessmentExamPlayer: React.FC = () => {
   };
 
   if (!assessment) {
+    if (!selectedAssessmentId) {
+      return (
+        <div style={{ minHeight: '70vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40 }}>
+          <p style={{ color: 'var(--text-muted)' }}>No assessment selected.</p>
+          <Button variant="primary" onClick={() => setCurrentPage('learner-dashboard')}>Return to Dashboard</Button>
+        </div>
+      );
+    }
     return (
       <>
         <ToastViewport toast={toast} onDismiss={dismissToast} />

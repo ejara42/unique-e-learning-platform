@@ -138,14 +138,14 @@ app.use('/api/storage', storageRoutes);
 app.post('/api/transcode/enqueue', async (req, res) => {
   try {
     const { courseId, lessonId, sourceUrl } = req.body;
-    if (!courseId || !lessonId) {
-      res.status(400).json({ message: 'courseId and lessonId are required' });
+    if (!courseId || !lessonId || !sourceUrl) {
+      res.status(400).json({ message: 'courseId, lessonId, and sourceUrl are required' });
       return;
     }
     const job = await transcodingService.enqueueTranscodeJob(
       courseId,
       lessonId,
-      sourceUrl || 'https://storage.edusphere.io/raw-uploads/video-sample.mp4'
+      sourceUrl
     );
     res.status(202).json({ message: 'Transcoding job queued into BullMQ runner', job });
   } catch (err: any) {
@@ -196,6 +196,21 @@ const server = app.listen(config.port, async () => {
 
   try {
     await connectMongoDB();
+
+    // Automated Platform Admin provisioning on deployment if configured in Environment
+    if (process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD) {
+      try {
+        const { bootstrapPlatformAdmin } = await import('./scripts/bootstrapAdmin');
+        await bootstrapPlatformAdmin({
+          email: process.env.INITIAL_ADMIN_EMAIL,
+          password: process.env.INITIAL_ADMIN_PASSWORD,
+          fullName: process.env.INITIAL_ADMIN_NAME || 'Platform Administrator',
+          preserveConnection: true,
+        });
+      } catch (adminBootstrapErr: any) {
+        console.error('[EduSphere Admin Bootstrap Error]', adminBootstrapErr?.message || adminBootstrapErr);
+      }
+    }
   } catch (err: any) {
     if (config.isProduction) {
       console.error('[FATAL] Process exiting due to production database connection failure.');

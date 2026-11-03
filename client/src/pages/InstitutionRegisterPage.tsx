@@ -28,10 +28,8 @@ export const InstitutionRegisterPage: React.FC = () => {
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([
-    'Ministry_Accreditation_Certificate.pdf'
-  ]);
-  const [customDocName, setCustomDocName] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ title: string; fileUrl: string; uploadedAt: string }>>([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -49,13 +47,28 @@ export const InstitutionRegisterPage: React.FC = () => {
     return '';
   };
 
-  const handleAddDocument = () => {
-    if (!customDocName.trim()) {
-      showToast({ title: 'Document title required', description: 'Add a document name before attaching it.', tone: 'warning' });
-      return;
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingDoc(true);
+    try {
+      const uploadRes = await api.uploadFile(file, 'VERIFICATION_DOC', true);
+      setUploadedFiles(prev => [
+        ...prev,
+        {
+          title: file.name,
+          fileUrl: uploadRes.fileUrl,
+          uploadedAt: new Date().toISOString(),
+        }
+      ]);
+      showToast({ title: 'Document uploaded', description: `Uploaded "${file.name}" to verified cloud repository.`, tone: 'success' });
+    } catch (err: any) {
+      showToast({ title: 'Upload failed', description: err.message || 'File upload failed', tone: 'error' });
+    } finally {
+      setUploadingDoc(false);
+      e.target.value = '';
     }
-    setUploadedFiles([...uploadedFiles, customDocName.trim()]);
-    setCustomDocName('');
   };
 
   const handleRemoveDocument = (index: number) => {
@@ -80,11 +93,7 @@ export const InstitutionRegisterPage: React.FC = () => {
         address: address.trim(),
         contactEmail: contactEmail.trim(),
         contactPhone: contactPhone.trim(),
-        documents: uploadedFiles.map(title => ({
-          title,
-          fileUrl: `https://docs.edusphere.io/${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-          uploadedAt: new Date().toISOString(),
-        })),
+        documents: uploadedFiles,
       });
 
       setSuccessMsg(`Registration dossier for "${institutionName}" has been submitted to the National Accreditation Review Board. Platform administrators can now review and accept ("take") your institution into the system.`);
@@ -291,56 +300,67 @@ export const InstitutionRegisterPage: React.FC = () => {
                   </p>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-                    {uploadedFiles.map((doc, idx) => (
-                      <div key={idx} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 14px',
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--slate-200)',
-                        fontSize: '0.88rem',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--primary)', fontWeight: 700 }}>
-                          <FileText size={18} />
-                          <span>{doc}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDocument(idx)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--slate-400)',
-                            cursor: 'pointer',
-                          }}
-                          title="Remove document"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                    {uploadedFiles.length === 0 ? (
+                      <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                        No accreditation documents attached yet. Click below to select PDF files from your device.
                       </div>
-                    ))}
+                    ) : (
+                      uploadedFiles.map((doc, idx) => (
+                        <div key={idx} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          backgroundColor: '#FFFFFF',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--slate-200)',
+                          fontSize: '0.88rem',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--primary)', fontWeight: 700 }}>
+                            <FileText size={18} />
+                            <span>{doc.title}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDocument(idx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--slate-400)',
+                              cursor: 'pointer',
+                            }}
+                            title="Remove document"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
 
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <input 
-                      type="text"
-                      value={customDocName}
-                      onChange={e => setCustomDocName(e.target.value)}
-                      placeholder="e.g. Higher_Education_Council_Permit.pdf"
-                      className="input-field"
-                      style={{ height: 40, fontSize: '0.88rem', flex: 1 }}
-                    />
-                    <Button 
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleAddDocument}
-                      icon={<Plus size={16} />}
-                    >
-                      Attach File
-                    </Button>
+                  <div>
+                    <label style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      cursor: uploadingDoc ? 'not-allowed' : 'pointer',
+                      padding: '10px 18px',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      fontSize: '0.88rem',
+                      fontWeight: 700,
+                    }}>
+                      <UploadCloud size={16} />
+                      <span>{uploadingDoc ? 'Uploading to Storage...' : 'Upload Accreditation PDF / Doc'}</span>
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*,.doc,.docx"
+                        style={{ display: 'none' }}
+                        disabled={uploadingDoc}
+                        onChange={handleFileUpload}
+                      />
+                    </label>
                   </div>
                 </div>
 

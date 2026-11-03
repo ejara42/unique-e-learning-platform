@@ -160,29 +160,27 @@ export const LessonPlayerPage: React.FC = () => {
                 boxShadow: 'var(--shadow-md)',
               }}>
                 {isVideo ? (
-                  <>
-                    <img
-                      src={course.thumbnailUrl}
-                      alt={lesson.title}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.32 }}
-                    />
-                    <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, color: '#FFFFFF' }}>
-                      <div style={{
-                        width: 76,
-                        height: 76,
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.14)',
-                        border: '1px solid rgba(255,255,255,0.25)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backdropFilter: 'blur(8px)',
-                      }}>
-                        <PlayCircle size={38} color="#FFF" />
-                      </div>
-                      <div style={{ fontSize: '0.8rem', letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.9 }}>Lesson video</div>
-                    </div>
-                  </>
+                  <div style={{ width: "100%", height: "100%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#000000" }}>
+                    <video
+                      key={lesson.id}
+                      controls
+                      playsInline
+                      poster={course.thumbnailUrl}
+                      style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                      onEnded={() => {
+                        if (selectedCourseId) {
+                          api.updateProgress(selectedCourseId, lesson.id);
+                          setCompletedLessons(prev => ({ ...prev, [lesson.id]: true }));
+                        }
+                      }}
+                    >
+                      <source
+                        src={(lesson as any).videoUrl || (lesson as any).hlsUrl || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"}
+                        type="video/mp4"
+                      />
+                      Your browser does not support HTML5 video playback.
+                    </video>
+                  </div>
                 ) : (
                   <div style={{ width: '100%', padding: 24, color: 'var(--slate-700)', lineHeight: 1.8 }}>
                     <div style={{ fontWeight: 800, fontSize: '1.1rem', marginBottom: 12, color: 'var(--navy-950)' }}>Lesson notes</div>

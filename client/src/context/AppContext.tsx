@@ -66,11 +66,11 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentPage, setCurrentPage] = useState<AppPage>('landing');
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>('course-1');
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
-  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>('assessment-1');
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState<string>('');
-  const [activeLiveSessionId, setActiveLiveSessionId] = useState<string | null>('live-1');
+  const [activeLiveSessionId, setActiveLiveSessionId] = useState<string | null>(null);
 
   // Multi-Lingual & Accessibility State
   const [language, setLanguageState] = useState<LanguageCode>('en');

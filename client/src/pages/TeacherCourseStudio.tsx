@@ -31,9 +31,20 @@ export const TeacherCourseStudio: React.FC = () => {
   const [category, setCategory] = useState('Computer Science');
   const [level, setLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels'>('Beginner');
   const [price, setPrice] = useState(0);
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
 
   // Step 2: Content Modules
-  const [modules, setModules] = useState<Array<{ title: string; lessons: Array<{ title: string; type: 'VIDEO' | 'DOCUMENT' | 'QUIZ'; duration: number }> }>>([
+  const [modules, setModules] = useState<Array<{
+    title: string;
+    lessons: Array<{
+      title: string;
+      type: 'VIDEO' | 'DOCUMENT' | 'QUIZ';
+      duration: number;
+      videoUrl?: string;
+      uploading?: boolean;
+    }>;
+  }>>([
     {
       title: 'Module 1: Introduction & Overview',
       lessons: [
@@ -104,6 +115,7 @@ export const TeacherCourseStudio: React.FC = () => {
           order: lIdx + 1,
           contentType: l.type,
           durationMinutes: l.duration,
+          videoUrl: l.videoUrl || undefined,
           isFreePreview: lIdx === 0,
         })),
       }));
@@ -114,6 +126,7 @@ export const TeacherCourseStudio: React.FC = () => {
         category,
         level,
         price,
+        thumbnailUrl: thumbnailUrl || undefined,
         modules: formattedModules as any,
         completionCriteria: { minimumPassingGradePct: passingGrade },
         isPublished: true,
@@ -348,6 +361,55 @@ export const TeacherCourseStudio: React.FC = () => {
                 </div>
               </div>
 
+              <div>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                  Course Cover Thumbnail
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <label style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: uploadingThumbnail ? 'not-allowed' : 'pointer',
+                    padding: '9px 16px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: thumbnailUrl ? '#F0FDF4' : '#F8FAFC',
+                    color: thumbnailUrl ? '#166534' : 'var(--navy-900)',
+                    fontSize: '0.86rem',
+                    fontWeight: 600,
+                  }}>
+                    <UploadCloud size={16} />
+                    <span>{uploadingThumbnail ? 'Uploading image...' : thumbnailUrl ? 'Thumbnail Uploaded ✓' : 'Upload Cover Image'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      disabled={uploadingThumbnail}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUploadingThumbnail(true);
+                        try {
+                          const res = await api.uploadFile(file, 'IMAGE', true);
+                          setThumbnailUrl(res.fileUrl);
+                          showToast({ title: 'Thumbnail uploaded', description: file.name, tone: 'success' });
+                        } catch (err: any) {
+                          showToast({ title: 'Thumbnail upload failed', description: err.message, tone: 'error' });
+                        } finally {
+                          setUploadingThumbnail(false);
+                        }
+                      }}
+                    />
+                  </label>
+                  {thumbnailUrl && (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>
+                      {thumbnailUrl}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <div style={{
                 display: 'flex',
                 justifyContent: 'flex-end',
@@ -508,6 +570,51 @@ export const TeacherCourseStudio: React.FC = () => {
                           />
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>min</span>
                         </div>
+
+                        {/* Video / Resource Upload Button */}
+                        <label style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          cursor: lesson.uploading ? 'not-allowed' : 'pointer',
+                          padding: '6px 10px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: lesson.videoUrl ? '#F0FDF4' : '#F8FAFC',
+                          color: lesson.videoUrl ? '#166534' : 'var(--navy-900)',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          <UploadCloud size={14} />
+                          <span>{lesson.uploading ? 'Uploading...' : lesson.videoUrl ? 'Video ✓' : 'Upload Video'}</span>
+                          <input
+                            type="file"
+                            accept="video/*,application/pdf"
+                            style={{ display: 'none' }}
+                            disabled={lesson.uploading}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const updated = [...modules];
+                              updated[mIdx].lessons[lIdx].uploading = true;
+                              setModules([...updated]);
+                              try {
+                                const uploadRes = await api.uploadFile(file, 'VIDEO_SOURCE', true);
+                                const next = [...modules];
+                                next[mIdx].lessons[lIdx].videoUrl = uploadRes.fileUrl;
+                                next[mIdx].lessons[lIdx].uploading = false;
+                                setModules(next);
+                                showToast({ title: 'Video uploaded', description: `Uploaded "${file.name}" to cloud storage.`, tone: 'success' });
+                              } catch (err: any) {
+                                const next = [...modules];
+                                next[mIdx].lessons[lIdx].uploading = false;
+                                setModules(next);
+                                showToast({ title: 'Upload failed', description: err.message || 'Upload failed', tone: 'error' });
+                              }
+                            }}
+                          />
+                        </label>
                         {mod.lessons.length > 1 && (
                           <button
                             type="button"

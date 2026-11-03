@@ -52,13 +52,7 @@ router.post('/register', async (req, res) => {
             contactEmail: contactEmail.trim().toLowerCase(),
             contactPhone: contactPhone || '',
             address: address || '',
-            verificationDocuments: documents || [
-                {
-                    title: 'Accreditation Certificate.pdf',
-                    fileUrl: 'https://docs.edusphere.io/sample-accreditation.pdf',
-                    uploadedAt: new Date().toISOString(),
-                },
-            ],
+            verificationDocuments: Array.isArray(documents) ? documents : [],
             branding: {
                 primaryColor: '#2563EB',
                 secondaryColor: '#1E40AF',

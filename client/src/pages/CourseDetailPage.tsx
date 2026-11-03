@@ -121,11 +121,26 @@ export const CourseDetailPage: React.FC = () => {
     }
     setIsEnrolling(true);
     try {
+      if (course.price && course.price > 0) {
+        showToast({ title: 'Redirecting to checkout', description: 'Initializing secure Stripe checkout session...', tone: 'info' });
+        const res = await api.createCheckoutSession(
+          course.id,
+          `${window.location.origin}/?payment=success&courseId=${course.id}`,
+          `${window.location.origin}/?payment=cancelled&courseId=${course.id}`
+        );
+        if (res.session?.paymentUrl) {
+          window.location.href = res.session.paymentUrl;
+          return;
+        }
+      }
+
       await api.enroll(course.id);
       setIsEnrolled(true);
       setEnrollMsg('Successfully enrolled in course!');
+      showToast({ title: 'Enrolled successfully', description: `You have successfully enrolled in ${course.title}.`, tone: 'success' });
     } catch (e: any) {
       setEnrollMsg(e.message || 'Already enrolled');
+      showToast({ title: 'Enrollment notice', description: e.message || 'Enrollment request not processed.', tone: 'warning' });
     } finally {
       setIsEnrolling(false);
     }

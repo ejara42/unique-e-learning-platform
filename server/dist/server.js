@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -127,11 +160,11 @@ app.use('/api/storage', storageRoutes_1.default);
 app.post('/api/transcode/enqueue', async (req, res) => {
     try {
         const { courseId, lessonId, sourceUrl } = req.body;
-        if (!courseId || !lessonId) {
-            res.status(400).json({ message: 'courseId and lessonId are required' });
+        if (!courseId || !lessonId || !sourceUrl) {
+            res.status(400).json({ message: 'courseId, lessonId, and sourceUrl are required' });
             return;
         }
-        const job = await transcodingService_1.transcodingService.enqueueTranscodeJob(courseId, lessonId, sourceUrl || 'https://storage.edusphere.io/raw-uploads/video-sample.mp4');
+        const job = await transcodingService_1.transcodingService.enqueueTranscodeJob(courseId, lessonId, sourceUrl);
         res.status(202).json({ message: 'Transcoding job queued into BullMQ runner', job });
     }
     catch (err) {
@@ -168,7 +201,7 @@ app.use((err, _req, res, _next) => {
     });
 });
 // Start Server and initialize MongoDB connection
-const server = app.listen(config_1.config.port, '0.0.0.0', async () => {
+const server = app.listen(config_1.config.port, async () => {
     console.log(`=======================================================`);
     console.log(`🚀 EduSphere Backend API Server is active!`);
     console.log(`📡 URL: http://localhost:${config_1.config.port}`);
@@ -176,6 +209,21 @@ const server = app.listen(config_1.config.port, '0.0.0.0', async () => {
     console.log(`=======================================================`);
     try {
         await (0, mongoConnection_1.connectMongoDB)();
+        // Automated Platform Admin provisioning on deployment if configured in Environment
+        if (process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD) {
+            try {
+                const { bootstrapPlatformAdmin } = await Promise.resolve().then(() => __importStar(require('./scripts/bootstrapAdmin')));
+                await bootstrapPlatformAdmin({
+                    email: process.env.INITIAL_ADMIN_EMAIL,
+                    password: process.env.INITIAL_ADMIN_PASSWORD,
+                    fullName: process.env.INITIAL_ADMIN_NAME || 'Platform Administrator',
+                    preserveConnection: true,
+                });
+            }
+            catch (adminBootstrapErr) {
+                console.error('[EduSphere Admin Bootstrap Error]', adminBootstrapErr?.message || adminBootstrapErr);
+            }
+        }
     }
     catch (err) {
         if (config_1.config.isProduction) {

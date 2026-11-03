@@ -126,6 +126,12 @@ async function seedInitialMongoData() {
             await models_1.AuditLogModel.insertMany(db_1.db.auditLogs);
             console.log(`[EduSphere Seeder] Seeded ${db_1.db.auditLogs.length} audit logs into MongoDB`);
         }
+        // 8. Live Sessions
+        const liveCount = await models_1.LiveSessionModel.countDocuments();
+        if (liveCount === 0 && db_1.db.liveSessions.length > 0) {
+            await models_1.LiveSessionModel.insertMany(db_1.db.liveSessions);
+            console.log(`[EduSphere Seeder] Seeded ${db_1.db.liveSessions.length} live sessions into MongoDB`);
+        }
     }
     catch (err) {
         console.error('[EduSphere Seeder Error]', err.message);

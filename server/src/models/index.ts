@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { ITenant, IUser, ICourse, IEnrollment, IAssessment, ISubmission, ICertificate, IAuditLog } from '../types';
+import { ITenant, IUser, ICourse, IEnrollment, IAssessment, ISubmission, ICertificate, IAuditLog, ILiveSession } from '../types';
 
 // ============================================================================
 // 1. TENANT SCHEMA
@@ -680,5 +680,49 @@ TranscodeJobSchema.index({ courseId: 1, lessonId: 1 });
 export const FileAssetModel = mongoose.models.FileAsset || mongoose.model<IFileAssetDocument>('FileAsset', FileAssetSchema);
 export const SecurityTokenModel = mongoose.models.SecurityToken || mongoose.model<ISecurityTokenDocument>('SecurityToken', SecurityTokenSchema);
 export const TranscodeJobModel = mongoose.models.TranscodeJob || mongoose.model<ITranscodeJobDocument>('TranscodeJob', TranscodeJobSchema);
+
+// ============================================================================
+// 16. LIVE SESSION SCHEMA (Interactive WebRTC Live Classrooms)
+// ============================================================================
+export interface ILiveSessionDocument extends Document {
+  id: string;
+  courseId: string;
+  courseTitle: string;
+  instructorId: string;
+  instructorName: string;
+  title: string;
+  scheduledStartTime: string;
+  durationMinutes: number;
+  status: 'SCHEDULED' | 'LIVE' | 'CONCLUDED';
+  roomToken?: string;
+  recordingUrl?: string;
+  attendanceCount: number;
+}
+
+export const LiveSessionSchema = new Schema<ILiveSessionDocument>({
+  id: { type: String, required: true, unique: true, index: true },
+  courseId: { type: String, required: true, index: true },
+  courseTitle: { type: String, required: true },
+  instructorId: { type: String, required: true, index: true },
+  instructorName: { type: String, required: true },
+  title: { type: String, required: true },
+  scheduledStartTime: { type: String, required: true },
+  durationMinutes: { type: Number, required: true },
+  status: {
+    type: String,
+    enum: ['SCHEDULED', 'LIVE', 'CONCLUDED'],
+    default: 'SCHEDULED',
+    index: true,
+  },
+  roomToken: String,
+  recordingUrl: String,
+  attendanceCount: { type: Number, default: 0 },
+}, { timestamps: true });
+
+LiveSessionSchema.index({ courseId: 1, status: 1 });
+LiveSessionSchema.index({ instructorId: 1 });
+
+export const LiveSessionModel = mongoose.models.LiveSession || mongoose.model<ILiveSessionDocument>('LiveSession', LiveSessionSchema);
+
 
 

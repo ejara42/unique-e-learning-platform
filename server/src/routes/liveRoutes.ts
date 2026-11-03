@@ -96,7 +96,9 @@ router.post('/:id/join', requireAuth, async (req: AuthRequest, res: Response) =>
       return;
     }
 
-    session.attendanceCount += 1;
+    const updatedSession = await repo.updateLiveSession(session.id, {
+      attendanceCount: (session.attendanceCount || 0) + 1
+    }) || session;
 
     if (!req.user?.id) {
       res.status(401).json({ message: 'Unauthorized: User identity required' });

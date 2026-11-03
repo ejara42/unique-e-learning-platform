@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TranscodeJobModel = exports.SecurityTokenModel = exports.FileAssetModel = exports.TranscodeJobSchema = exports.SecurityTokenSchema = exports.FileAssetSchema = exports.LtiConsumedNonceModel = exports.LtiStateModel = exports.ScormSessionModel = exports.ProcessedWebhookEventModel = exports.AuditLogModel = exports.AdmissionModel = exports.CertificateModel = exports.SubmissionModel = exports.AssessmentModel = exports.EnrollmentModel = exports.CourseModel = exports.UserModel = exports.TenantModel = exports.LtiConsumedNonceSchema = exports.LtiStateSchema = exports.ScormSessionSchema = exports.ProcessedWebhookEventSchema = exports.AuditLogSchema = exports.AdmissionSchema = exports.CertificateSchema = exports.SubmissionSchema = exports.AssessmentSchema = exports.EnrollmentSchema = exports.CourseSchema = exports.UserSchema = exports.TenantSchema = void 0;
+exports.LiveSessionModel = exports.LiveSessionSchema = exports.TranscodeJobModel = exports.SecurityTokenModel = exports.FileAssetModel = exports.TranscodeJobSchema = exports.SecurityTokenSchema = exports.FileAssetSchema = exports.LtiConsumedNonceModel = exports.LtiStateModel = exports.ScormSessionModel = exports.ProcessedWebhookEventModel = exports.AuditLogModel = exports.AdmissionModel = exports.CertificateModel = exports.SubmissionModel = exports.AssessmentModel = exports.EnrollmentModel = exports.CourseModel = exports.UserModel = exports.TenantModel = exports.LtiConsumedNonceSchema = exports.LtiStateSchema = exports.ScormSessionSchema = exports.ProcessedWebhookEventSchema = exports.AuditLogSchema = exports.AdmissionSchema = exports.CertificateSchema = exports.SubmissionSchema = exports.AssessmentSchema = exports.EnrollmentSchema = exports.CourseSchema = exports.UserSchema = exports.TenantSchema = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 exports.TenantSchema = new mongoose_1.Schema({
     id: { type: String, required: true, unique: true, index: true },
@@ -384,3 +384,25 @@ exports.TranscodeJobSchema.index({ courseId: 1, lessonId: 1 });
 exports.FileAssetModel = mongoose_1.default.models.FileAsset || mongoose_1.default.model('FileAsset', exports.FileAssetSchema);
 exports.SecurityTokenModel = mongoose_1.default.models.SecurityToken || mongoose_1.default.model('SecurityToken', exports.SecurityTokenSchema);
 exports.TranscodeJobModel = mongoose_1.default.models.TranscodeJob || mongoose_1.default.model('TranscodeJob', exports.TranscodeJobSchema);
+exports.LiveSessionSchema = new mongoose_1.Schema({
+    id: { type: String, required: true, unique: true, index: true },
+    courseId: { type: String, required: true, index: true },
+    courseTitle: { type: String, required: true },
+    instructorId: { type: String, required: true, index: true },
+    instructorName: { type: String, required: true },
+    title: { type: String, required: true },
+    scheduledStartTime: { type: String, required: true },
+    durationMinutes: { type: Number, required: true },
+    status: {
+        type: String,
+        enum: ['SCHEDULED', 'LIVE', 'CONCLUDED'],
+        default: 'SCHEDULED',
+        index: true,
+    },
+    roomToken: String,
+    recordingUrl: String,
+    attendanceCount: { type: Number, default: 0 },
+}, { timestamps: true });
+exports.LiveSessionSchema.index({ courseId: 1, status: 1 });
+exports.LiveSessionSchema.index({ instructorId: 1 });
+exports.LiveSessionModel = mongoose_1.default.models.LiveSession || mongoose_1.default.model('LiveSession', exports.LiveSessionSchema);

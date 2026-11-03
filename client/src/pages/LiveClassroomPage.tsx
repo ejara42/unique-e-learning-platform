@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
-import { 
-  Mic, 
-  MicOff, 
-  Video, 
-  VideoOff, 
-  ScreenShare, 
-  Hand, 
-  MessageSquare, 
-  Users, 
-  PhoneOff, 
-  Disc, 
+import { ILiveSession } from '../types';
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  ScreenShare,
+  Hand,
+  MessageSquare,
+  Users,
+  PhoneOff,
+  Disc,
   Send,
   ShieldCheck,
   Clock,
@@ -24,7 +25,8 @@ import {
 import { Button, Badge } from '../components/ui';
 
 export const LiveClassroomPage: React.FC = () => {
-  const { currentUser, setCurrentPage } = useApp();
+  const { currentUser, setCurrentPage, activeLiveSessionId } = useApp();
+  const [liveSession, setLiveSession] = useState<ILiveSession | null>(null);
   const [micOn, setMicOn] = useState(true);
   const [videoOn, setVideoOn] = useState(false);
   const [screenShare, setScreenShare] = useState(false);
@@ -37,14 +39,33 @@ export const LiveClassroomPage: React.FC = () => {
   const userVideoRef = useRef<HTMLVideoElement>(null);
 
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string; isTeacher?: boolean }>>([
-    { 
-      sender: 'Live Classroom System', 
-      text: 'Interactive live session connected. Real-time audio, video, and attendance telemetry are active.', 
-      time: 'Just now', 
-      isTeacher: true 
+    {
+      sender: 'Live Classroom System',
+      text: 'Interactive live session connected. Real-time audio, video, and attendance telemetry are active.',
+      time: 'Just now',
+      isTeacher: true
     },
   ]);
   const [newMsg, setNewMsg] = useState('');
+
+  // Fetch session details & join session for telemetry and LiveKit token
+  useEffect(() => {
+    const sessionId = activeLiveSessionId || 'live-1';
+    if (currentUser) {
+      api.joinLiveSession(sessionId)
+        .then(res => {
+          if (res.session) setLiveSession(res.session);
+        })
+        .catch(() => {});
+    } else {
+      api.getLiveSessions()
+        .then(res => {
+          const found = res.sessions?.find(s => s.id === sessionId) || res.sessions?.[0];
+          if (found) setLiveSession(found);
+        })
+        .catch(() => {});
+    }
+  }, [activeLiveSessionId, currentUser]);
 
   // Handle local webcam stream when video is toggled on
   useEffect(() => {
@@ -103,26 +124,27 @@ export const LiveClassroomPage: React.FC = () => {
   const isInstructor = currentUser?.activeRole === 'INSTRUCTOR' || currentUser?.activeRole === 'PLATFORM_ADMIN';
 
   // Roster includes only genuine active participants: Stage Host + Current User
+  const hostName = liveSession?.instructorName || 'Faculty Instructor';
   const participants = isInstructor
     ? [
-        { 
-          name: `${currentUser?.fullName || 'Instructor'} (You - Host)`, 
-          role: 'Instructor', 
-          isSpeaking: micOn 
-        }
-      ]
+      {
+        name: `${currentUser?.fullName || 'Instructor'} (You - Host)`,
+        role: 'Instructor',
+        isSpeaking: micOn
+      }
+    ]
     : [
-        { 
-          name: 'Faculty Lead / Instructor', 
-          role: 'Host', 
-          isSpeaking: true 
-        },
-        ...(currentUser ? [{ 
-          name: `${currentUser.fullName} (You)`, 
-          role: currentUser.activeRole.replace('_', ' '), 
-          isSpeaking: micOn 
-        }] : [])
-      ];
+      {
+        name: hostName,
+        role: 'Host',
+        isSpeaking: true
+      },
+      ...(currentUser ? [{
+        name: `${currentUser.fullName} (You)`,
+        role: currentUser.activeRole.replace('_', ' '),
+        isSpeaking: micOn
+      }] : [])
+    ];
 
   const userInitials = (currentUser?.fullName || 'User')
     .split(' ')
@@ -167,10 +189,10 @@ export const LiveClassroomPage: React.FC = () => {
           </div>
           <div>
             <h2 style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
-              Live Coding Lab: Python Functions & Recursion
+              {liveSession?.title || 'Interactive Live Learning Session'}
             </h2>
             <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
-              Introduction to Programming • Live Learning Session
+              {liveSession?.courseTitle || 'EduSphere Real-Time Classroom'}
             </div>
           </div>
         </div>
@@ -305,12 +327,12 @@ export const LiveClassroomPage: React.FC = () => {
           }}>
             {videoOn ? (
               hasCameraStream ? (
-                <video 
-                  ref={userVideoRef} 
-                  autoPlay 
-                  playsInline 
-                  muted 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                <video
+                  ref={userVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -472,8 +494,8 @@ export const LiveClassroomPage: React.FC = () => {
                   display: 'flex',
                   gap: 8,
                 }}>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={newMsg}
                     onChange={e => setNewMsg(e.target.value)}
                     placeholder="Type a message..."

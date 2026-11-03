@@ -331,13 +331,45 @@ class DatabaseRepository {
         return null;
     }
     // ==========================================================================
-    // LIVE SESSIONS
+    // LIVE SESSIONS (Multi-Tenant WebRTC Classrooms)
     // ==========================================================================
     async getLiveSessions() {
+        this.assertActiveStorage();
+        if (this.isMongoActive()) {
+            const docs = await models_1.LiveSessionModel.find().lean();
+            return docs;
+        }
         return db_1.db.liveSessions;
     }
     async getLiveSessionById(id) {
+        this.assertActiveStorage();
+        if (this.isMongoActive()) {
+            const doc = await models_1.LiveSessionModel.findOne({ id }).lean();
+            return doc;
+        }
         return db_1.db.liveSessions.find(s => s.id === id) || null;
+    }
+    async createLiveSession(session) {
+        this.assertActiveStorage();
+        if (this.isMongoActive()) {
+            const doc = await models_1.LiveSessionModel.create(session);
+            return doc.toObject();
+        }
+        db_1.db.liveSessions.push(session);
+        return session;
+    }
+    async updateLiveSession(id, updates) {
+        this.assertActiveStorage();
+        if (this.isMongoActive()) {
+            const doc = await models_1.LiveSessionModel.findOneAndUpdate({ id }, { $set: updates }, { new: true }).lean();
+            return doc;
+        }
+        const idx = db_1.db.liveSessions.findIndex(s => s.id === id);
+        if (idx !== -1) {
+            db_1.db.liveSessions[idx] = { ...db_1.db.liveSessions[idx], ...updates };
+            return db_1.db.liveSessions[idx];
+        }
+        return null;
     }
     // ==========================================================================
     // ADMISSIONS & AUDIT LOGS

@@ -7,7 +7,8 @@ import {
   SubmissionModel,
   CertificateModel,
   AdmissionModel,
-  AuditLogModel
+  AuditLogModel,
+  LiveSessionModel
 } from '../models';
 import { db } from './db';
 import { connectionState } from './mongoConnection';
@@ -422,14 +423,56 @@ export class DatabaseRepository {
   }
 
   // ==========================================================================
-  // LIVE SESSIONS
+  // LIVE SESSIONS (Multi-Tenant WebRTC Classrooms)
   // ==========================================================================
   async getLiveSessions(): Promise<ILiveSession[]> {
+    this.assertActiveStorage();
+
+    if (this.isMongoActive()) {
+      const docs = await LiveSessionModel.find().lean();
+      return docs as any;
+    }
+
     return db.liveSessions;
   }
 
   async getLiveSessionById(id: string): Promise<ILiveSession | null> {
+    this.assertActiveStorage();
+
+    if (this.isMongoActive()) {
+      const doc = await LiveSessionModel.findOne({ id }).lean();
+      return doc as any;
+    }
+
     return db.liveSessions.find(s => s.id === id) || null;
+  }
+
+  async createLiveSession(session: ILiveSession): Promise<ILiveSession> {
+    this.assertActiveStorage();
+
+    if (this.isMongoActive()) {
+      const doc = await LiveSessionModel.create(session);
+      return doc.toObject() as any;
+    }
+
+    db.liveSessions.push(session);
+    return session;
+  }
+
+  async updateLiveSession(id: string, updates: Partial<ILiveSession>): Promise<ILiveSession | null> {
+    this.assertActiveStorage();
+
+    if (this.isMongoActive()) {
+      const doc = await LiveSessionModel.findOneAndUpdate({ id }, { $set: updates }, { new: true }).lean();
+      return doc as any;
+    }
+
+    const idx = db.liveSessions.findIndex(s => s.id === id);
+    if (idx !== -1) {
+      db.liveSessions[idx] = { ...db.liveSessions[idx], ...updates };
+      return db.liveSessions[idx];
+    }
+    return null;
   }
 
   // ==========================================================================

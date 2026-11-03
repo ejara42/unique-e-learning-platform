@@ -10,7 +10,8 @@ import {
   SubmissionModel,
   CertificateModel,
   AdmissionModel,
-  AuditLogModel
+  AuditLogModel,
+  LiveSessionModel
 } from '../models';
 
 export interface MongoConnectionState {
@@ -155,6 +156,13 @@ export async function seedInitialMongoData(): Promise<void> {
     if (auditCount === 0 && db.auditLogs.length > 0) {
       await AuditLogModel.insertMany(db.auditLogs);
       console.log(`[EduSphere Seeder] Seeded ${db.auditLogs.length} audit logs into MongoDB`);
+    }
+
+    // 8. Live Sessions
+    const liveCount = await LiveSessionModel.countDocuments();
+    if (liveCount === 0 && db.liveSessions.length > 0) {
+      await LiveSessionModel.insertMany(db.liveSessions);
+      console.log(`[EduSphere Seeder] Seeded ${db.liveSessions.length} live sessions into MongoDB`);
     }
   } catch (err: any) {
     console.error('[EduSphere Seeder Error]', err.message);

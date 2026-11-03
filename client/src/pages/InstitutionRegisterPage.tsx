@@ -3,14 +3,14 @@ import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { Sidebar } from '../components/Sidebar';
 import { MinistryLogo } from '../components/MinistryLogo';
-import { 
-  Building2, 
-  UploadCloud, 
-  CheckCircle2, 
-  ShieldCheck, 
-  FileText, 
-  ArrowRight, 
-  Plus, 
+import {
+  Building2,
+  UploadCloud,
+  CheckCircle2,
+  ShieldCheck,
+  FileText,
+  ArrowRight,
+  Plus,
   Trash2,
   Mail,
   MapPin,
@@ -27,7 +27,7 @@ export const InstitutionRegisterPage: React.FC = () => {
   const [address, setAddress] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
-  
+
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ title: string; fileUrl: string; uploadedAt: string }>>([]);
   const [uploadingDoc, setUploadingDoc] = useState(false);
 
@@ -164,22 +164,22 @@ export const InstitutionRegisterPage: React.FC = () => {
                 {successMsg}
               </p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
-                <Button 
-                  onClick={() => setCurrentPage('admin-dashboard')} 
+                <Button
+                  onClick={() => setCurrentPage('admin-dashboard')}
                   variant="primary"
                   size="lg"
                   icon={<ArrowRight size={18} />}
                 >
                   Go to Institution Approval Queue
                 </Button>
-                <Button 
+                <Button
                   onClick={() => {
                     setSuccessMsg('');
                     setInstitutionName('');
                     setContactEmail('');
                     setAddress('');
                     setContactPhone('');
-                  }} 
+                  }}
                   variant="secondary"
                   size="lg"
                 >
@@ -200,7 +200,7 @@ export const InstitutionRegisterPage: React.FC = () => {
                   </label>
                   <div style={{ position: 'relative' }}>
                     <Building2 size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
-                    <input 
+                    <input
                       type="text"
                       value={institutionName}
                       onChange={e => setInstitutionName(e.target.value)}
@@ -236,7 +236,7 @@ export const InstitutionRegisterPage: React.FC = () => {
                     </label>
                     <div style={{ position: 'relative' }}>
                       <Mail size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
-                      <input 
+                      <input
                         type="email"
                         value={contactEmail}
                         onChange={e => setContactEmail(e.target.value)}
@@ -256,7 +256,7 @@ export const InstitutionRegisterPage: React.FC = () => {
                     </label>
                     <div style={{ position: 'relative' }}>
                       <MapPin size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
-                      <input 
+                      <input
                         type="text"
                         value={address}
                         onChange={e => setAddress(e.target.value)}
@@ -273,7 +273,7 @@ export const InstitutionRegisterPage: React.FC = () => {
                     </label>
                     <div style={{ position: 'relative' }}>
                       <Phone size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
-                      <input 
+                      <input
                         type="text"
                         value={contactPhone}
                         onChange={e => setContactPhone(e.target.value)}
@@ -372,14 +372,14 @@ export const InstitutionRegisterPage: React.FC = () => {
                   paddingTop: 20,
                   borderTop: '1px solid var(--border-color)',
                 }}>
-                  <Button 
+                  <Button
                     type="button"
                     variant="secondary"
                     onClick={() => setCurrentPage('admin-dashboard')}
                   >
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     type="submit"
                     variant="primary"
                     size="lg"

@@ -187,7 +187,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 // Start Server and initialize MongoDB connection
-const server = app.listen(config.port, async () => {
+const server = app.listen(config.port, '0.0.0.0', async () => {
   console.log(`=======================================================`);
   console.log(`🚀 EduSphere Backend API Server is active!`);
   console.log(`📡 URL: http://localhost:${config.port}`);

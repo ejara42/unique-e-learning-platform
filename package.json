@@ -5,6 +5,15 @@
   "scripts": {
     "install:all": "npm --prefix server install && npm --prefix client install",
     "dev:server": "npm --prefix server run dev",
-    "dev:client": "npm --prefix client run dev"
+    "dev:client": "npm --prefix client run dev",
+    "build:client": "npm --prefix client run build",
+    "build:server": "npm --prefix server run build",
+    "build:all": "npm run build:server && npm run build:client",
+    "test:server": "npm --prefix server test",
+    "test:security": "npm --prefix server run test:security",
+    "test:all": "npm --prefix server run test:all"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

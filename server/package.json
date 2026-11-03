@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "EduSphere Backend API Server - Node.js, Express, TypeScript, MongoDB",
   "main": "dist/server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
@@ -10,9 +13,12 @@
     "test": "node ./node_modules/tsx/dist/cli.mjs tests/phase_a_mongodb.test.ts",
     "test:all": "node ./node_modules/tsx/dist/cli.mjs tests/full_enterprise_suite.test.ts",
     "test:security": "node ./node_modules/tsx/dist/cli.mjs tests/production_security_suite.test.ts",
+    "test:phase-b": "node ./node_modules/tsx/dist/cli.mjs tests/phase_b_infrastructure.test.ts",
     "bootstrap:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/bootstrapAdmin.ts",
     "reset:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/resetAdminPassword.ts",
-    "verify:dr": "node ./node_modules/tsx/dist/cli.mjs src/scripts/verifyBackupRestore.ts"
+    "verify:dr": "node ./node_modules/tsx/dist/cli.mjs src/scripts/verifyBackupRestore.ts",
+    "worker": "node ./node_modules/tsx/dist/cli.mjs src/worker/transcodeWorker.ts",
+    "worker:prod": "node dist/worker/transcodeWorker.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

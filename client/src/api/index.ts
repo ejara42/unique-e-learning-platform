@@ -1,6 +1,14 @@
 import { IUser, ICourse, ITenant, IEnrollment, IAssessment, ICertificate, ILiveSession, IAuditLog, UserRole } from '../types';
 
-const API_BASE = '/api';
+// Robust API Base URL resolution:
+// In local development, Vite proxies '/api' to 'http://localhost:5000'
+// In production (Cloudflare Pages), VITE_API_URL points to the Render backend (e.g. 'https://unique-e-learning-platform.onrender.com')
+const rawApiUrl = import.meta.env.VITE_API_URL?.trim();
+const API_BASE = rawApiUrl
+  ? rawApiUrl.replace(/\/+$/, '').endsWith('/api')
+    ? rawApiUrl.replace(/\/+$/, '')
+    : `${rawApiUrl.replace(/\/+$/, '')}/api`
+  : '/api';
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('edusphere_token');
@@ -14,16 +22,36 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...options.headers,
   };
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  // Prevent accidental '/api/api/...' duplication if endpoint already contains '/api'
+  const cleanEndpoint = normalizedEndpoint.startsWith('/api/')
+    ? normalizedEndpoint.slice(4)
+    : normalizedEndpoint === '/api'
+      ? ''
+      : normalizedEndpoint;
+
+  const url = endpoint.startsWith('http://') || endpoint.startsWith('https://')
+    ? endpoint
+    : `${API_BASE}${cleanEndpoint}`;
+
+  const res = await fetch(url, {
     ...options,
     headers,
   });
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'API request failed');
+  let data: any;
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    data = await res.json();
+  } else {
+    const text = await res.text();
+    data = { message: text || `HTTP ${res.status}: ${res.statusText}` };
   }
-  return data;
+
+  if (!res.ok) {
+    throw new Error(data.message || `API request failed with status ${res.status}`);
+  }
+  return data as T;
 }
 
 export const api = {

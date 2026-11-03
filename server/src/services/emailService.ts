@@ -1,0 +1,331 @@
+import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
+import { config } from '../config';
+import { SecurityTokenModel } from '../models';
+import { connectionState } from '../data/mongoConnection';
+
+export interface EmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+export interface EmailTelemetry {
+  configured: boolean;
+  provider: string;
+  senderDomain: string;
+  totalDispatched: number;
+  status: 'ONLINE' | 'DEGRADED' | 'STANDALONE_SIMULATED';
+}
+
+export class EmailServiceUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EmailServiceUnavailableError';
+  }
+}
+
+export class TransactionalEmailService {
+  private apiKey: string;
+  private fromEmail: string;
+  private frontendUrl: string;
+  private dispatchedCount = 0;
+  private inMemoryTokens: Map<string, any> = new Map();
+
+  constructor() {
+    this.apiKey = process.env.RESEND_API_KEY || '';
+    this.fromEmail = process.env.EMAIL_FROM || 'EduSphere Platform <noreply@edusphere.io>';
+    this.frontendUrl = process.env.FRONTEND_URL || 'https://unique-e-learning-platform.pages.dev';
+  }
+
+  public isConfigured(): boolean {
+    return Boolean(this.apiKey && this.apiKey.startsWith('re_'));
+  }
+
+  public getTelemetry(): EmailTelemetry {
+    const configured = this.isConfigured();
+    return {
+      configured,
+      provider: 'Resend Transactional Email Infrastructure',
+      senderDomain: this.fromEmail,
+      totalDispatched: this.dispatchedCount,
+      status: configured ? 'ONLINE' : (config.isProduction ? 'DEGRADED' : 'STANDALONE_SIMULATED'),
+    };
+  }
+
+  /**
+   * Cryptographically secure token generator:
+   * Generates a random 32-byte hex token for the user, and an SHA-256 hash for database storage.
+   * The raw token is NEVER stored in the database!
+   */
+  public generateToken(): { rawToken: string; tokenHash: string } {
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    return { rawToken, tokenHash };
+  }
+
+  public hashToken(rawToken: string): string {
+    return crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
+  }
+
+  /**
+   * Dual-mode Security Token Persistence (MongoDB Atlas + In-Memory Fallback)
+   */
+  async createSecurityToken(
+    userId: string,
+    rawToken: string,
+    type: 'PASSWORD_RESET' | 'EMAIL_VERIFICATION',
+    expiresInMs: number
+  ): Promise<{ id: string; tokenHash: string; expiresAt: Date }> {
+    const tokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + expiresInMs);
+    const id = `token-${uuidv4().slice(0, 12)}`;
+
+    const tokenDoc = {
+      id,
+      userId,
+      tokenHash,
+      type,
+      expiresAt,
+      isUsed: false,
+      createdAt: new Date(),
+    };
+
+    this.inMemoryTokens.set(tokenHash, tokenDoc);
+
+    if (connectionState.isConnected) {
+      try {
+        await SecurityTokenModel.create(tokenDoc);
+      } catch (err: any) {
+        console.warn('[EmailService] Security token persistence warning:', err?.message);
+      }
+    }
+
+    return { id, tokenHash, expiresAt };
+  }
+
+  async verifySecurityToken(
+    rawToken: string,
+    type: 'PASSWORD_RESET' | 'EMAIL_VERIFICATION'
+  ): Promise<{ valid: boolean; userId?: string; error?: string }> {
+    const tokenHash = this.hashToken(rawToken);
+    const now = new Date();
+
+    let tokenDoc: any = null;
+    if (connectionState.isConnected) {
+      try {
+        tokenDoc = await SecurityTokenModel.findOne({
+          tokenHash,
+          type,
+          isUsed: false,
+          expiresAt: { $gt: now },
+        });
+      } catch {}
+    }
+
+    if (!tokenDoc) {
+      tokenDoc = this.inMemoryTokens.get(tokenHash);
+    }
+
+    if (!tokenDoc || tokenDoc.type !== type) {
+      return { valid: false, error: 'Token not found or invalid type.' };
+    }
+
+    if (tokenDoc.isUsed) {
+      return { valid: false, error: 'Token has already been consumed (single-use violated).' };
+    }
+
+    if (tokenDoc.expiresAt <= now) {
+      return { valid: false, error: 'Token has expired.' };
+    }
+
+    return { valid: true, userId: tokenDoc.userId };
+  }
+
+  async consumeSecurityToken(
+    rawToken: string,
+    type: 'PASSWORD_RESET' | 'EMAIL_VERIFICATION'
+  ): Promise<{ consumed: boolean; userId?: string }> {
+    const verification = await this.verifySecurityToken(rawToken, type);
+    if (!verification.valid || !verification.userId) {
+      return { consumed: false };
+    }
+
+    const tokenHash = this.hashToken(rawToken);
+
+    // Consume in memory
+    const memDoc = this.inMemoryTokens.get(tokenHash);
+    if (memDoc) {
+      memDoc.isUsed = true;
+      memDoc.usedAt = new Date();
+    }
+
+    // Consume in MongoDB
+    if (connectionState.isConnected) {
+      try {
+        await SecurityTokenModel.findOneAndUpdate(
+          { tokenHash },
+          { $set: { isUsed: true, usedAt: new Date() } }
+        );
+      } catch {}
+    }
+
+    return { consumed: true, userId: verification.userId };
+  }
+
+  /**
+   * Dispatches email via Resend REST API
+   */
+  async sendEmail(options: EmailOptions): Promise<{ id: string; success: boolean }> {
+    const { to, subject, html, text } = options;
+
+    if (!to || !to.includes('@')) {
+      throw new Error(`Invalid destination email address: ${to}`);
+    }
+
+    if (!this.isConfigured()) {
+      if (config.isProduction) {
+        throw new EmailServiceUnavailableError(
+          'Transactional email delivery is offline: RESEND_API_KEY is not configured in production environment.'
+        );
+      }
+
+      // Staging / Local development simulation
+      console.log(`[Email Simulation] To: ${to} | Subject: "${subject}" | (Delivery simulated - RESEND_API_KEY unset)`);
+      this.dispatchedCount++;
+      return { id: `mock-email-${crypto.randomBytes(8).toString('hex')}`, success: true };
+    }
+
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: this.fromEmail,
+          to: [to],
+          subject,
+          html,
+          text: text || html.replace(/<[^>]+>/g, ' ').trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`Resend API rejected email (${response.status}): ${JSON.stringify(errorData)}`);
+      }
+
+      const data = (await response.json()) as { id: string };
+      this.dispatchedCount++;
+      console.log(`[Email Dispatched] To: ${to} | Subject: "${subject}" | Provider ID: ${data.id}`);
+      return { id: data.id, success: true };
+    } catch (err: any) {
+      console.error(`[Email Error] Failed to deliver email to ${to}:`, err.message);
+      throw err;
+    }
+  }
+
+  /**
+   * 1. Email Verification
+   */
+  async sendVerificationEmail(to: string, fullName: string, rawToken: string): Promise<{ id: string; success: boolean }> {
+    const verificationUrl = `${this.frontendUrl}/verify-email?token=${rawToken}`;
+    const subject = 'Verify your EduSphere Account';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
+        <h2 style="color: #2563eb;">Welcome to EduSphere, ${fullName}!</h2>
+        <p>Please confirm your email address to activate your account and start learning.</p>
+        <div style="margin: 28px 0;">
+          <a href="${verificationUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+            Verify Email Address
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #64748b;">This verification link will expire in 24 hours. If you did not register for EduSphere, please disregard this message.</p>
+      </div>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+
+  /**
+   * 2. Password Reset
+   */
+  async sendPasswordResetEmail(to: string, fullName: string, rawToken: string): Promise<{ id: string; success: boolean }> {
+    const resetUrl = `${this.frontendUrl}/reset-password?token=${rawToken}`;
+    const subject = 'EduSphere — Password Reset Request';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
+        <h2 style="color: #2563eb;">Password Reset Request</h2>
+        <p>Hello ${fullName},</p>
+        <p>We received a request to reset your password. Click the button below to choose a new password:</p>
+        <div style="margin: 28px 0;">
+          <a href="${resetUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+            Reset Password
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #64748b;">This link is single-use and will expire in 1 hour. If you did not request a password reset, your account remains secure and no action is required.</p>
+      </div>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+
+  /**
+   * 3. Institution Approval / Rejection Notification
+   */
+  async sendInstitutionStatusNotification(to: string, institutionName: string, status: 'VERIFIED' | 'REJECTED' | 'SUSPENDED', remarks?: string): Promise<{ id: string; success: boolean }> {
+    const isApproved = status === 'VERIFIED';
+    const subject = `EduSphere Institution Status: ${isApproved ? 'Approved & Verified' : 'Application Update'}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
+        <h2 style="color: ${isApproved ? '#16a34a' : '#dc2626'};">${institutionName}</h2>
+        <p>Your institutional application on EduSphere has been updated to: <strong>${status}</strong>.</p>
+        ${remarks ? `<p style="padding: 12px; background: #f1f5f9; border-left: 4px solid #94a3b8; font-style: italic;">Remarks: ${remarks}</p>` : ''}
+        ${isApproved ? `<p>Your institution portal is now active. You may log in as Institution Administrator and onboard instructors and courses.</p>` : ''}
+      </div>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+
+  /**
+   * 4. Course Enrollment Confirmation
+   */
+  async sendEnrollmentConfirmation(to: string, learnerName: string, courseTitle: string): Promise<{ id: string; success: boolean }> {
+    const subject = `Enrolled: ${courseTitle}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
+        <h2 style="color: #2563eb;">Enrollment Confirmed!</h2>
+        <p>Hi ${learnerName},</p>
+        <p>You have successfully enrolled in <strong>${courseTitle}</strong>.</p>
+        <p>You can access your modules, lesson videos, and interactive quizzes anytime from your dashboard.</p>
+      </div>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+
+  /**
+   * 5. Security Alert Notification
+   */
+  async sendSecurityAlert(to: string, fullName: string, alertDetails: string): Promise<{ id: string; success: boolean }> {
+    const subject = 'Security Alert: Account Activity';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
+        <h2 style="color: #dc2626;">Security Alert</h2>
+        <p>Hello ${fullName},</p>
+        <p>We detected important security activity on your account:</p>
+        <p style="padding: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 4px;">${alertDetails}</p>
+        <p style="font-size: 13px; color: #64748b;">If this was you, you can safely disregard this email. If not, please change your password immediately.</p>
+      </div>
+    `;
+
+    return this.sendEmail({ to, subject, html });
+  }
+}
+
+export const emailService = new TransactionalEmailService();
+

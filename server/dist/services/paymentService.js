@@ -31,8 +31,11 @@ class PaymentService {
             throw new Error('Course not found');
         }
         const priceAmount = (course.price || 49) * 100; // in cents
-        const platformFee = Math.round(priceAmount * 0.15); // 15% platform commission
-        const instructorPayout = priceAmount - platformFee; // 85% instructor payout
+        const commissionPct = process.env.STRIPE_COMMISSION_PCT
+            ? Math.min(Math.max(parseFloat(process.env.STRIPE_COMMISSION_PCT) / 100, 0.01), 0.50)
+            : 0.15; // Default 15% platform commission
+        const platformFee = Math.round(priceAmount * commissionPct); // platform commission
+        const instructorPayout = priceAmount - platformFee; // instructor payout
         const sessionId = `cs_test_${(0, uuid_1.v4)().replace(/-/g, '')}`;
         const session = {
             sessionId,

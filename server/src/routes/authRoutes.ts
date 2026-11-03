@@ -6,6 +6,8 @@ import { repo } from '../data/dbRepository';
 import { config } from '../config';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { UserRole } from '../types';
+import { SecurityTokenModel, UserModel } from '../models';
+import { emailService } from '../services/emailService';
 
 const router = Router();
 
@@ -241,6 +243,121 @@ router.post('/switch-role', requireAuth, async (req: AuthRequest, res: Response)
     });
   } catch (err: any) {
     res.status(500).json({ message: 'Failed to switch role', error: err.message });
+  }
+});
+
+// POST /api/auth/forgot-password - Secure Password Reset Dispatch
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) {
+      res.status(400).json({ message: 'A valid email address is required.' });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await repo.getUserByEmail(normalizedEmail);
+
+    if (user) {
+      // Generate cryptographically secure single-use token (32 bytes)
+      const { rawToken } = emailService.generateToken();
+      await emailService.createSecurityToken(user.id, rawToken, 'PASSWORD_RESET', 60 * 60 * 1000); // 1 hour TTL
+
+      // Dispatch transactional email (logs in dev, calls Resend API in prod)
+      await emailService.sendPasswordResetEmail(user.email, user.fullName, rawToken);
+    }
+
+    // Always respond with 200 OK to prevent user enumeration
+    res.status(200).json({
+      message: 'If an account exists for this email, password reset instructions have been dispatched.',
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to process password reset request', error: err.message });
+  }
+});
+
+// POST /api/auth/reset-password - Execute Password Reset with Single-Use Verification
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      res.status(400).json({ message: 'Token and new password are required.' });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({ message: 'Password must be at least 8 characters in length.' });
+      return;
+    }
+
+    // Verify and consume token in a single atomic-safe operation
+    const consumeResult = await emailService.consumeSecurityToken(token, 'PASSWORD_RESET');
+    if (!consumeResult.consumed || !consumeResult.userId) {
+      res.status(400).json({
+        message: 'Invalid, expired, or already used password reset token. Please request a new link.',
+      });
+      return;
+    }
+
+    // Hash the new password with bcrypt cost 12
+    const salt = bcrypt.genSaltSync(12);
+    const passwordHash = bcrypt.hashSync(newPassword, salt);
+
+    // Update user password in database
+    const user = await repo.getUserById(consumeResult.userId);
+    if (!user) {
+      res.status(404).json({ message: 'Associated user account no longer exists.' });
+      return;
+    }
+
+    // Update in MongoDB
+    if (repo.isMongoActive()) {
+      await UserModel.findOneAndUpdate({ id: user.id }, { $set: { passwordHash } });
+    }
+    user.passwordHash = passwordHash;
+
+    // Dispatch security alert
+    await emailService.sendSecurityAlert(
+      user.email,
+      user.fullName,
+      'Your EduSphere password was successfully reset.'
+    );
+
+    res.status(200).json({
+      message: 'Password successfully reset. You may now log in with your new credentials.',
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to reset password', error: err.message });
+  }
+});
+
+// POST /api/auth/verify-email - Single-Use Email Verification
+router.post('/verify-email', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      res.status(400).json({ message: 'Verification token is required.' });
+      return;
+    }
+
+    const consumeResult = await emailService.consumeSecurityToken(token, 'EMAIL_VERIFICATION');
+    if (!consumeResult.consumed || !consumeResult.userId) {
+      res.status(400).json({ message: 'Invalid, expired, or already used verification token.' });
+      return;
+    }
+
+    // Mark email verified on user
+    if (repo.isMongoActive()) {
+      await UserModel.findOneAndUpdate(
+        { id: consumeResult.userId },
+        { $set: { 'security.isEmailVerified': true } }
+      );
+    }
+
+    res.status(200).json({ message: 'Email address verified successfully.' });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to verify email', error: err.message });
   }
 });
 

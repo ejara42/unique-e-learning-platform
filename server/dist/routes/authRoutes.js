@@ -10,6 +10,8 @@ const uuid_1 = require("uuid");
 const dbRepository_1 = require("../data/dbRepository");
 const config_1 = require("../config");
 const auth_1 = require("../middleware/auth");
+const models_1 = require("../models");
+const emailService_1 = require("../services/emailService");
 const router = (0, express_1.Router)();
 // POST /api/auth/login - Production User Authentication
 router.post('/login', async (req, res) => {
@@ -218,6 +220,99 @@ router.post('/switch-role', auth_1.requireAuth, async (req, res) => {
     }
     catch (err) {
         res.status(500).json({ message: 'Failed to switch role', error: err.message });
+    }
+});
+// POST /api/auth/forgot-password - Secure Password Reset Dispatch
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email || !email.includes('@')) {
+            res.status(400).json({ message: 'A valid email address is required.' });
+            return;
+        }
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await dbRepository_1.repo.getUserByEmail(normalizedEmail);
+        if (user) {
+            // Generate cryptographically secure single-use token (32 bytes)
+            const { rawToken } = emailService_1.emailService.generateToken();
+            await emailService_1.emailService.createSecurityToken(user.id, rawToken, 'PASSWORD_RESET', 60 * 60 * 1000); // 1 hour TTL
+            // Dispatch transactional email (logs in dev, calls Resend API in prod)
+            await emailService_1.emailService.sendPasswordResetEmail(user.email, user.fullName, rawToken);
+        }
+        // Always respond with 200 OK to prevent user enumeration
+        res.status(200).json({
+            message: 'If an account exists for this email, password reset instructions have been dispatched.',
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to process password reset request', error: err.message });
+    }
+});
+// POST /api/auth/reset-password - Execute Password Reset with Single-Use Verification
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        if (!token || !newPassword) {
+            res.status(400).json({ message: 'Token and new password are required.' });
+            return;
+        }
+        if (newPassword.length < 8) {
+            res.status(400).json({ message: 'Password must be at least 8 characters in length.' });
+            return;
+        }
+        // Verify and consume token in a single atomic-safe operation
+        const consumeResult = await emailService_1.emailService.consumeSecurityToken(token, 'PASSWORD_RESET');
+        if (!consumeResult.consumed || !consumeResult.userId) {
+            res.status(400).json({
+                message: 'Invalid, expired, or already used password reset token. Please request a new link.',
+            });
+            return;
+        }
+        // Hash the new password with bcrypt cost 12
+        const salt = bcryptjs_1.default.genSaltSync(12);
+        const passwordHash = bcryptjs_1.default.hashSync(newPassword, salt);
+        // Update user password in database
+        const user = await dbRepository_1.repo.getUserById(consumeResult.userId);
+        if (!user) {
+            res.status(404).json({ message: 'Associated user account no longer exists.' });
+            return;
+        }
+        // Update in MongoDB
+        if (dbRepository_1.repo.isMongoActive()) {
+            await models_1.UserModel.findOneAndUpdate({ id: user.id }, { $set: { passwordHash } });
+        }
+        user.passwordHash = passwordHash;
+        // Dispatch security alert
+        await emailService_1.emailService.sendSecurityAlert(user.email, user.fullName, 'Your EduSphere password was successfully reset.');
+        res.status(200).json({
+            message: 'Password successfully reset. You may now log in with your new credentials.',
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to reset password', error: err.message });
+    }
+});
+// POST /api/auth/verify-email - Single-Use Email Verification
+router.post('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            res.status(400).json({ message: 'Verification token is required.' });
+            return;
+        }
+        const consumeResult = await emailService_1.emailService.consumeSecurityToken(token, 'EMAIL_VERIFICATION');
+        if (!consumeResult.consumed || !consumeResult.userId) {
+            res.status(400).json({ message: 'Invalid, expired, or already used verification token.' });
+            return;
+        }
+        // Mark email verified on user
+        if (dbRepository_1.repo.isMongoActive()) {
+            await models_1.UserModel.findOneAndUpdate({ id: consumeResult.userId }, { $set: { 'security.isEmailVerified': true } });
+        }
+        res.status(200).json({ message: 'Email address verified successfully.' });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to verify email', error: err.message });
     }
 });
 exports.default = router;

@@ -1,0 +1,38 @@
+# ==============================================================================
+# EduSphere Dedicated FFmpeg Video Transcoding Worker
+# ==============================================================================
+FROM node:20-slim
+
+# Install genuine FFmpeg and FFprobe binaries
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ffmpeg \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Verify binary installation
+RUN ffmpeg -version && ffprobe -version
+
+WORKDIR /app
+
+# Copy server package definitions
+COPY server/package*.json ./server/
+
+# Install dependencies using clean reproducible lockfile install
+RUN cd server && npm ci
+
+# Copy server TypeScript source
+COPY server ./server
+
+# Compile TypeScript into JavaScript
+RUN cd server && npm run build
+
+WORKDIR /app/server
+
+# Environment defaults
+ENV NODE_ENV=production
+ENV ALLOW_SIMULATED_TRANSCODE=false
+
+# Start standalone transcode background worker
+CMD ["node", "dist/worker/transcodeWorker.js"]
+

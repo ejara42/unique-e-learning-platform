@@ -19,12 +19,55 @@ const certificateRoutes_1 = __importDefault(require("./routes/certificateRoutes"
 const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const interoperabilityRoutes_1 = __importDefault(require("./routes/interoperabilityRoutes"));
+const storageRoutes_1 = __importDefault(require("./routes/storageRoutes"));
 const transcodingService_1 = require("./services/transcodingService");
 const livekitService_1 = require("./services/livekitService");
+const storageService_1 = require("./services/storageService");
+const emailService_1 = require("./services/emailService");
 const app = (0, express_1.default)();
 exports.app = app;
-// Middleware
-app.use((0, cors_1.default)({ origin: true, credentials: true }));
+// Multi-origin CORS Configuration with strict Cloudflare Pages project binding
+const allowedOrigins = config_1.config.corsOrigin
+    ? config_1.config.corsOrigin.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+// Extract authorized Cloudflare Pages project slugs from configured origins (e.g. 'unique-e-learning-platform')
+const configuredPagesProjects = allowedOrigins
+    .map(o => {
+    const match = o.match(/^https?:\/\/([a-zA-Z0-9-]+)\.pages\.dev$/);
+    return match ? match[1] : null;
+})
+    .filter((p) => Boolean(p));
+if (configuredPagesProjects.length === 0) {
+    configuredPagesProjects.push('unique-e-learning-platform');
+}
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Allow non-browser requests (e.g. mobile apps, curl, server-to-server)
+        if (!origin)
+            return callback(null, true);
+        // In development or test mode, allow all origins
+        if (!config_1.config.isProduction)
+            return callback(null, true);
+        // Check wildcard or exact match in configured allowed origins
+        if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        // Strictly permit legitimate project deployments and preview branches on Cloudflare Pages
+        // Prevents rogue third-party *.pages.dev hostnames from accessing credentialed endpoints
+        const isAuthorizedPagesOrigin = configuredPagesProjects.some(project => {
+            const pattern = new RegExp(`^https:\\/\\/([a-zA-Z0-9-]+[.-])?${project}\\.pages\\.dev$`);
+            return pattern.test(origin);
+        });
+        if (isAuthorizedPagesOrigin) {
+            return callback(null, true);
+        }
+        callback(new Error(`CORS blocked: Origin ${origin} is not allowed`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Tenant-Slug', 'x-tenant-slug', 'x-tenant-id'],
+};
+app.use((0, cors_1.default)(corsOptions));
 // Express JSON with raw body capture for cryptographic webhook signatures
 app.use(express_1.default.json({
     verify: (req, _res, buf) => {
@@ -32,6 +75,10 @@ app.use(express_1.default.json({
     }
 }));
 app.use(tenant_1.tenantMiddleware);
+// Lightweight health probe for Cloud Load Balancers and Render Health Checks
+app.get('/healthz', (_req, res) => {
+    res.status(200).json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
 // Health check with Database, Multi-Tenant, LiveKit & Transcoding telemetry
 app.get('/api/health', async (req, res) => {
     const livekitTelemetry = await livekitService_1.livekitService.getTelemetry();
@@ -61,6 +108,8 @@ app.get('/api/health', async (req, res) => {
         },
         liveKit: livekitTelemetry,
         mediaTranscoding: transcodingTelemetry,
+        objectStorage: storageService_1.storageService.getTelemetry(),
+        transactionalEmail: emailService_1.emailService.getTelemetry(),
     });
 });
 // Mount Routes
@@ -73,6 +122,7 @@ app.use('/api/certificates', certificateRoutes_1.default);
 app.use('/api/admin', adminRoutes_1.default);
 app.use('/api/payments', paymentRoutes_1.default);
 app.use('/api/interoperability', interoperabilityRoutes_1.default);
+app.use('/api/storage', storageRoutes_1.default);
 // Transcoding & HLS Streaming endpoints
 app.post('/api/transcode/enqueue', async (req, res) => {
     try {
@@ -135,11 +185,19 @@ const server = app.listen(config_1.config.port, async () => {
     }
 });
 exports.server = server;
-// Graceful process termination
-process.on('SIGINT', async () => {
-    console.log('\n[EduSphere] Shutting down gracefully...');
-    await (0, mongoConnection_1.disconnectMongoDB)();
+// Graceful process termination (SIGINT for local dev, SIGTERM for cloud orchestrators like Render/Kubernetes)
+const handleGracefulShutdown = async (signal) => {
+    console.log(`\n[EduSphere] Received ${signal}. Shutting down gracefully...`);
+    try {
+        await (0, mongoConnection_1.disconnectMongoDB)();
+    }
+    catch (err) {
+        console.error('[EduSphere] Error disconnecting MongoDB during shutdown:', err?.message || err);
+    }
     server.close(() => {
+        console.log('[EduSphere] HTTP server closed cleanly.');
         process.exit(0);
     });
-});
+};
+process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));

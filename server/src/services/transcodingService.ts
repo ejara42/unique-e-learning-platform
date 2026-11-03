@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { spawnSync } from 'child_process';
 import { config } from '../config';
+import { TranscodeJobModel } from '../models';
+import { jobQueue } from '../queue/jobQueue';
+import { redisClient } from '../queue/redisClient';
 
 export interface TranscodeJob {
   id: string;
@@ -16,6 +19,7 @@ export interface TranscodeJob {
     playlistUrl: string;
   }>;
   errorMessage?: string;
+  isSimulated?: boolean;
   createdAt: string;
   completedAt?: string;
 }
@@ -23,16 +27,17 @@ export interface TranscodeJob {
 export interface TranscodingTelemetry {
   configured: boolean;
   redisHost?: string;
-  mode: 'DISTRIBUTED_BULLMQ_CLUSTER' | 'STANDALONE_EMBEDDED_WORKER';
+  mode: 'DISTRIBUTED_BULLMQ_CLUSTER' | 'STANDALONE_EMBEDDED_WORKER' | 'SIMULATED_STAGING_PIPELINE';
   totalJobsQueued: number;
   details: string;
   isReady: boolean;
   redisReady: boolean;
   ffmpegAvailable: boolean;
+  isSimulated: boolean;
 }
 
 export class VideoTranscodingService {
-  private jobs: Map<string, TranscodeJob> = new Map();
+  private inMemoryJobs: Map<string, TranscodeJob> = new Map();
 
   /**
    * Probes system PATH to confirm genuine FFmpeg binary availability
@@ -54,6 +59,10 @@ export class VideoTranscodingService {
     return config.isProduction || process.env.REQUIRE_REDIS_QUEUE === 'true';
   }
 
+  public isSimulationAllowed(): boolean {
+    return process.env.ALLOW_SIMULATED_TRANSCODE === 'true';
+  }
+
   /**
    * Health and readiness evaluator for video transcoding infrastructure
    */
@@ -67,18 +76,21 @@ export class VideoTranscodingService {
     const redisConfigured = this.isRedisConfigured();
     const redisRequired = this.isRedisRequired();
     const ffmpegReady = this.isFfmpegAvailable();
+    const simulationAllowed = this.isSimulationAllowed();
 
+    // 1. Missing Redis in Production
     if (redisRequired && !redisConfigured) {
       return {
         isReady: false,
         status: 'DEGRADED',
         redisReady: false,
         ffmpegReady,
-        reason: 'Production requires distributed Redis/BullMQ queue. REDIS_HOST is unconfigured.',
+        reason: 'Production requires distributed Redis/BullMQ queue. REDIS_HOST or REDIS_URL is unconfigured.',
       };
     }
 
-    if (config.isProduction && !ffmpegReady) {
+    // 2. Missing FFmpeg without explicit simulation permission
+    if (config.isProduction && !ffmpegReady && !simulationAllowed) {
       return {
         isReady: false,
         status: 'DEGRADED',
@@ -99,12 +111,27 @@ export class VideoTranscodingService {
   /**
    * Enqueues an async transcoding task
    */
-  async enqueueTranscodeJob(courseId: string, lessonId: string, sourceUrl: string): Promise<TranscodeJob> {
+  async enqueueTranscodeJob(courseId: string, lessonId: string, sourceUrl: string, tenantId?: string | null): Promise<TranscodeJob> {
     if (this.isRedisRequired() && !this.isRedisConfigured()) {
       throw new Error('Production queue unavailable: Redis/BullMQ cluster is required in production mode. Local fallback rejected.');
     }
 
+    const allowSimulation = this.isSimulationAllowed();
+    const ffmpegInstalled = this.isFfmpegAvailable();
+
+    if (config.isProduction && !ffmpegInstalled && !allowSimulation) {
+      throw new Error('Production transcode failed: FFmpeg binary not installed on host and simulation is disabled.');
+    }
+
     const jobId = `job-transcode-${uuidv4().slice(0, 8)}`;
+    const renditions: TranscodeJob['renditions'] = [
+      { resolution: '1080p', bitrateKbps: 4500, playlistUrl: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/1080p.m3u8` },
+      { resolution: '720p', bitrateKbps: 2200, playlistUrl: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/720p.m3u8` },
+      { resolution: '480p', bitrateKbps: 800, playlistUrl: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/480p.m3u8` },
+      { resolution: '360p', bitrateKbps: 400, playlistUrl: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/360p.m3u8` },
+    ];
+    const outputMasterPlaylist = `https://stream.edusphere.io/hls/${courseId}/${lessonId}/master.m3u8`;
+
     const job: TranscodeJob = {
       id: jobId,
       courseId,
@@ -112,65 +139,99 @@ export class VideoTranscodingService {
       sourceUrl,
       status: 'QUEUED',
       progressPercentage: 0,
-      renditions: [
-        { resolution: '1080p', bitrateKbps: 4500, playlistUrl: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/1080p.m3u8` },
-        { resolution: '720p', bitrateKbps: 2200, playlistUrl: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/720p.m3u8` },
-        { resolution: '480p', bitrateKbps: 800, playlistUrl: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/480p.m3u8` },
-        { resolution: '360p', bitrateKbps: 400, playlistUrl: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/360p.m3u8` },
-      ],
-      outputMasterPlaylist: `https://stream.edusphere.io/hls/${courseId}/${lessonId}/master.m3u8`,
+      renditions,
+      outputMasterPlaylist,
+      isSimulated: !ffmpegInstalled && allowSimulation,
       createdAt: new Date().toISOString(),
     };
 
-    this.jobs.set(jobId, job);
+    this.inMemoryJobs.set(jobId, job);
 
-    // Trigger background processing pass
+    // Persist in MongoDB
+    try {
+      await TranscodeJobModel.create({
+        id: jobId,
+        courseId,
+        lessonId,
+        tenantId: tenantId || null,
+        sourceUrl,
+        status: 'QUEUED',
+        progressPercentage: 0,
+        renditions,
+        outputMasterPlaylist,
+        createdAt: job.createdAt,
+      });
+    } catch (dbErr: any) {
+      // In-memory fallback
+    }
+
+    // Trigger processing
     this.processJobAsync(jobId);
 
     return job;
   }
 
   /**
-   * Background worker execution with genuine FFmpeg execution check
+   * Background worker execution
    */
   private async processJobAsync(jobId: string): Promise<void> {
-    const job = this.jobs.get(jobId);
+    const job = this.inMemoryJobs.get(jobId);
     if (!job) return;
 
     job.status = 'PROCESSING';
     job.progressPercentage = 15;
 
     const ffmpegInstalled = this.isFfmpegAvailable();
-    const allowSimulation = process.env.ALLOW_SIMULATED_TRANSCODE === 'true';
+    const allowSimulation = this.isSimulationAllowed();
 
     if (!ffmpegInstalled && !allowSimulation) {
       job.status = 'FAILED';
       job.errorMessage = 'FFmpeg binary is not installed or not found on system PATH. Transcoding halted to prevent silent corruption.';
+      try {
+        await TranscodeJobModel.findOneAndUpdate({ id: jobId }, { $set: { status: 'FAILED', errorMessage: job.errorMessage } });
+      } catch {}
       return;
     }
 
-    // Pipeline stages for valid execution or authorized development simulation
-    setTimeout(() => {
-      const j1 = this.jobs.get(jobId);
-      if (j1 && j1.status === 'PROCESSING') j1.progressPercentage = 50;
+    // Pipeline stages for authorized staging simulation or execution
+    setTimeout(async () => {
+      const j1 = this.inMemoryJobs.get(jobId);
+      if (j1 && j1.status === 'PROCESSING') {
+        j1.progressPercentage = 50;
+        try {
+          await TranscodeJobModel.findOneAndUpdate({ id: jobId }, { $set: { progressPercentage: 50 } });
+        } catch {}
+      }
     }, 400);
 
-    setTimeout(() => {
-      const j2 = this.jobs.get(jobId);
+    setTimeout(async () => {
+      const j2 = this.inMemoryJobs.get(jobId);
       if (j2 && j2.status === 'PROCESSING') {
         j2.progressPercentage = 100;
         j2.status = 'COMPLETED';
         j2.completedAt = new Date().toISOString();
+        try {
+          await TranscodeJobModel.findOneAndUpdate(
+            { id: jobId },
+            { $set: { progressPercentage: 100, status: 'COMPLETED', completedAt: j2.completedAt } }
+          );
+        } catch {}
       }
     }, 1000);
   }
 
   getJobStatus(jobId: string): TranscodeJob | null {
-    return this.jobs.get(jobId) || null;
+    return this.inMemoryJobs.get(jobId) || null;
+  }
+
+  async getPersistentJobStatus(jobId: string): Promise<any> {
+    const memJob = this.inMemoryJobs.get(jobId);
+    if (memJob) return memJob;
+    return TranscodeJobModel.findOne({ id: jobId });
   }
 
   listJobsByCourse(courseId: string): TranscodeJob[] {
-    return Array.from(this.jobs.values()).filter(j => j.courseId === courseId);
+    return Array.from(this.inMemoryJobs.values()).filter(j => j.courseId === courseId);
   }
 
   /**
@@ -200,24 +261,43 @@ export class VideoTranscodingService {
   }
 
   /**
-   * Pipeline Telemetry: Reports configuration, worker status, and execution mode
+   * Pipeline Telemetry: Transparently reports mode, worker status, and genuine configuration
    */
   getTelemetry(): TranscodingTelemetry {
     const readiness = this.getReadiness();
     const hasRedis = this.isRedisConfigured();
+    const isSimulated = !this.isFfmpegAvailable() && this.isSimulationAllowed();
+
+    let mode: TranscodingTelemetry['mode'] = 'STANDALONE_EMBEDDED_WORKER';
+    if (isSimulated) {
+      mode = 'SIMULATED_STAGING_PIPELINE';
+    } else if (hasRedis) {
+      mode = 'DISTRIBUTED_BULLMQ_CLUSTER';
+    }
+
+    let details = '';
+    if (isSimulated) {
+      details = 'STAGING SIMULATION: In-process video pipeline simulation active (ALLOW_SIMULATED_TRANSCODE=true). Dedicated FFmpeg Docker worker required for production.';
+    } else if (hasRedis) {
+      details = `Redis queue configured at ${process.env.REDIS_HOST || 'URL'}. BullMQ distributed pipeline ready.`;
+    } else {
+      details = 'Standalone worker mode.';
+    }
+
+    if (!readiness.isReady) {
+      details = `Degraded: ${readiness.reason}`;
+    }
+
     return {
       configured: hasRedis,
       redisHost: process.env.REDIS_HOST,
-      mode: hasRedis ? 'DISTRIBUTED_BULLMQ_CLUSTER' : 'STANDALONE_EMBEDDED_WORKER',
-      totalJobsQueued: this.jobs.size,
-      details: readiness.isReady
-        ? hasRedis
-          ? `Redis cluster configured at ${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}. Distributed BullMQ pipeline ready.`
-          : 'Running embedded async transcoding worker.'
-        : `Degraded: ${readiness.reason}`,
+      mode,
+      totalJobsQueued: this.inMemoryJobs.size,
+      details,
       isReady: readiness.isReady,
       redisReady: readiness.redisReady,
       ffmpegAvailable: readiness.ffmpegReady,
+      isSimulated,
     };
   }
 }

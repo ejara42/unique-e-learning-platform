@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LtiConsumedNonceModel = exports.LtiStateModel = exports.ScormSessionModel = exports.ProcessedWebhookEventModel = exports.AuditLogModel = exports.AdmissionModel = exports.CertificateModel = exports.SubmissionModel = exports.AssessmentModel = exports.EnrollmentModel = exports.CourseModel = exports.UserModel = exports.TenantModel = exports.LtiConsumedNonceSchema = exports.LtiStateSchema = exports.ScormSessionSchema = exports.ProcessedWebhookEventSchema = exports.AuditLogSchema = exports.AdmissionSchema = exports.CertificateSchema = exports.SubmissionSchema = exports.AssessmentSchema = exports.EnrollmentSchema = exports.CourseSchema = exports.UserSchema = exports.TenantSchema = void 0;
+exports.TranscodeJobModel = exports.SecurityTokenModel = exports.FileAssetModel = exports.TranscodeJobSchema = exports.SecurityTokenSchema = exports.FileAssetSchema = exports.LtiConsumedNonceModel = exports.LtiStateModel = exports.ScormSessionModel = exports.ProcessedWebhookEventModel = exports.AuditLogModel = exports.AdmissionModel = exports.CertificateModel = exports.SubmissionModel = exports.AssessmentModel = exports.EnrollmentModel = exports.CourseModel = exports.UserModel = exports.TenantModel = exports.LtiConsumedNonceSchema = exports.LtiStateSchema = exports.ScormSessionSchema = exports.ProcessedWebhookEventSchema = exports.AuditLogSchema = exports.AdmissionSchema = exports.CertificateSchema = exports.SubmissionSchema = exports.AssessmentSchema = exports.EnrollmentSchema = exports.CourseSchema = exports.UserSchema = exports.TenantSchema = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 exports.TenantSchema = new mongoose_1.Schema({
     id: { type: String, required: true, unique: true, index: true },
@@ -317,3 +317,70 @@ exports.ProcessedWebhookEventModel = mongoose_1.default.models.ProcessedWebhookE
 exports.ScormSessionModel = mongoose_1.default.models.ScormSession || mongoose_1.default.model('ScormSession', exports.ScormSessionSchema);
 exports.LtiStateModel = mongoose_1.default.models.LtiState || mongoose_1.default.model('LtiState', exports.LtiStateSchema);
 exports.LtiConsumedNonceModel = mongoose_1.default.models.LtiConsumedNonce || mongoose_1.default.model('LtiConsumedNonce', exports.LtiConsumedNonceSchema);
+exports.FileAssetSchema = new mongoose_1.Schema({
+    id: { type: String, required: true, unique: true, index: true },
+    key: { type: String, required: true, unique: true, index: true },
+    bucket: { type: String, required: true },
+    fileName: { type: String, required: true },
+    fileType: { type: String, required: true },
+    fileSize: { type: Number, required: true },
+    tenantId: { type: String, default: null, index: true },
+    ownerId: { type: String, required: true, index: true },
+    category: {
+        type: String,
+        enum: ['COURSE_MATERIAL', 'IMAGE', 'VIDEO_SOURCE', 'TRANSCODED_HLS', 'VERIFICATION_DOC'],
+        default: 'COURSE_MATERIAL',
+    },
+    isPublic: { type: Boolean, default: false },
+    status: {
+        type: String,
+        enum: ['PENDING', 'READY', 'DELETED'],
+        default: 'PENDING',
+        index: true,
+    },
+    createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+exports.FileAssetSchema.index({ tenantId: 1, category: 1 });
+exports.FileAssetSchema.index({ ownerId: 1, status: 1 });
+exports.SecurityTokenSchema = new mongoose_1.Schema({
+    id: { type: String, required: true, unique: true, index: true },
+    userId: { type: String, required: true, index: true },
+    tokenHash: { type: String, required: true, unique: true, index: true },
+    type: {
+        type: String,
+        enum: ['PASSWORD_RESET', 'EMAIL_VERIFICATION'],
+        required: true,
+    },
+    expiresAt: { type: Date, required: true, index: true },
+    isUsed: { type: Boolean, default: false, index: true },
+    usedAt: { type: Date },
+    createdAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+exports.TranscodeJobSchema = new mongoose_1.Schema({
+    id: { type: String, required: true, unique: true, index: true },
+    courseId: { type: String, required: true, index: true },
+    lessonId: { type: String, required: true, index: true },
+    tenantId: { type: String, default: null, index: true },
+    sourceUrl: { type: String, required: true },
+    status: {
+        type: String,
+        enum: ['QUEUED', 'PROCESSING', 'COMPLETED', 'FAILED'],
+        default: 'QUEUED',
+        index: true,
+    },
+    progressPercentage: { type: Number, default: 0 },
+    outputMasterPlaylist: String,
+    renditions: [{
+            resolution: String,
+            bitrateKbps: Number,
+            playlistUrl: String,
+        }],
+    errorMessage: String,
+    attempts: { type: Number, default: 0 },
+    createdAt: { type: String, default: () => new Date().toISOString() },
+    completedAt: String,
+}, { timestamps: true });
+exports.TranscodeJobSchema.index({ courseId: 1, lessonId: 1 });
+exports.FileAssetModel = mongoose_1.default.models.FileAsset || mongoose_1.default.model('FileAsset', exports.FileAssetSchema);
+exports.SecurityTokenModel = mongoose_1.default.models.SecurityToken || mongoose_1.default.model('SecurityToken', exports.SecurityTokenSchema);
+exports.TranscodeJobModel = mongoose_1.default.models.TranscodeJob || mongoose_1.default.model('TranscodeJob', exports.TranscodeJobSchema);

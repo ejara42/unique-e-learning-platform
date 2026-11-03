@@ -553,3 +553,132 @@ export const ScormSessionModel = mongoose.models.ScormSession || mongoose.model<
 export const LtiStateModel = mongoose.models.LtiState || mongoose.model<ILtiStateDocument>('LtiState', LtiStateSchema);
 export const LtiConsumedNonceModel = mongoose.models.LtiConsumedNonce || mongoose.model<ILtiConsumedNonceDocument>('LtiConsumedNonce', LtiConsumedNonceSchema);
 
+// ============================================================================
+// 13. FILE ASSET SCHEMA (Cloudflare R2 Persistent Object Storage)
+// ============================================================================
+export interface IFileAssetDocument extends Document {
+  id: string;
+  key: string;
+  bucket: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  tenantId?: string | null;
+  ownerId: string;
+  category: 'COURSE_MATERIAL' | 'IMAGE' | 'VIDEO_SOURCE' | 'TRANSCODED_HLS' | 'VERIFICATION_DOC';
+  isPublic: boolean;
+  status: 'PENDING' | 'READY' | 'DELETED';
+  createdAt: string;
+}
+
+export const FileAssetSchema = new Schema<IFileAssetDocument>({
+  id: { type: String, required: true, unique: true, index: true },
+  key: { type: String, required: true, unique: true, index: true },
+  bucket: { type: String, required: true },
+  fileName: { type: String, required: true },
+  fileType: { type: String, required: true },
+  fileSize: { type: Number, required: true },
+  tenantId: { type: String, default: null, index: true },
+  ownerId: { type: String, required: true, index: true },
+  category: {
+    type: String,
+    enum: ['COURSE_MATERIAL', 'IMAGE', 'VIDEO_SOURCE', 'TRANSCODED_HLS', 'VERIFICATION_DOC'],
+    default: 'COURSE_MATERIAL',
+  },
+  isPublic: { type: Boolean, default: false },
+  status: {
+    type: String,
+    enum: ['PENDING', 'READY', 'DELETED'],
+    default: 'PENDING',
+    index: true,
+  },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+
+FileAssetSchema.index({ tenantId: 1, category: 1 });
+FileAssetSchema.index({ ownerId: 1, status: 1 });
+
+// ============================================================================
+// 14. SECURITY TOKEN SCHEMA (Password Reset & Verification Single-Use Tokens)
+// ============================================================================
+export interface ISecurityTokenDocument extends Document {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  type: 'PASSWORD_RESET' | 'EMAIL_VERIFICATION';
+  expiresAt: Date;
+  isUsed: boolean;
+  usedAt?: Date;
+  createdAt: Date;
+}
+
+export const SecurityTokenSchema = new Schema<ISecurityTokenDocument>({
+  id: { type: String, required: true, unique: true, index: true },
+  userId: { type: String, required: true, index: true },
+  tokenHash: { type: String, required: true, unique: true, index: true },
+  type: {
+    type: String,
+    enum: ['PASSWORD_RESET', 'EMAIL_VERIFICATION'],
+    required: true,
+  },
+  expiresAt: { type: Date, required: true, index: true },
+  isUsed: { type: Boolean, default: false, index: true },
+  usedAt: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// ============================================================================
+// 15. PERSISTENT TRANSCODE JOB SCHEMA (MongoDB & BullMQ Worker Status)
+// ============================================================================
+export interface ITranscodeJobDocument extends Document {
+  id: string;
+  courseId: string;
+  lessonId: string;
+  tenantId?: string | null;
+  sourceUrl: string;
+  status: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  progressPercentage: number;
+  outputMasterPlaylist?: string;
+  renditions: Array<{
+    resolution: string;
+    bitrateKbps: number;
+    playlistUrl: string;
+  }>;
+  errorMessage?: string;
+  attempts: number;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export const TranscodeJobSchema = new Schema<ITranscodeJobDocument>({
+  id: { type: String, required: true, unique: true, index: true },
+  courseId: { type: String, required: true, index: true },
+  lessonId: { type: String, required: true, index: true },
+  tenantId: { type: String, default: null, index: true },
+  sourceUrl: { type: String, required: true },
+  status: {
+    type: String,
+    enum: ['QUEUED', 'PROCESSING', 'COMPLETED', 'FAILED'],
+    default: 'QUEUED',
+    index: true,
+  },
+  progressPercentage: { type: Number, default: 0 },
+  outputMasterPlaylist: String,
+  renditions: [{
+    resolution: String,
+    bitrateKbps: Number,
+    playlistUrl: String,
+  }],
+  errorMessage: String,
+  attempts: { type: Number, default: 0 },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+  completedAt: String,
+}, { timestamps: true });
+
+TranscodeJobSchema.index({ courseId: 1, lessonId: 1 });
+
+export const FileAssetModel = mongoose.models.FileAsset || mongoose.model<IFileAssetDocument>('FileAsset', FileAssetSchema);
+export const SecurityTokenModel = mongoose.models.SecurityToken || mongoose.model<ISecurityTokenDocument>('SecurityToken', SecurityTokenSchema);
+export const TranscodeJobModel = mongoose.models.TranscodeJob || mongoose.model<ITranscodeJobDocument>('TranscodeJob', TranscodeJobSchema);
+
+

@@ -13,13 +13,63 @@ import certificateRoutes from './routes/certificateRoutes';
 import adminRoutes from './routes/adminRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import interoperabilityRoutes from './routes/interoperabilityRoutes';
+import storageRoutes from './routes/storageRoutes';
 import { transcodingService } from './services/transcodingService';
 import { livekitService } from './services/livekitService';
+import { storageService } from './services/storageService';
+import { emailService } from './services/emailService';
 
 const app = express();
 
-// Middleware
-app.use(cors({ origin: true, credentials: true }));
+// Multi-origin CORS Configuration with strict Cloudflare Pages project binding
+const allowedOrigins = config.corsOrigin
+  ? config.corsOrigin.split(',').map(s => s.trim()).filter(Boolean)
+  : [];
+
+// Extract authorized Cloudflare Pages project slugs from configured origins (e.g. 'unique-e-learning-platform')
+const configuredPagesProjects = allowedOrigins
+  .map(o => {
+    const match = o.match(/^https?:\/\/([a-zA-Z0-9-]+)\.pages\.dev$/);
+    return match ? match[1] : null;
+  })
+  .filter((p): p is string => Boolean(p));
+
+if (configuredPagesProjects.length === 0) {
+  configuredPagesProjects.push('unique-e-learning-platform');
+}
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g. mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // In development or test mode, allow all origins
+    if (!config.isProduction) return callback(null, true);
+
+    // Check wildcard or exact match in configured allowed origins
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Strictly permit legitimate project deployments and preview branches on Cloudflare Pages
+    // Prevents rogue third-party *.pages.dev hostnames from accessing credentialed endpoints
+    const isAuthorizedPagesOrigin = configuredPagesProjects.some(project => {
+      const pattern = new RegExp(`^https:\\/\\/([a-zA-Z0-9-]+[.-])?${project}\\.pages\\.dev$`);
+      return pattern.test(origin);
+    });
+
+    if (isAuthorizedPagesOrigin) {
+      return callback(null, true);
+    }
+
+    callback(new Error(`CORS blocked: Origin ${origin} is not allowed`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Tenant-Slug', 'x-tenant-slug', 'x-tenant-id'],
+};
+
+app.use(cors(corsOptions));
 
 // Express JSON with raw body capture for cryptographic webhook signatures
 app.use(express.json({
@@ -29,6 +79,11 @@ app.use(express.json({
 }));
 
 app.use(tenantMiddleware);
+
+// Lightweight health probe for Cloud Load Balancers and Render Health Checks
+app.get('/healthz', (_req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
 
 // Health check with Database, Multi-Tenant, LiveKit & Transcoding telemetry
 app.get('/api/health', async (req, res) => {
@@ -62,6 +117,8 @@ app.get('/api/health', async (req, res) => {
     },
     liveKit: livekitTelemetry,
     mediaTranscoding: transcodingTelemetry,
+    objectStorage: storageService.getTelemetry(),
+    transactionalEmail: emailService.getTelemetry(),
   });
 });
 
@@ -75,6 +132,7 @@ app.use('/api/certificates', certificateRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/interoperability', interoperabilityRoutes);
+app.use('/api/storage', storageRoutes);
 
 // Transcoding & HLS Streaming endpoints
 app.post('/api/transcode/enqueue', async (req, res) => {
@@ -146,13 +204,21 @@ const server = app.listen(config.port, async () => {
   }
 });
 
-// Graceful process termination
-process.on('SIGINT', async () => {
-  console.log('\n[EduSphere] Shutting down gracefully...');
-  await disconnectMongoDB();
+// Graceful process termination (SIGINT for local dev, SIGTERM for cloud orchestrators like Render/Kubernetes)
+const handleGracefulShutdown = async (signal: string) => {
+  console.log(`\n[EduSphere] Received ${signal}. Shutting down gracefully...`);
+  try {
+    await disconnectMongoDB();
+  } catch (err: any) {
+    console.error('[EduSphere] Error disconnecting MongoDB during shutdown:', err?.message || err);
+  }
   server.close(() => {
+    console.log('[EduSphere] HTTP server closed cleanly.');
     process.exit(0);
   });
-});
+};
+
+process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
 
 export { app, server };

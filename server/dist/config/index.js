@@ -16,6 +16,12 @@ if (isProduction) {
     if (process.env.JWT_SECRET.length < 32) {
         throw new Error('[FATAL] In production mode, JWT_SECRET must be at least 32 characters in length.');
     }
+    // Production safety barrier: Prevent localhost MongoDB connection on Render
+    const mongoUri = process.env.MONGODB_URI || '';
+    if (!mongoUri || mongoUri.includes('localhost') || mongoUri.includes('127.0.0.1')) {
+        throw new Error('[FATAL] In production mode, MONGODB_URI must be a remote MongoDB Atlas connection string. ' +
+            'A localhost URI will fail on Render — configure MONGODB_URI in the Render environment variables panel.');
+    }
 }
 exports.config = {
     port: process.env.PORT ? parseInt(process.env.PORT, 10) : 5000,

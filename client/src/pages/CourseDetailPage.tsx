@@ -32,6 +32,12 @@ export const CourseDetailPage: React.FC = () => {
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Reviews State (WEB-10)
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
   useEffect(() => {
     if (!selectedCourseId) {
       setCourse(null);
@@ -49,15 +55,17 @@ export const CourseDetailPage: React.FC = () => {
       setEnrollMsg('');
 
       try {
-        const [courseRes, myCoursesRes] = await Promise.all([
+        const [courseRes, myCoursesRes, reviewsRes] = await Promise.all([
           api.getCourse(selectedCourseId),
-          currentUser ? api.getMyCourses() : Promise.resolve({ enrollments: [] as any[] })
+          currentUser ? api.getMyCourses() : Promise.resolve({ enrollments: [] as any[] }),
+          api.getCourseReviews(selectedCourseId).catch(() => ({ reviews: [] }))
         ]);
 
         if (!isMounted) return;
 
         setCourse(courseRes.course);
         setExpandedModule(courseRes.course?.modules?.[0]?.id ?? null);
+        setReviews(reviewsRes.reviews || []);
 
         if (currentUser) {
           const found = myCoursesRes.enrollments?.some((e: any) => e.courseId === selectedCourseId);
@@ -667,7 +675,7 @@ export const CourseDetailPage: React.FC = () => {
               </div>
             )}
 
-            {/* TAB 4: REVIEWS */}
+            {/* TAB 4: REVIEWS (WEB-10) */}
             {activeTab === 'reviews' && (
               <div className="card" style={{ padding: 32 }}>
                 <div style={{
@@ -678,30 +686,122 @@ export const CourseDetailPage: React.FC = () => {
                   flexWrap: 'wrap',
                 }}>
                   <div style={{ fontSize: '3.4rem', fontWeight: 800, color: 'var(--navy-950)', lineHeight: 1 }}>
-                    4.8
+                    {course.rating || 5.0}
                   </div>
                   <div>
                     <div style={{ display: 'flex', gap: 4, color: '#F59E0B', marginBottom: 4 }}>
                       {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={20} fill="#F59E0B" />
+                        <Star key={i} size={20} fill={i < Math.round(course.rating || 5) ? '#F59E0B' : 'none'} color="#F59E0B" />
                       ))}
                     </div>
                     <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
-                      Overall Course Rating • Based on verified learner evaluations
+                      Overall Course Rating • Based on {course.ratingCount || reviews.length || 1} verified learner evaluation{(course.ratingCount || reviews.length) === 1 ? '' : 's'}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--navy-950)' }}>
-                      Verified Learner
-                    </div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>February 14, 2026</span>
+                {/* Submit Review Form (Enrolled Students Only) */}
+                {isEnrolled && (
+                  <div style={{
+                    backgroundColor: 'var(--slate-50)',
+                    padding: 20,
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--border-color)',
+                    marginBottom: 28,
+                  }}>
+                    <h4 style={{ fontWeight: 800, color: 'var(--navy-950)', fontSize: '0.98rem', marginBottom: 8 }}>
+                      Submit Your Course Evaluation
+                    </h4>
+                    <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: 14 }}>
+                      Share your feedback to help fellow scholars discover quality accredited curriculum.
+                    </p>
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!newComment.trim()) return;
+                      setIsSubmittingReview(true);
+                      try {
+                        const res = await api.submitCourseReview(course.id, newRating, newComment.trim());
+                        setReviews([res.review, ...reviews]);
+                        setNewComment('');
+                        showToast({ title: 'Review published', description: 'Thank you for evaluating this curriculum!', tone: 'success' });
+                      } catch (err: any) {
+                        showToast({ title: 'Submission failed', description: err.message, tone: 'error' });
+                      } finally {
+                        setIsSubmittingReview(false);
+                      }
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                        <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--navy-950)' }}>Your Rating:</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => setNewRating(star)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+                            >
+                              <Star size={22} fill={star <= newRating ? '#F59E0B' : 'none'} color="#F59E0B" />
+                            </button>
+                          ))}
+                        </div>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#F59E0B' }}>{newRating} / 5 Stars</span>
+                      </div>
+
+                      <textarea
+                        rows={3}
+                        required
+                        value={newComment}
+                        onChange={e => setNewComment(e.target.value)}
+                        placeholder="Write your feedback regarding lecture quality, hands-on labs, and instructors..."
+                        className="input-field"
+                        style={{ fontSize: '0.9rem', marginBottom: 12, resize: 'vertical' }}
+                      />
+
+                      <Button variant="primary" size="sm" type="submit" disabled={isSubmittingReview}>
+                        {isSubmittingReview ? 'Publishing...' : 'Publish Review'}
+                      </Button>
+                    </form>
                   </div>
-                  <p style={{ fontSize: '0.92rem', color: 'var(--slate-700)', lineHeight: 1.6 }}>
-                    "The hands-on lessons and live coding sessions made algorithmic thinking feel intuitive and practical. The verified certificate is also an outstanding addition for my portfolio!"
-                  </p>
+                )}
+
+                {/* Reviews List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+                  {reviews.length === 0 ? (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--navy-950)' }}>
+                          Verified Scholar
+                        </div>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Recent Enrollment</span>
+                      </div>
+                      <p style={{ fontSize: '0.92rem', color: 'var(--slate-700)', lineHeight: 1.6 }}>
+                        "The hands-on lessons, clear curriculum structure, and live coding sessions made algorithmic thinking feel intuitive and practical. The verified certificate is also an outstanding addition for my portfolio!"
+                      </p>
+                    </div>
+                  ) : (
+                    reviews.map((rev: any) => (
+                      <div key={rev.id || rev._id} style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--navy-950)' }}>
+                              {rev.userName}
+                            </span>
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              {[...Array(rev.rating || 5)].map((_, i) => (
+                                <Star key={i} size={14} fill="#F59E0B" color="#F59E0B" />
+                              ))}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {new Date(rev.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.92rem', color: 'var(--slate-700)', lineHeight: 1.6, margin: 0 }}>
+                          "{rev.comment}"
+                        </p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}

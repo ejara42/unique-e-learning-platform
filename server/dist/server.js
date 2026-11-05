@@ -53,6 +53,7 @@ const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const interoperabilityRoutes_1 = __importDefault(require("./routes/interoperabilityRoutes"));
 const storageRoutes_1 = __importDefault(require("./routes/storageRoutes"));
+const supportRoutes_1 = __importDefault(require("./routes/supportRoutes"));
 const transcodingService_1 = require("./services/transcodingService");
 const livekitService_1 = require("./services/livekitService");
 const storageService_1 = require("./services/storageService");
@@ -156,6 +157,7 @@ app.use('/api/admin', adminRoutes_1.default);
 app.use('/api/payments', paymentRoutes_1.default);
 app.use('/api/interoperability', interoperabilityRoutes_1.default);
 app.use('/api/storage', storageRoutes_1.default);
+app.use('/api/support', supportRoutes_1.default);
 // Transcoding & HLS Streaming endpoints
 app.post('/api/transcode/enqueue', async (req, res) => {
     try {

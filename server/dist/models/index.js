@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LiveSessionModel = exports.LiveSessionSchema = exports.TranscodeJobModel = exports.SecurityTokenModel = exports.FileAssetModel = exports.TranscodeJobSchema = exports.SecurityTokenSchema = exports.FileAssetSchema = exports.LtiConsumedNonceModel = exports.LtiStateModel = exports.ScormSessionModel = exports.ProcessedWebhookEventModel = exports.AuditLogModel = exports.AdmissionModel = exports.CertificateModel = exports.SubmissionModel = exports.AssessmentModel = exports.EnrollmentModel = exports.CourseModel = exports.UserModel = exports.TenantModel = exports.LtiConsumedNonceSchema = exports.LtiStateSchema = exports.ScormSessionSchema = exports.ProcessedWebhookEventSchema = exports.AuditLogSchema = exports.AdmissionSchema = exports.CertificateSchema = exports.SubmissionSchema = exports.AssessmentSchema = exports.EnrollmentSchema = exports.CourseSchema = exports.UserSchema = exports.TenantSchema = void 0;
+exports.SupportTicketModel = exports.SupportTicketSchema = exports.CourseAnnouncementModel = exports.CourseAnnouncementSchema = exports.CourseReviewModel = exports.CourseReviewSchema = exports.LiveSessionModel = exports.LiveSessionSchema = exports.TranscodeJobModel = exports.SecurityTokenModel = exports.FileAssetModel = exports.TranscodeJobSchema = exports.SecurityTokenSchema = exports.FileAssetSchema = exports.LtiConsumedNonceModel = exports.LtiStateModel = exports.ScormSessionModel = exports.ProcessedWebhookEventModel = exports.AuditLogModel = exports.AdmissionModel = exports.CertificateModel = exports.SubmissionModel = exports.AssessmentModel = exports.EnrollmentModel = exports.CourseModel = exports.UserModel = exports.TenantModel = exports.LtiConsumedNonceSchema = exports.LtiStateSchema = exports.ScormSessionSchema = exports.ProcessedWebhookEventSchema = exports.AuditLogSchema = exports.AdmissionSchema = exports.CertificateSchema = exports.SubmissionSchema = exports.AssessmentSchema = exports.EnrollmentSchema = exports.CourseSchema = exports.UserSchema = exports.TenantSchema = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 exports.TenantSchema = new mongoose_1.Schema({
     id: { type: String, required: true, unique: true, index: true },
@@ -406,3 +406,44 @@ exports.LiveSessionSchema = new mongoose_1.Schema({
 exports.LiveSessionSchema.index({ courseId: 1, status: 1 });
 exports.LiveSessionSchema.index({ instructorId: 1 });
 exports.LiveSessionModel = mongoose_1.default.models.LiveSession || mongoose_1.default.model('LiveSession', exports.LiveSessionSchema);
+exports.CourseReviewSchema = new mongoose_1.Schema({
+    id: { type: String, required: true, unique: true, index: true },
+    courseId: { type: String, required: true, index: true },
+    userId: { type: String, required: true, index: true },
+    userName: { type: String, required: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    comment: { type: String, required: true, trim: true },
+    createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+exports.CourseReviewSchema.index({ courseId: 1, userId: 1 }, { unique: true });
+exports.CourseReviewModel = mongoose_1.default.models.CourseReview || mongoose_1.default.model('CourseReview', exports.CourseReviewSchema);
+exports.CourseAnnouncementSchema = new mongoose_1.Schema({
+    id: { type: String, required: true, unique: true, index: true },
+    courseId: { type: String, required: true, index: true },
+    authorId: { type: String, required: true },
+    authorName: { type: String, required: true },
+    title: { type: String, required: true, trim: true },
+    content: { type: String, required: true, trim: true },
+    createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+exports.CourseAnnouncementModel = mongoose_1.default.models.CourseAnnouncement || mongoose_1.default.model('CourseAnnouncement', exports.CourseAnnouncementSchema);
+exports.SupportTicketSchema = new mongoose_1.Schema({
+    id: { type: String, required: true, unique: true, index: true },
+    fullName: { type: String, required: true, trim: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
+    category: {
+        type: String,
+        enum: ['GENERAL', 'TECHNICAL', 'ACADEMIC', 'BILLING', 'ACCREDITATION'],
+        default: 'GENERAL',
+    },
+    subject: { type: String, required: true, trim: true },
+    message: { type: String, required: true, trim: true },
+    status: {
+        type: String,
+        enum: ['OPEN', 'IN_REVIEW', 'RESOLVED'],
+        default: 'OPEN',
+        index: true,
+    },
+    createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+exports.SupportTicketModel = mongoose_1.default.models.SupportTicket || mongoose_1.default.model('SupportTicket', exports.SupportTicketSchema);

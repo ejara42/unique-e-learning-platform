@@ -56,14 +56,14 @@ export const LiveClassroomPage: React.FC = () => {
         .then(res => {
           if (res.session) setLiveSession(res.session);
         })
-        .catch(() => {});
+        .catch(() => { });
     } else {
       api.getLiveSessions()
         .then(res => {
           const found = res.sessions?.find(s => s.id === sessionId) || res.sessions?.[0];
           if (found) setLiveSession(found);
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [activeLiveSessionId, currentUser]);
 

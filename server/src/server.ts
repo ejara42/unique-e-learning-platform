@@ -14,6 +14,7 @@ import adminRoutes from './routes/adminRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import interoperabilityRoutes from './routes/interoperabilityRoutes';
 import storageRoutes from './routes/storageRoutes';
+import supportRoutes from './routes/supportRoutes';
 import { transcodingService } from './services/transcodingService';
 import { livekitService } from './services/livekitService';
 import { storageService } from './services/storageService';
@@ -133,6 +134,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/interoperability', interoperabilityRoutes);
 app.use('/api/storage', storageRoutes);
+app.use('/api/support', supportRoutes);
 
 // Transcoding & HLS Streaming endpoints
 app.post('/api/transcode/enqueue', async (req, res) => {

@@ -5,6 +5,7 @@ const uuid_1 = require("uuid");
 const dbRepository_1 = require("../data/dbRepository");
 const tenant_1 = require("../middleware/tenant");
 const auth_1 = require("../middleware/auth");
+const models_1 = require("../models");
 const router = (0, express_1.Router)();
 // GET /api/courses - Catalog listing with search & tenant filtering
 router.get('/', async (req, res) => {
@@ -185,6 +186,104 @@ router.patch('/:id/progress', auth_1.requireAuth, async (req, res) => {
     }
     catch (err) {
         res.status(500).json({ message: 'Failed to update progress', error: err.message });
+    }
+});
+// GET /api/courses/:id/reviews - Retrieve student ratings & reviews (WEB-10)
+router.get('/:id/reviews', async (req, res) => {
+    try {
+        const reviews = await models_1.CourseReviewModel.find({ courseId: req.params.id })
+            .sort({ createdAt: -1 })
+            .limit(50)
+            .lean();
+        res.json({ reviews });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to fetch reviews', error: err.message });
+    }
+});
+// POST /api/courses/:id/reviews - Submit student rating & review (WEB-10)
+router.post('/:id/reviews', auth_1.requireAuth, async (req, res) => {
+    try {
+        const courseId = req.params.id;
+        const userId = req.user?.id;
+        const userName = req.user?.fullName || 'Verified Learner';
+        const { rating, comment } = req.body;
+        if (!rating || rating < 1 || rating > 5) {
+            res.status(400).json({ message: 'Valid rating between 1 and 5 is required' });
+            return;
+        }
+        if (!comment || !comment.trim()) {
+            res.status(400).json({ message: 'Review comment cannot be empty' });
+            return;
+        }
+        // Verify student is actually enrolled in the course
+        const isEnrolled = await models_1.EnrollmentModel.findOne({ courseId, userId });
+        if (!isEnrolled && req.user?.activeRole !== 'PLATFORM_ADMIN') {
+            res.status(403).json({ message: 'Only enrolled scholars can submit course reviews' });
+            return;
+        }
+        // Prevent duplicate reviews from the same scholar
+        const existing = await models_1.CourseReviewModel.findOne({ courseId, userId });
+        if (existing) {
+            res.status(409).json({ message: 'You have already submitted a review for this curriculum' });
+            return;
+        }
+        const review = await models_1.CourseReviewModel.create({
+            id: `rev-${(0, uuid_1.v4)().slice(0, 8)}`,
+            courseId,
+            userId,
+            userName,
+            rating: Number(rating),
+            comment: comment.trim(),
+            createdAt: new Date().toISOString(),
+        });
+        // Update aggregate rating on course
+        const allReviews = await models_1.CourseReviewModel.find({ courseId });
+        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+        await models_1.CourseModel.findOneAndUpdate({ id: courseId }, { rating: Math.round(avgRating * 10) / 10, ratingCount: allReviews.length });
+        res.status(201).json({ message: 'Review published successfully', review });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to submit review', error: err.message });
+    }
+});
+// GET /api/courses/:id/announcements - Retrieve course announcements (LRN-07)
+router.get('/:id/announcements', async (req, res) => {
+    try {
+        const announcements = await models_1.CourseAnnouncementModel.find({ courseId: req.params.id })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .lean();
+        res.json({ announcements });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to fetch announcements', error: err.message });
+    }
+});
+// POST /api/courses/:id/announcements - Publish faculty course announcement (LRN-07)
+router.post('/:id/announcements', auth_1.requireAuth, async (req, res) => {
+    try {
+        const courseId = req.params.id;
+        const authorId = req.user?.id || '';
+        const authorName = req.user?.fullName || 'Faculty Instructor';
+        const { title, content } = req.body;
+        if (!title?.trim() || !content?.trim()) {
+            res.status(400).json({ message: 'Announcement title and content are required' });
+            return;
+        }
+        const announcement = await models_1.CourseAnnouncementModel.create({
+            id: `ann-${(0, uuid_1.v4)().slice(0, 8)}`,
+            courseId,
+            authorId,
+            authorName,
+            title: title.trim(),
+            content: content.trim(),
+            createdAt: new Date().toISOString(),
+        });
+        res.status(201).json({ message: 'Course announcement published', announcement });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to post announcement', error: err.message });
     }
 });
 exports.default = router;

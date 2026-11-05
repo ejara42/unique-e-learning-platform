@@ -294,4 +294,40 @@ export const api = {
       body: JSON.stringify({ token }),
     });
   },
+
+  // Course Reviews & Ratings (WEB-10)
+  async getCourseReviews(courseId: string): Promise<{ reviews: any[] }> {
+    return request(`/courses/${courseId}/reviews`);
+  },
+  async submitCourseReview(courseId: string, rating: number, comment: string): Promise<{ message: string; review: any }> {
+    return request(`/courses/${courseId}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, comment }),
+    });
+  },
+
+  // Course Announcements (LRN-07)
+  async getCourseAnnouncements(courseId: string): Promise<{ announcements: any[] }> {
+    return request(`/courses/${courseId}/announcements`);
+  },
+  async postCourseAnnouncement(courseId: string, title: string, content: string): Promise<{ message: string; announcement: any }> {
+    return request(`/courses/${courseId}/announcements`, {
+      method: 'POST',
+      body: JSON.stringify({ title, content }),
+    });
+  },
+
+  // Support & Help Desk (WEB-02, ADM-04)
+  async submitSupportTicket(data: {
+    fullName: string;
+    email: string;
+    category?: string;
+    subject: string;
+    message: string;
+  }): Promise<{ message: string; ticket: any }> {
+    return request('/support/ticket', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };

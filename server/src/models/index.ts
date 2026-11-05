@@ -724,5 +724,94 @@ LiveSessionSchema.index({ instructorId: 1 });
 
 export const LiveSessionModel = mongoose.models.LiveSession || mongoose.model<ILiveSessionDocument>('LiveSession', LiveSessionSchema);
 
+// ============================================================================
+// 17. COURSE REVIEWS & RATINGS SCHEMA (WEB-10)
+// ============================================================================
+export interface ICourseReviewDocument extends Document {
+  id: string;
+  courseId: string;
+  userId: string;
+  userName: string;
+  rating: number; // 1 to 5
+  comment: string;
+  createdAt: string;
+}
+
+export const CourseReviewSchema = new Schema<ICourseReviewDocument>({
+  id: { type: String, required: true, unique: true, index: true },
+  courseId: { type: String, required: true, index: true },
+  userId: { type: String, required: true, index: true },
+  userName: { type: String, required: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String, required: true, trim: true },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+
+CourseReviewSchema.index({ courseId: 1, userId: 1 }, { unique: true });
+
+export const CourseReviewModel = mongoose.models.CourseReview || mongoose.model<ICourseReviewDocument>('CourseReview', CourseReviewSchema);
+
+// ============================================================================
+// 18. COURSE ANNOUNCEMENTS SCHEMA (LRN-07)
+// ============================================================================
+export interface ICourseAnnouncementDocument extends Document {
+  id: string;
+  courseId: string;
+  authorId: string;
+  authorName: string;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+
+export const CourseAnnouncementSchema = new Schema<ICourseAnnouncementDocument>({
+  id: { type: String, required: true, unique: true, index: true },
+  courseId: { type: String, required: true, index: true },
+  authorId: { type: String, required: true },
+  authorName: { type: String, required: true },
+  title: { type: String, required: true, trim: true },
+  content: { type: String, required: true, trim: true },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+
+export const CourseAnnouncementModel = mongoose.models.CourseAnnouncement || mongoose.model<ICourseAnnouncementDocument>('CourseAnnouncement', CourseAnnouncementSchema);
+
+// ============================================================================
+// 19. SUPPORT TICKETS SCHEMA (WEB-02, ADM-04)
+// ============================================================================
+export interface ISupportTicketDocument extends Document {
+  id: string;
+  fullName: string;
+  email: string;
+  category: 'GENERAL' | 'TECHNICAL' | 'ACADEMIC' | 'BILLING' | 'ACCREDITATION';
+  subject: string;
+  message: string;
+  status: 'OPEN' | 'IN_REVIEW' | 'RESOLVED';
+  createdAt: string;
+}
+
+export const SupportTicketSchema = new Schema<ISupportTicketDocument>({
+  id: { type: String, required: true, unique: true, index: true },
+  fullName: { type: String, required: true, trim: true },
+  email: { type: String, required: true, lowercase: true, trim: true },
+  category: {
+    type: String,
+    enum: ['GENERAL', 'TECHNICAL', 'ACADEMIC', 'BILLING', 'ACCREDITATION'],
+    default: 'GENERAL',
+  },
+  subject: { type: String, required: true, trim: true },
+  message: { type: String, required: true, trim: true },
+  status: {
+    type: String,
+    enum: ['OPEN', 'IN_REVIEW', 'RESOLVED'],
+    default: 'OPEN',
+    index: true,
+  },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+
+export const SupportTicketModel = mongoose.models.SupportTicket || mongoose.model<ISupportTicketDocument>('SupportTicket', SupportTicketSchema);
+
+
 
 

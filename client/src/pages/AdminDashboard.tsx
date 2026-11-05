@@ -4,11 +4,11 @@ import { api } from '../api';
 import { Sidebar } from '../components/Sidebar';
 import { MinistryLogo } from '../components/MinistryLogo';
 import { ITenant, IAuditLog } from '../types';
-import { 
-  Building2, 
-  Users, 
-  BookOpen, 
-  Activity, 
+import {
+  Building2,
+  Users,
+  BookOpen,
+  Activity,
   ShieldCheck,
   RefreshCw,
   PlusCircle,
@@ -74,7 +74,7 @@ export const AdminDashboard: React.FC = () => {
 
     api.getAdmissions()
       .then(res => setAdmissions(res.admissions || []))
-      .catch(() => {});
+      .catch(() => { });
   };
 
   useEffect(() => {
@@ -174,7 +174,7 @@ export const AdminDashboard: React.FC = () => {
 
   const filteredTenants = tenants.filter(t => {
     const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.contactEmail.toLowerCase().includes(searchQuery.toLowerCase());
@@ -230,18 +230,18 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <Button 
+            <Button
               variant="primary"
               size="md"
-              onClick={() => setShowAddModal(true)} 
+              onClick={() => setShowAddModal(true)}
               icon={<PlusCircle size={15} />}
             >
               Add Institution
             </Button>
-            <Button 
+            <Button
               variant="secondary"
               size="md"
-              onClick={loadData} 
+              onClick={loadData}
               isLoading={isLoadingData}
               icon={<RefreshCw size={14} />}
               title="Reload live database records"
@@ -445,7 +445,7 @@ export const AdminDashboard: React.FC = () => {
             }}>
               <div style={{ position: 'relative', minWidth: 260, flex: 1, maxWidth: 360 }}>
                 <Search size={15} color="var(--slate-400)" style={{ position: 'absolute', left: 12, top: 12 }} />
-                <input 
+                <input
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
@@ -628,7 +628,7 @@ export const AdminDashboard: React.FC = () => {
                   ) : (
                     <tr>
                       <td colSpan={6} style={{ padding: 36, textAlign: 'center' }}>
-                        <EmptyState 
+                        <EmptyState
                           title="No Institutions Found"
                           description="No institutions match your search query or filter selection."
                           actionLabel="Clear Filters"
@@ -755,7 +755,7 @@ export const AdminDashboard: React.FC = () => {
                   ) : (
                     <tr>
                       <td colSpan={6} style={{ padding: 36, textAlign: 'center' }}>
-                        <EmptyState 
+                        <EmptyState
                           title="No Admissions in Queue"
                           description="There are currently no pending student applications across institutional programs."
                         />
@@ -821,7 +821,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <EmptyState 
+                <EmptyState
                   title="Audit Trail Clean"
                   description="All compliance checks are in order. No security anomalies recorded."
                 />
@@ -956,8 +956,8 @@ export const AdminDashboard: React.FC = () => {
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
                 Institution Name *
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={newInstName}
                 onChange={e => setNewInstName(e.target.value)}
                 placeholder="e.g. Addis Ababa Institute of Technology"
@@ -989,8 +989,8 @@ export const AdminDashboard: React.FC = () => {
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
                   Contact Email *
                 </label>
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={newInstEmail}
                   onChange={e => setNewInstEmail(e.target.value)}
                   placeholder="admin@institution.edu"
@@ -1005,8 +1005,8 @@ export const AdminDashboard: React.FC = () => {
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
                 Campus Location
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={newInstAddress}
                 onChange={e => setNewInstAddress(e.target.value)}
                 placeholder="Campus address / city"
@@ -1024,8 +1024,8 @@ export const AdminDashboard: React.FC = () => {
               alignItems: 'center',
               gap: 10,
             }}>
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 id="autoAcceptCheck"
                 checked={newInstAutoAccept}
                 onChange={e => setNewInstAutoAccept(e.target.checked)}

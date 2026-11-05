@@ -36,6 +36,7 @@ interface AppContextType {
 
   // Dynamic Authentication
   loginUser: (email: string, pass: string) => Promise<void>;
+  demoLoginUser: (role: UserRole) => Promise<void>;
   registerUser: (fullName: string, email: string, pass: string, role: UserRole, institutionName?: string) => Promise<void>;
   switchUserRole: (role: UserRole) => Promise<void>;
   logoutUser: () => void;
@@ -181,6 +182,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Instant Demo Login for Role-based Exploration without Registration
+  const demoLoginUser = async (role: UserRole) => {
+    const res = await api.demoLogin(role);
+    setCurrentUser(res.user);
+    if (role === 'PLATFORM_ADMIN' || role === 'INSTITUTION_ADMIN') {
+      setCurrentPage('admin-dashboard');
+    } else if (role === 'INSTRUCTOR') {
+      setCurrentPage('teacher-studio');
+    } else {
+      setCurrentPage('learner-dashboard');
+    }
+  };
+
   // Dynamic Registration
   const registerUser = async (
     fullName: string,
@@ -267,6 +281,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeLiveSessionId,
         setActiveLiveSessionId,
         loginUser,
+        demoLoginUser,
         registerUser,
         switchUserRole,
         logoutUser,

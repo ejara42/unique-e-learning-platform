@@ -4,15 +4,15 @@ import { api } from '../api';
 import { ICertificate } from '../types';
 import { Logo } from '../components/Logo';
 import { MinistryLogo } from '../components/MinistryLogo';
-import { 
-  ShieldCheck, 
-  Award, 
-  CheckCircle2, 
-  Search, 
-  Download, 
-  Printer, 
-  Share2, 
-  QrCode, 
+import {
+  ShieldCheck,
+  Award,
+  CheckCircle2,
+  Search,
+  Download,
+  Printer,
+  Share2,
+  QrCode,
   AlertCircle,
   Lock,
   ArrowLeft
@@ -63,7 +63,7 @@ export const CertificateVerifyPage: React.FC = () => {
       <ToastViewport toast={toast} onDismiss={dismissToast} />
       <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', padding: '40px 24px 80px' }}>
         <div style={{ maxWidth: 840, margin: '0 auto' }}>
-          
+
           {/* Breadcrumb / Back Navigation */}
           <div style={{ marginBottom: 20 }}>
             <button
@@ -116,8 +116,8 @@ export const CertificateVerifyPage: React.FC = () => {
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: 10, maxWidth: 600, margin: '0 auto 36px' }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <Search size={16} color="var(--slate-400)" style={{ position: 'absolute', left: 14, top: 14 }} />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder="Enter unique Certificate Code (e.g. EDU-2026-X89K-4921)"
@@ -125,9 +125,9 @@ export const CertificateVerifyPage: React.FC = () => {
                 style={{ paddingLeft: 40, height: 44, fontSize: '0.9rem', borderRadius: 'var(--radius-md)' }}
               />
             </div>
-            <Button 
-              type="submit" 
-              variant="primary" 
+            <Button
+              type="submit"
+              variant="primary"
               size="md"
               isLoading={isLoading}
               style={{ height: 44, padding: '0 24px' }}
@@ -335,7 +335,7 @@ export const CertificateVerifyPage: React.FC = () => {
                     size="sm"
                     onClick={() => {
                       const link = `https://edusphere.io/verify/${certData?.certificateNumber || ''}`;
-                      navigator.clipboard?.writeText(link).catch(() => {});
+                      navigator.clipboard?.writeText(link).catch(() => { });
                       showToast({ title: 'Link copied', description: 'The credential verification link has been copied to the clipboard.', tone: 'success' });
                     }}
                     icon={<Share2 size={15} />}

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { currentPage, setCurrentPage, currentUser, logoutUser } = useApp();
+  const { currentPage, setCurrentPage, currentUser, logoutUser, switchUserRole } = useApp();
   const role = currentUser?.activeRole || 'STUDENT';
 
   const isTeacher = role === 'INSTRUCTOR';
@@ -208,6 +208,36 @@ export const Sidebar: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Quick Role Switcher for Multi-Role / Demo Accounts */}
+            {currentUser.authorizedRoles && currentUser.authorizedRoles.length > 1 && (
+              <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div style={{ fontSize: '0.66rem', color: '#94A3B8', marginBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Switch Active Role:
+                </div>
+                <select
+                  value={currentUser.activeRole}
+                  onChange={(e) => switchUserRole(e.target.value as any)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#0F172A',
+                    color: '#FFFFFF',
+                    border: '1px solid #334155',
+                    borderRadius: 6,
+                    padding: '5px 8px',
+                    fontSize: '0.76rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {currentUser.authorizedRoles.map(r => (
+                    <option key={r} value={r}>
+                      {r.replace('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         ) : null}
 

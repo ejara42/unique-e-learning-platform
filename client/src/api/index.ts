@@ -83,6 +83,14 @@ export const api = {
     localStorage.setItem('edusphere_token', res.token);
     return res;
   },
+  async demoLogin(role: UserRole): Promise<{ token: string; user: IUser }> {
+    const res = await request<{ token: string; user: IUser }>('/auth/demo-login', {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    });
+    localStorage.setItem('edusphere_token', res.token);
+    return res;
+  },
   logout() {
     localStorage.removeItem('edusphere_token');
   },

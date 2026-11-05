@@ -94,14 +94,22 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-  --text-xs: 0.75rem;     /* 12px */
-  --text-sm: 0.875rem;    /* 14px */
-  --text-base: 0.9375rem; /* 15px */
-  --text-lg: 1.0625rem;   /* 17px */
-  --text-xl: 1.25rem;     /* 20px */
-  --text-2xl: 1.5rem;     /* 24px */
-  --text-3xl: 1.875rem;   /* 30px */
-  --text-4xl: 2.25rem;    /* 36px */
+  --text-xs: 0.75rem;
+  /* 12px */
+  --text-sm: 0.875rem;
+  /* 14px */
+  --text-base: 0.9375rem;
+  /* 15px */
+  --text-lg: 1.0625rem;
+  /* 17px */
+  --text-xl: 1.25rem;
+  /* 20px */
+  --text-2xl: 1.5rem;
+  /* 24px */
+  --text-3xl: 1.875rem;
+  /* 30px */
+  --text-4xl: 2.25rem;
+  /* 36px */
 
   --leading-tight: 1.25;
   --leading-normal: 1.5;
@@ -141,7 +149,9 @@
 /* ----------------------------------------------------------------------------
    Reset & Base Styles
    ---------------------------------------------------------------------------- */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -163,7 +173,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-button, input, select, textarea {
+button,
+input,
+select,
+textarea {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -174,7 +187,8 @@ a {
   text-decoration: none;
 }
 
-img, svg {
+img,
+svg {
   display: block;
   max-width: 100%;
 }
@@ -198,7 +212,10 @@ html.high-contrast-mode body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -211,13 +228,16 @@ html.high-contrast-mode body {
   width: 7px;
   height: 7px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--slate-100);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--slate-300);
   border-radius: var(--radius-full);
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--slate-400);
 }
@@ -226,23 +246,51 @@ html.high-contrast-mode body {
    Keyframe Animations
    ---------------------------------------------------------------------------- */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulseSubtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes recordingPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.92); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
 }
 
 .animate-fade-in {
@@ -282,10 +330,12 @@ html.high-contrast-mode body {
   border-color: var(--primary-700);
   box-shadow: var(--shadow-xs);
 }
+
 .btn-primary:hover:not(:disabled) {
   background-color: var(--primary-hover);
   box-shadow: var(--shadow-sm);
 }
+
 .btn-primary:active:not(:disabled) {
   background-color: var(--primary-active);
 }
@@ -296,11 +346,13 @@ html.high-contrast-mode body {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-xs);
 }
+
 .btn-secondary:hover:not(:disabled) {
   background-color: var(--slate-50);
   border-color: var(--slate-400);
   color: var(--navy-950);
 }
+
 .btn-secondary:active:not(:disabled) {
   background-color: var(--slate-100);
 }
@@ -311,6 +363,7 @@ html.high-contrast-mode body {
   border-color: var(--teal-700);
   box-shadow: var(--shadow-xs);
 }
+
 .btn-teal:hover:not(:disabled) {
   background-color: var(--teal-700);
   box-shadow: var(--shadow-sm);
@@ -320,6 +373,7 @@ html.high-contrast-mode body {
   background-color: transparent;
   color: var(--text-muted);
 }
+
 .btn-ghost:hover:not(:disabled) {
   background-color: var(--slate-100);
   color: var(--text-main);
@@ -329,6 +383,7 @@ html.high-contrast-mode body {
   background-color: var(--danger);
   color: #FFFFFF;
 }
+
 .btn-danger:hover:not(:disabled) {
   background-color: var(--danger-hover);
 }
@@ -444,6 +499,7 @@ textarea.input-field {
   gap: 16px;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
+
 .stat-card:hover {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-sm);
@@ -607,8 +663,13 @@ textarea.input-field {
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ----------------------------------------------------------------------------
@@ -712,12 +773,14 @@ textarea.input-field {
   }
 
   .btn {
-    min-height: 44px; /* Accessible touch target on phone */
+    min-height: 44px;
+    /* Accessible touch target on phone */
   }
 
   .input-field {
     min-height: 44px;
-    font-size: 16px !important; /* Prevents auto-zoom on iOS */
+    font-size: 16px !important;
+    /* Prevents auto-zoom on iOS */
   }
 
   .app-footer-container {
@@ -908,4 +971,3 @@ textarea.input-field {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-

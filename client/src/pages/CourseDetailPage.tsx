@@ -162,7 +162,7 @@ export const CourseDetailPage: React.FC = () => {
     <>
       <ToastViewport toast={toast} onDismiss={dismissToast} />
       <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', paddingBottom: 80 }}>
-        
+
         {/* Clean Enterprise Academic Course Header */}
         <section style={{
           backgroundColor: '#FFFFFF',

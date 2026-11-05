@@ -12,6 +12,7 @@ export interface IUser {
   avatarUrl?: string;
   bio?: string;
   activeRole: UserRole;
+  authorizedRoles?: UserRole[];
   institutionId?: string | null;
 }
 

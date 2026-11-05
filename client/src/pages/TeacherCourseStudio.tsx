@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { Sidebar } from '../components/Sidebar';
-import { 
-  Check, 
-  ArrowRight, 
-  ArrowLeft, 
-  Plus, 
-  Trash2, 
-  Video, 
-  FileText, 
-  ShieldCheck, 
-  UploadCloud, 
-  CheckCircle2, 
+import {
+  Check,
+  ArrowRight,
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Video,
+  FileText,
+  ShieldCheck,
+  UploadCloud,
+  CheckCircle2,
   DollarSign,
   Layers,
   Sparkles,
@@ -24,7 +24,7 @@ export const TeacherCourseStudio: React.FC = () => {
   const { setCurrentPage, openCourse } = useApp();
   const { toast, showToast, dismissToast } = useToast();
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
-  
+
   // Step 1: Basic Info
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -199,7 +199,7 @@ export const TeacherCourseStudio: React.FC = () => {
             const isCurrent = currentStep === s.number;
             return (
               <React.Fragment key={s.number}>
-                <div 
+                <div
                   onClick={() => setCurrentStep(s.number as any)}
                   style={{
                     display: 'flex',
@@ -290,8 +290,8 @@ export const TeacherCourseStudio: React.FC = () => {
                 <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                   Course Title *
                 </label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="e.g. Advanced Operating Systems and Kernel Internals"
@@ -304,7 +304,7 @@ export const TeacherCourseStudio: React.FC = () => {
                 <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                   Course Syllabus & Learning Objectives *
                 </label>
-                <textarea 
+                <textarea
                   rows={4}
                   value={description}
                   onChange={e => setDescription(e.target.value)}
@@ -319,7 +319,7 @@ export const TeacherCourseStudio: React.FC = () => {
                   <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                     Academic Category
                   </label>
-                  <select 
+                  <select
                     value={category}
                     onChange={e => setCategory(e.target.value)}
                     className="input-field"
@@ -343,7 +343,7 @@ export const TeacherCourseStudio: React.FC = () => {
                   <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                     Education Level / Tier
                   </label>
-                  <select 
+                  <select
                     value={level}
                     onChange={e => setLevel(e.target.value as any)}
                     className="input-field"
@@ -365,7 +365,7 @@ export const TeacherCourseStudio: React.FC = () => {
                   </label>
                   <div style={{ position: 'relative' }}>
                     <DollarSign size={15} color="var(--slate-400)" style={{ position: 'absolute', left: 12, top: 13 }} />
-                    <input 
+                    <input
                       type="number"
                       min={0}
                       value={price}
@@ -435,16 +435,16 @@ export const TeacherCourseStudio: React.FC = () => {
                 paddingTop: 18,
                 borderTop: '1px solid var(--border-subtle)',
               }}>
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   variant="secondary"
                   size="md"
                   onClick={() => setCurrentPage('learner-dashboard')}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   variant="primary"
                   size="md"
                   onClick={() => {
@@ -483,7 +483,7 @@ export const TeacherCourseStudio: React.FC = () => {
                 </p>
               </div>
 
-              <Button 
+              <Button
                 variant="secondary"
                 size="sm"
                 onClick={handleAddModule}
@@ -522,8 +522,8 @@ export const TeacherCourseStudio: React.FC = () => {
                       }}>
                         M{mIdx + 1}
                       </span>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={mod.title}
                         onChange={e => {
                           const updated = [...modules];
@@ -536,7 +536,7 @@ export const TeacherCourseStudio: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Button 
+                      <Button
                         size="sm"
                         variant="primary"
                         onClick={() => handleAddLesson(mIdx)}
@@ -576,8 +576,8 @@ export const TeacherCourseStudio: React.FC = () => {
                         border: '1px solid var(--border-color)',
                       }}>
                         <Video size={15} color="var(--primary)" />
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={lesson.title}
                           onChange={e => {
                             const updated = [...modules];
@@ -676,8 +676,8 @@ export const TeacherCourseStudio: React.FC = () => {
               paddingTop: 18,
               borderTop: '1px solid var(--border-subtle)',
             }}>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="secondary"
                 size="md"
                 onClick={() => setCurrentStep(1)}
@@ -685,8 +685,8 @@ export const TeacherCourseStudio: React.FC = () => {
               >
                 Back: Metadata
               </Button>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="primary"
                 size="md"
                 onClick={() => setCurrentStep(3)}
@@ -721,8 +721,8 @@ export const TeacherCourseStudio: React.FC = () => {
                   Minimum Passing Grade (%) for Official Credential
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={passingGrade}
                     onChange={e => setPassingGrade(parseInt(e.target.value, 10))}
                     min={50}
@@ -755,9 +755,9 @@ export const TeacherCourseStudio: React.FC = () => {
                     Monitors browser window focus, tab switching, and proctoring events during assessments.
                   </div>
                 </div>
-                <input 
-                  type="checkbox" 
-                  checked={antiCheatingEnabled} 
+                <input
+                  type="checkbox"
+                  checked={antiCheatingEnabled}
                   onChange={e => setAntiCheatingEnabled(e.target.checked)}
                   style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
                 />
@@ -782,9 +782,9 @@ export const TeacherCourseStudio: React.FC = () => {
                     Optimizes video streams for smooth low-bandwidth playback across mobile and regional networks.
                   </div>
                 </div>
-                <input 
-                  type="checkbox" 
-                  checked={hlsTranscoding} 
+                <input
+                  type="checkbox"
+                  checked={hlsTranscoding}
                   onChange={e => setHlsTranscoding(e.target.checked)}
                   style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
                 />
@@ -797,8 +797,8 @@ export const TeacherCourseStudio: React.FC = () => {
               paddingTop: 18,
               borderTop: '1px solid var(--border-subtle)',
             }}>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="secondary"
                 size="md"
                 onClick={() => setCurrentStep(2)}
@@ -806,8 +806,8 @@ export const TeacherCourseStudio: React.FC = () => {
               >
                 Back: Curriculum
               </Button>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="primary"
                 size="md"
                 onClick={() => setCurrentStep(4)}
@@ -889,8 +889,8 @@ export const TeacherCourseStudio: React.FC = () => {
               paddingTop: 18,
               borderTop: '1px solid var(--border-subtle)',
             }}>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="secondary"
                 size="md"
                 onClick={() => setCurrentStep(3)}
@@ -898,11 +898,11 @@ export const TeacherCourseStudio: React.FC = () => {
               >
                 Back: Settings
               </Button>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="primary"
                 size="md"
-                onClick={handlePublish} 
+                onClick={handlePublish}
                 isLoading={isSubmitting}
                 style={{ padding: '10px 28px' }}
               >

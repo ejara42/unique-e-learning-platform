@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { api } from '../api';
 import { Logo } from '../components/Logo';
 import { MinistryLogo } from '../components/MinistryLogo';
 import {
@@ -14,7 +15,8 @@ import {
   LogIn,
   UserPlus,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  KeyRound
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { Button } from '../components/ui';
@@ -25,7 +27,7 @@ interface AuthPageProps {
 
 export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) => {
   const { loginUser, registerUser, setCurrentPage, t, isRTL } = useApp();
-  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>(initialMode);
 
   // Dynamic Sign In State
   const [signInEmail, setSignInEmail] = useState('');
@@ -39,8 +41,65 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
   const [selectedRole, setSelectedRole] = useState<UserRole>('STUDENT');
   const [institutionName, setInstitutionName] = useState('');
 
+  // Password Recovery State
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail || !forgotEmail.includes('@')) {
+      setErrorMsg('Please enter a valid email address');
+      return;
+    }
+    setErrorMsg('');
+    setSuccessMsg('');
+    setIsLoading(true);
+    try {
+      const res = await api.forgotPassword(forgotEmail);
+      setSuccessMsg(res.message || 'If an account exists, recovery instructions have been dispatched.');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to dispatch password reset request.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetToken.trim()) {
+      setErrorMsg('Please enter the security token from your email.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setErrorMsg('Password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
+    setErrorMsg('');
+    setSuccessMsg('');
+    setIsLoading(true);
+    try {
+      const res = await api.resetPassword(resetToken.trim(), newPassword);
+      setSuccessMsg(res.message || 'Password successfully updated! You may now sign in.');
+      setSignInEmail(forgotEmail);
+      setTimeout(() => {
+        setMode('signin');
+      }, 2000);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to reset password. The code may be expired or invalid.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,7 +301,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
         }}>
           <div>
             <div style={{ fontSize: '0.76rem', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800, color: 'var(--primary)' }}>Secure access</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.03em', marginTop: 4 }}>{mode === 'signin' ? 'Welcome back' : 'Create account'}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.03em', marginTop: 4 }}>
+              {mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Reset Password' : 'Set New Password'}
+            </div>
           </div>
           <div style={{
             display: 'inline-flex',
@@ -261,74 +322,118 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
           </div>
         </div>
 
-        {/* Toggle Mode Tabs (Sign In vs Register) */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          backgroundColor: 'var(--slate-100)',
-          padding: 4,
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border-color)',
-          marginBottom: 28,
-        }}>
+        {/* Toggle Mode Tabs (Sign In vs Register vs Back) */}
+        {mode === 'forgot' || mode === 'reset' ? (
           <button
             type="button"
-            onClick={() => { setMode('signin'); setErrorMsg(''); }}
-            style={{
-              padding: '11px 16px',
-              borderRadius: 'var(--radius-md)',
-              border: 'none',
-              backgroundColor: mode === 'signin' ? '#FFFFFF' : 'transparent',
-              color: mode === 'signin' ? 'var(--navy-950)' : 'var(--text-muted)',
-              fontWeight: mode === 'signin' ? 800 : 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              boxShadow: mode === 'signin' ? 'var(--shadow-sm)' : 'none',
-              transition: 'all 0.15s ease',
-              fontSize: '0.92rem',
-            }}
+            onClick={() => { setMode('signin'); setErrorMsg(''); setSuccessMsg(''); }}
+            className="btn btn-secondary"
+            style={{ width: '100%', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
           >
-            <LogIn size={16} color={mode === 'signin' ? 'var(--primary)' : 'currentColor'} />
-            <span>{t.signIn}</span>
+            <ArrowLeft size={16} />
+            <span>Back to Sign In</span>
           </button>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            backgroundColor: 'var(--slate-100)',
+            padding: 4,
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border-color)',
+            marginBottom: 28,
+          }}>
+            <button
+              type="button"
+              onClick={() => { setMode('signin'); setErrorMsg(''); setSuccessMsg(''); }}
+              style={{
+                padding: '11px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                backgroundColor: mode === 'signin' ? '#FFFFFF' : 'transparent',
+                color: mode === 'signin' ? 'var(--navy-950)' : 'var(--text-muted)',
+                fontWeight: mode === 'signin' ? 800 : 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                boxShadow: mode === 'signin' ? 'var(--shadow-sm)' : 'none',
+                transition: 'all 0.15s ease',
+                fontSize: '0.92rem',
+              }}
+            >
+              <LogIn size={16} color={mode === 'signin' ? 'var(--primary)' : 'currentColor'} />
+              <span>{t.signIn}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => { setMode('signup'); setErrorMsg(''); }}
-            style={{
-              padding: '11px 16px',
-              borderRadius: 'var(--radius-md)',
-              border: 'none',
-              backgroundColor: mode === 'signup' ? '#FFFFFF' : 'transparent',
-              color: mode === 'signup' ? 'var(--navy-950)' : 'var(--text-muted)',
-              fontWeight: mode === 'signup' ? 800 : 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              boxShadow: mode === 'signup' ? 'var(--shadow-sm)' : 'none',
-              transition: 'all 0.15s ease',
-              fontSize: '0.92rem',
-            }}
-          >
-            <UserPlus size={16} color={mode === 'signup' ? 'var(--primary)' : 'currentColor'} />
-            <span>{t.signUp}</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => { setMode('signup'); setErrorMsg(''); setSuccessMsg(''); }}
+              style={{
+                padding: '11px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: 'none',
+                backgroundColor: mode === 'signup' ? '#FFFFFF' : 'transparent',
+                color: mode === 'signup' ? 'var(--navy-950)' : 'var(--text-muted)',
+                fontWeight: mode === 'signup' ? 800 : 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                boxShadow: mode === 'signup' ? 'var(--shadow-sm)' : 'none',
+                transition: 'all 0.15s ease',
+                fontSize: '0.92rem',
+              }}
+            >
+              <UserPlus size={16} color={mode === 'signup' ? 'var(--primary)' : 'currentColor'} />
+              <span>{t.signUp}</span>
+            </button>
+          </div>
+        )}
 
         {/* Title */}
         <div style={{ marginBottom: 24 }}>
           <h2 style={{ fontSize: '1.68rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 6, letterSpacing: '-0.02em' }}>
-            {mode === 'signin' ? t.signInTitle : t.signUpTitle}
+            {mode === 'signin'
+              ? t.signInTitle
+              : mode === 'signup'
+              ? t.signUpTitle
+              : mode === 'forgot'
+              ? 'Recover Password'
+              : 'Set New Password'}
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.94rem' }}>
-            {mode === 'signin' ? t.signInSubtitle : t.signUpSubtitle}
+            {mode === 'signin'
+              ? t.signInSubtitle
+              : mode === 'signup'
+              ? t.signUpSubtitle
+              : mode === 'forgot'
+              ? 'Enter your registered email address and we will dispatch secure recovery instructions.'
+              : 'Enter your recovery code and choose a new secure password.'}
           </p>
         </div>
+
+        {/* Success Alert */}
+        {successMsg && (
+          <div style={{
+            backgroundColor: '#ECFDF5',
+            color: '#065F46',
+            border: '1px solid #A7F3D0',
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: 20,
+            fontSize: '0.88rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}>
+            <CheckCircle size={18} color="#059669" />
+            <span>{successMsg}</span>
+          </div>
+        )}
 
         {/* Error Alert */}
         {errorMsg && (
@@ -349,8 +454,134 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
           </div>
         )}
 
-        {/* SIGN IN FORM */}
-        {mode === 'signin' ? (
+        {/* FORGOT PASSWORD FORM */}
+        {mode === 'forgot' ? (
+          <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                {t.emailLabel} *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  className="input-field"
+                  style={{ paddingLeft: 42, height: 46 }}
+                  required
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              isLoading={isLoading}
+              style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
+            >
+              {isLoading ? 'Dispatching...' : 'Send Recovery Instructions'}
+            </Button>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, fontSize: '0.88rem' }}>
+              <button
+                type="button"
+                onClick={() => { setMode('reset'); setErrorMsg(''); setSuccessMsg(''); }}
+                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+              >
+                Have a recovery code? Enter token →
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('signin'); setErrorMsg(''); setSuccessMsg(''); }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : mode === 'reset' ? (
+          /* RESET PASSWORD FORM */
+          <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                Recovery Token / Code *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <KeyRound size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
+                <input
+                  type="text"
+                  value={resetToken}
+                  onChange={e => setResetToken(e.target.value)}
+                  placeholder="Paste the token sent to your email"
+                  className="input-field"
+                  style={{ paddingLeft: 42, height: 46, fontFamily: 'monospace' }}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                New Password * (minimum 8 characters)
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  className="input-field"
+                  style={{ paddingLeft: 42, height: 46 }}
+                  minLength={8}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                Confirm New Password *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Re-type new password"
+                  className="input-field"
+                  style={{ paddingLeft: 42, height: 46 }}
+                  minLength={8}
+                  required
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              isLoading={isLoading}
+              style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
+            >
+              {isLoading ? 'Updating...' : 'Update Password'}
+            </Button>
+
+            <div style={{ textAlign: 'center', marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => { setMode('signin'); setErrorMsg(''); setSuccessMsg(''); }}
+                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.88rem' }}
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </form>
+        ) : mode === 'signin' ? (
           <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
@@ -398,7 +629,26 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                 />
                 <span>{t.rememberMe}</span>
               </label>
-              <a href="#forgot" style={{ color: 'var(--primary)', fontWeight: 700 }}>{t.forgotPassword}</a>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(signInEmail);
+                  setMode('forgot');
+                  setErrorMsg('');
+                  setSuccessMsg('');
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: 'var(--primary)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontSize: '0.88rem',
+                }}
+              >
+                {t.forgotPassword}
+              </button>
             </div>
 
             <Button

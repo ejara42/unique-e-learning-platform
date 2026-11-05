@@ -18,7 +18,7 @@ import {
 import { Button, ToastViewport, useToast } from '../components/ui';
 
 export const AssessmentExamPlayer: React.FC = () => {
-  const { selectedAssessmentId, setCurrentPage, openVerification } = useApp();
+  const { selectedAssessmentId, setCurrentPage, openVerification, currentUser } = useApp();
   const { toast, showToast, dismissToast } = useToast();
   const [assessment, setAssessment] = useState<IAssessment | null>(null);
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -38,16 +38,29 @@ export const AssessmentExamPlayer: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    if (selectedAssessmentId) {
-      api.getAssessment(selectedAssessmentId).then(res => {
-        setAssessment(res.assessment);
-        setTimeLeft((res.assessment?.durationMinutes || 30) * 60);
-      });
+    if (!currentUser) {
+      setCurrentPage('login');
+      return;
     }
-  }, [selectedAssessmentId]);
+    if (selectedAssessmentId) {
+      api.getAssessment(selectedAssessmentId)
+        .then(res => {
+          setAssessment(res.assessment);
+          setTimeLeft((res.assessment?.durationMinutes || 30) * 60);
+        })
+        .catch(err => {
+          console.error('[Assessment Load Error]', err.message);
+          if (err.message && err.message.includes('Unauthorized')) {
+            setCurrentPage('login');
+          }
+        });
+    }
+  }, [selectedAssessmentId, currentUser]);
 
   // Anti-Cheating Telemetry & Window Blur Detection
   useEffect(() => {
+    if (!currentUser) return;
+
     const handleBlur = () => {
       const msg = `Proctoring Alert: Tab switch detected at ${new Date().toLocaleTimeString()}`;
       setProctoringWarnings(prev => [...prev, msg]);
@@ -55,8 +68,9 @@ export const AssessmentExamPlayer: React.FC = () => {
       setShowWarningToast(true);
       setTimeout(() => setShowWarningToast(false), 4000);
 
-      if (selectedAssessmentId) {
-        api.recordTelemetry(selectedAssessmentId, 'TAB_BLUR', 'User switched out of exam window');
+      if (selectedAssessmentId && currentUser) {
+        api.recordTelemetry(selectedAssessmentId, 'TAB_BLUR', 'User switched out of exam window')
+          .catch(() => {});
       }
     };
 

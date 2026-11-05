@@ -68,9 +68,25 @@ export const App: React.FC = () => {
             <AdminDashboard />
           </RoleGuard>
         )}
-        {currentPage === 'live-classroom' && <LiveClassroomPage />}
+        {currentPage === 'live-classroom' && (
+          <RoleGuard
+            allowedRoles={['STUDENT', 'INDEPENDENT_LEARNER', 'INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN']}
+            workspaceName="Interactive Live Virtual Classroom"
+            description="Live WebRTC video conferencing, interactive whiteboard, and attendance telemetry require candidate authentication."
+          >
+            <LiveClassroomPage />
+          </RoleGuard>
+        )}
         {currentPage === 'lesson-player' && <LessonPlayerPage />}
-        {currentPage === 'exam-player' && <AssessmentExamPlayer />}
+        {currentPage === 'exam-player' && (
+          <RoleGuard
+            allowedRoles={['STUDENT', 'INDEPENDENT_LEARNER', 'INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN']}
+            workspaceName="Proctored Assessment & Exam Stage"
+            description="Official proctored examinations and credential-issuing assessments require verified candidate authentication."
+          >
+            <AssessmentExamPlayer />
+          </RoleGuard>
+        )}
         {currentPage === 'certificate-verify' && <CertificateVerifyPage />}
       </div>
 

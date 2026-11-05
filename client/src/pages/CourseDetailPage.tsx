@@ -610,7 +610,13 @@ export const CourseDetailPage: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="primary"
-                                        onClick={() => startExam('assessment-1')}
+                                        onClick={() => {
+                                          if (!currentUser) {
+                                            setCurrentPage('login');
+                                          } else {
+                                            startExam('assessment-1');
+                                          }
+                                        }}
                                       >
                                         Take Exam
                                       </Button>
@@ -922,7 +928,13 @@ export const CourseDetailPage: React.FC = () => {
               </Button>
 
               <Button
-                onClick={() => startExam('assessment-1')}
+                onClick={() => {
+                  if (!currentUser) {
+                    setCurrentPage('login');
+                  } else {
+                    startExam('assessment-1');
+                  }
+                }}
                 variant="secondary"
                 size="md"
                 style={{ width: '100%', marginTop: 8, justifyContent: 'center', gap: 6 }}

@@ -6,7 +6,7 @@ import { ICourse, ILesson } from '../types';
 import { Button } from '../components/ui';
 
 export const LessonPlayerPage: React.FC = () => {
-  const { selectedCourseId, selectedLessonId, setSelectedLessonId, setCurrentPage, startExam } = useApp();
+  const { selectedCourseId, selectedLessonId, setSelectedLessonId, setCurrentPage, startExam, currentUser } = useApp();
   const [course, setCourse] = useState<ICourse | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>({});
 
@@ -313,7 +313,13 @@ export const LessonPlayerPage: React.FC = () => {
                   <Button
                     variant="primary"
                     size="md"
-                    onClick={() => startExam('assessment-1')}
+                    onClick={() => {
+                      if (!currentUser) {
+                        setCurrentPage('login');
+                      } else {
+                        startExam('assessment-1');
+                      }
+                    }}
                     style={{ width: '100%', justifyContent: 'center' }}
                   >
                     Take Proctored Quiz

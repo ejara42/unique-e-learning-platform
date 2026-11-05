@@ -234,11 +234,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const startExam = (assessmentId: string) => {
     setSelectedAssessmentId(assessmentId);
+    if (!currentUser) {
+      setCurrentPage('login');
+      return;
+    }
     setCurrentPage('exam-player');
   };
 
   const openLiveClass = (sessionId: string) => {
     setActiveLiveSessionId(sessionId);
+    if (!currentUser) {
+      setCurrentPage('login');
+      return;
+    }
     setCurrentPage('live-classroom');
   };
 

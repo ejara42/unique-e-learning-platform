@@ -200,12 +200,7 @@ export const CourseDetailPage: React.FC = () => {
             <ArrowLeft size={16} /> Back to Course Catalog
           </button>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 0.6fr)',
-            gap: 48,
-            alignItems: 'center',
-          }}>
+          <div className="course-detail-header-grid">
             <div>
               {/* Category & Verified Chips */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -306,12 +301,7 @@ export const CourseDetailPage: React.FC = () => {
 
       {/* Main Body Layout with Responsive Columns */}
       <div style={{ maxWidth: 1240, margin: '36px auto 0', padding: '0 24px' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.4fr) minmax(320px, 0.6fr)',
-          gap: 36,
-          alignItems: 'flex-start',
-        }}>
+        <div className="course-detail-main-grid">
           {/* Left Column: Segmented Tabs & Tab Content */}
           <div>
             {/* Tabs Navigation */}

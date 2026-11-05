@@ -738,6 +738,93 @@ textarea.input-field {
 }
 
 /* ----------------------------------------------------------------------------
+   Advanced Multi-Device Responsive Classes (Desktop, Tablet, Mobile)
+   ---------------------------------------------------------------------------- */
+.landing-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: 48px;
+  align-items: center;
+}
+
+.hero-title {
+  font-size: 3.2rem;
+  font-weight: 800;
+  color: var(--navy-950);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin-bottom: 20px;
+}
+
+.hero-search-form {
+  display: flex;
+  gap: 12px;
+  max-width: 610px;
+  margin-bottom: 24px;
+}
+
+.course-detail-header-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.6fr);
+  gap: 32px;
+  align-items: center;
+}
+
+.course-detail-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.6fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.live-studio-viewport {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+@media (max-width: 960px) {
+  .landing-hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+
+  .hero-title {
+    font-size: 2.3rem !important;
+    line-height: 1.18 !important;
+  }
+
+  .course-detail-header-grid,
+  .course-detail-main-grid {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .live-studio-viewport {
+    flex-direction: column !important;
+  }
+
+  .live-studio-viewport aside {
+    width: 100% !important;
+    height: 280px !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+}
+
+@media (max-width: 580px) {
+  .hero-search-form {
+    flex-direction: column !important;
+  }
+
+  .hero-search-form button {
+    width: 100% !important;
+  }
+}
+
+/* ----------------------------------------------------------------------------
    Footer System
    ---------------------------------------------------------------------------- */
 .app-footer {

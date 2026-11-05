@@ -76,12 +76,7 @@ export const LandingPage: React.FC = () => {
         }} />
 
         <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1.2fr) minmax(320px, 0.8fr)',
-            gap: 48,
-            alignItems: 'center',
-          }}>
+          <div className="landing-hero-grid">
             <div>
               <div style={{ marginBottom: 18 }}>
                 <span style={{
@@ -103,14 +98,7 @@ export const LandingPage: React.FC = () => {
                 </span>
               </div>
 
-              <h1 style={{
-                fontSize: '3.2rem',
-                fontWeight: 800,
-                color: 'var(--navy-950)',
-                lineHeight: 1.08,
-                letterSpacing: '-0.035em',
-                marginBottom: 20,
-              }}>
+              <h1 className="hero-title">
                 {t.heroTitle} <span style={{ color: 'var(--primary)' }}>{t.heroHighlight}</span>
               </h1>
 
@@ -124,7 +112,7 @@ export const LandingPage: React.FC = () => {
                 {t.heroSubtitle}
               </p>
 
-              <form onSubmit={handleSearch} style={{ display: 'flex', gap: 12, maxWidth: 610, marginBottom: 24 }}>
+              <form onSubmit={handleSearch} className="hero-search-form">
                 <div style={{
                   position: 'relative',
                   flex: 1,

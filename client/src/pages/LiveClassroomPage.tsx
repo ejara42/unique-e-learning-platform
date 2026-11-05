@@ -226,17 +226,13 @@ export const LiveClassroomPage: React.FC = () => {
       </header>
 
       {/* Main Studio Viewport */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        overflow: 'hidden',
-      }}>
+      <div className="live-studio-viewport">
         {/* Stage Video Grid */}
         <div style={{
           flex: 1,
           padding: 20,
           display: 'grid',
-          gridTemplateColumns: screenShare ? '1fr' : 'repeat(auto-fit, minmax(360px, 1fr))',
+          gridTemplateColumns: screenShare ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: 16,
           overflowY: 'auto',
           alignContent: 'center',

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
-import { ShieldAlert, Lock, ArrowRight, Sparkles, UserCheck, ArrowLeft, Building2, GraduationCap, BookOpen, ShieldCheck } from 'lucide-react';
+import { ShieldAlert, Lock, ArrowLeft, LogIn, UserPlus } from 'lucide-react';
 import { Button } from './ui';
 
 interface RoleGuardProps {
@@ -17,9 +17,9 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   description,
   children,
 }) => {
-  const { currentUser, setCurrentPage, demoLoginUser, switchUserRole } = useApp();
+  const { currentUser, setCurrentPage, switchUserRole } = useApp();
 
-  // If user is authenticated and has allowed activeRole, render children immediately
+  // If user is authenticated and has an allowed activeRole, grant access
   if (currentUser && allowedRoles.includes(currentUser.activeRole)) {
     return <>{children}</>;
   }
@@ -32,20 +32,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     PLATFORM_ADMIN: 'Platform Superadmin',
   };
 
-  const getRoleIcon = (role: UserRole) => {
-    switch (role) {
-      case 'INSTRUCTOR':
-        return <BookOpen size={18} />;
-      case 'INSTITUTION_ADMIN':
-        return <Building2 size={18} />;
-      case 'PLATFORM_ADMIN':
-        return <ShieldCheck size={18} />;
-      default:
-        return <GraduationCap size={18} />;
-    }
-  };
-
-  // Case 1: Unauthenticated (Not signed in)
+  // Case 1: Unauthenticated (No user session) -> Strict Authentication Wall
   if (!currentUser) {
     return (
       <div style={{
@@ -57,13 +44,13 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
         backgroundColor: '#F8FAFC',
       }}>
         <div style={{
-          maxWidth: 640,
+          maxWidth: 540,
           width: '100%',
           backgroundColor: '#FFFFFF',
           borderRadius: 12,
           border: '1px solid #E2E8F0',
           boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.06)',
-          padding: '36px 32px',
+          padding: '40px 32px',
           textAlign: 'center',
         }}>
           <div style={{
@@ -93,112 +80,43 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
             letterSpacing: '0.05em',
             marginBottom: 10,
           }}>
-            Role-Based Access Control
+            Protected Workspace
           </div>
 
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A', marginBottom: 8, letterSpacing: '-0.02em' }}>
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', marginBottom: 8, letterSpacing: '-0.02em' }}>
             {workspaceName}
           </h2>
 
-          <p style={{ fontSize: '0.92rem', color: '#64748B', lineHeight: 1.5, marginBottom: 24, maxWidth: 500, margin: '0 auto 24px' }}>
-            {description} This workspace is restricted to <strong>{allowedRoles.map(r => roleLabels[r] || r).join(', ')}</strong> roles.
+          <p style={{ fontSize: '0.92rem', color: '#64748B', lineHeight: 1.5, marginBottom: 28, maxWidth: 440, margin: '0 auto 28px' }}>
+            {description} Access is restricted to registered and verified <strong>{allowedRoles.map(r => roleLabels[r] || r).join(', ')}</strong> accounts. Please authenticate to continue.
           </p>
 
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 12,
-            marginBottom: 28,
-          }}>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => setCurrentPage('login')}
-                style={{ padding: '10px 24px', fontSize: '0.92rem' }}
-              >
-                Sign In with Credentials
-              </Button>
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => setCurrentPage('register')}
-                style={{ padding: '10px 20px', fontSize: '0.92rem' }}
-              >
-                Register New Account
-              </Button>
-            </div>
-          </div>
-
-          {/* Instant Role Preview Section (No Registration Required) */}
-          <div style={{
-            borderTop: '1px solid #E2E8F0',
-            paddingTop: 24,
-            textAlign: 'left',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Sparkles size={16} color="#1D4ED8" />
-              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Instant Role Preview (Explore Without Registration)
-              </span>
-            </div>
-            <p style={{ fontSize: '0.82rem', color: '#64748B', marginBottom: 14 }}>
-              Select a role below to immediately test and inspect this dashboard with a fully authenticated preview session:
-            </p>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: 10,
-            }}>
-              {allowedRoles.map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => demoLoginUser(role)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    backgroundColor: '#F8FAFC',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    textAlign: 'left',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#1D4ED8';
-                    e.currentTarget.style.backgroundColor = '#EFF6FF';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#E2E8F0';
-                    e.currentTarget.style.backgroundColor = '#F8FAFC';
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ color: '#1D4ED8' }}>{getRoleIcon(role)}</div>
-                    <div>
-                      <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0F172A' }}>
-                        {roleLabels[role] || role}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#64748B' }}>
-                        1-Click Test Access
-                      </div>
-                    </div>
-                  </div>
-                  <ArrowRight size={15} color="#1D4ED8" />
-                </button>
-              ))}
-            </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setCurrentPage('login')}
+              style={{ padding: '10px 22px', fontSize: '0.92rem' }}
+            >
+              <LogIn size={16} style={{ marginRight: 8 }} />
+              Sign In to Account
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setCurrentPage('register')}
+              style={{ padding: '10px 20px', fontSize: '0.92rem' }}
+            >
+              <UserPlus size={16} style={{ marginRight: 8 }} />
+              Register Account
+            </Button>
           </div>
         </div>
       </div>
     );
   }
 
-  // Case 2: Authenticated but Insufficient Active Role
+  // Case 2: Authenticated with Insufficient Role -> Access Denied Wall
   const hasAlternativeAuthorizedRole = currentUser.authorizedRoles?.some(r => allowedRoles.includes(r));
   const availableRole = currentUser.authorizedRoles?.find(r => allowedRoles.includes(r));
 
@@ -212,7 +130,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
       backgroundColor: '#F8FAFC',
     }}>
       <div style={{
-        maxWidth: 600,
+        maxWidth: 560,
         width: '100%',
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
@@ -237,11 +155,11 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
         </div>
 
         <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0F172A', marginBottom: 8, letterSpacing: '-0.02em' }}>
-          Access Restricted: Role Privileges Required
+          Access Denied: Insufficient Privileges
         </h2>
 
         <p style={{ fontSize: '0.92rem', color: '#64748B', lineHeight: 1.5, marginBottom: 20 }}>
-          You are currently signed in as <strong>{currentUser.fullName}</strong> with active role <strong>{currentUser.activeRole.replace('_', ' ')}</strong>.
+          You are signed in as <strong>{currentUser.fullName}</strong> with role <strong>{currentUser.activeRole.replace('_', ' ')}</strong>.
           This workspace requires <strong>{allowedRoles.map(r => roleLabels[r] || r).join(' or ')}</strong> credentials.
         </p>
 
@@ -258,7 +176,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
               Authorized Role Detected
             </div>
             <p style={{ fontSize: '0.82rem', color: '#1E3A8A', marginBottom: 12 }}>
-              Your account has permission to assume the <strong>{roleLabels[availableRole] || availableRole}</strong> role.
+              Your account has registered permission to assume the <strong>{roleLabels[availableRole] || availableRole}</strong> role.
             </p>
             <Button
               variant="primary"
@@ -288,16 +206,6 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
           >
             <ArrowLeft size={15} style={{ marginRight: 6 }} />
             Return to My Workspace
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => demoLoginUser(allowedRoles[0])}
-            style={{ padding: '9px 18px', fontSize: '0.88rem' }}
-          >
-            <Sparkles size={15} style={{ marginRight: 6 }} />
-            Explore as {roleLabels[allowedRoles[0]] || allowedRoles[0]} Demo
           </Button>
         </div>
       </div>

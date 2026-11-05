@@ -96,12 +96,11 @@ async function seedInitialMongoData() {
             await models_1.UserModel.insertMany(db_1.db.users);
             console.log(`[EduSphere Seeder] Seeded ${db_1.db.users.length} users into MongoDB`);
         }
-        // 3. Courses
-        const courseCount = await models_1.CourseModel.countDocuments();
-        if (courseCount === 0 && db_1.db.courses.length > 0) {
-            await models_1.CourseModel.insertMany(db_1.db.courses);
-            console.log(`[EduSphere Seeder] Seeded ${db_1.db.courses.length} courses into MongoDB`);
+        // 3. Courses (idempotent upsert so all educational tiers: Primary, School, College, University are seeded)
+        for (const course of db_1.db.courses) {
+            await models_1.CourseModel.updateOne({ id: course.id }, { $set: course }, { upsert: true });
         }
+        console.log(`[EduSphere Seeder] Synced ${db_1.db.courses.length} courses across all education tiers into MongoDB`);
         // 4. Enrollments
         const enrollmentCount = await models_1.EnrollmentModel.countDocuments();
         if (enrollmentCount === 0 && db_1.db.enrollments.length > 0) {

@@ -125,8 +125,8 @@ exports.CourseSchema = new mongoose_1.Schema({
     category: { type: String, required: true, index: true },
     level: {
         type: String,
-        enum: ['Beginner', 'Intermediate', 'Advanced', 'All Levels'],
-        default: 'All Levels'
+        default: 'All Levels',
+        index: true
     },
     durationHours: { type: Number, default: 0 },
     instructorId: { type: String, required: true, index: true },

@@ -75,7 +75,7 @@ export interface ICourse {
   tagline: string;
   description: string;
   category: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
+  level: string;
   durationHours: number;
   instructorId: string;
   instructorName: string;

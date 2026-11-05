@@ -24,6 +24,8 @@ export const LandingPage: React.FC = () => {
   const [courses, setCourses] = useState<ICourse[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeAudience, setActiveAudience] = useState<string>('All');
+  const [selectedTier, setSelectedTier] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
@@ -44,6 +46,60 @@ export const LandingPage: React.FC = () => {
     { id: 'training', label: t.trainingCenters, subtext: t.trainingSub, icon: <Briefcase size={22} color="var(--primary)" /> },
     { id: 'independent', label: t.independentLearners, subtext: t.independentSub, icon: <UserCheck size={22} color="var(--primary)" /> },
   ];
+
+  const educationTiers = [
+    { id: 'All', label: 'All Levels & Tiers' },
+    { id: 'primary', label: 'Primary (Grades 1-8)' },
+    { id: 'secondary', label: 'High School (Grades 9-12)' },
+    { id: 'college', label: 'College & TVET' },
+    { id: 'university', label: 'University Degree' },
+    { id: 'skills', label: 'Professional Skills' },
+  ];
+
+  const filteredCourses = courses.filter(course => {
+    // 1. Audience card filter
+    if (activeAudience !== 'All') {
+      if (activeAudience === 'schools') {
+        const isSchool = course.level?.toLowerCase().includes('primary') ||
+                         course.level?.toLowerCase().includes('secondary') ||
+                         course.level?.toLowerCase().includes('school') ||
+                         course.category?.toLowerCase().includes('primary') ||
+                         course.institutionName?.toLowerCase().includes('school');
+        if (!isSchool) return false;
+      } else if (activeAudience === 'universities') {
+        const isUniv = course.level?.toLowerCase().includes('university') ||
+                       course.level?.toLowerCase().includes('undergraduate') ||
+                       course.institutionName?.toLowerCase().includes('university') ||
+                       course.institutionName?.toLowerCase().includes('college');
+        if (!isUniv) return false;
+      } else if (activeAudience === 'training') {
+        const isTraining = course.level?.toLowerCase().includes('tvet') ||
+                           course.level?.toLowerCase().includes('college') ||
+                           course.level?.toLowerCase().includes('professional') ||
+                           course.institutionName?.toLowerCase().includes('training') ||
+                           course.institutionName?.toLowerCase().includes('center');
+        if (!isTraining) return false;
+      } else if (activeAudience === 'independent') {
+        if (course.visibility !== 'PUBLIC') return false;
+      }
+    }
+
+    // 2. Education Tier tab filter
+    if (selectedTier !== 'All') {
+      if (selectedTier === 'primary' && !course.level?.toLowerCase().includes('primary') && !course.category?.toLowerCase().includes('primary')) return false;
+      if (selectedTier === 'secondary' && !course.level?.toLowerCase().includes('secondary') && !course.level?.toLowerCase().includes('high school')) return false;
+      if (selectedTier === 'college' && !course.level?.toLowerCase().includes('college') && !course.level?.toLowerCase().includes('tvet')) return false;
+      if (selectedTier === 'university' && !course.level?.toLowerCase().includes('university') && !course.level?.toLowerCase().includes('undergraduate')) return false;
+      if (selectedTier === 'skills' && !course.level?.toLowerCase().includes('professional') && !course.level?.toLowerCase().includes('all levels')) return false;
+    }
+
+    // 3. Category filter
+    if (selectedCategory !== 'All') {
+      if (!course.category?.toLowerCase().includes(selectedCategory.toLowerCase())) return false;
+    }
+
+    return true;
+  });
 
   return (
     <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -239,7 +295,7 @@ export const LandingPage: React.FC = () => {
               return (
                 <div 
                   key={cat.id}
-                  onClick={() => setActiveAudience(cat.id)}
+                  onClick={() => setActiveAudience(activeAudience === cat.id ? 'All' : cat.id)}
                   style={{
                     background: isActive ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(255,255,255,1))' : '#FFFFFF',
                     borderRadius: 'var(--radius-xl)',
@@ -289,7 +345,7 @@ export const LandingPage: React.FC = () => {
             </p>
           </div>
           <button 
-            onClick={() => {}} 
+            onClick={() => { setActiveAudience('All'); setSelectedTier('All'); setSelectedCategory('All'); }} 
             style={{
               background: 'none',
               border: 'none',
@@ -307,126 +363,210 @@ export const LandingPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Courses Grid */}
+        {/* Education Level / Tier Filter Tabs */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 28,
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 10,
+          marginBottom: 24,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid var(--border-color)',
+          paddingBottom: 18,
         }}>
-          {courses.map(course => (
-            <div 
-              key={course.id}
-              onClick={() => openCourse(course.id)}
-              className="card card-hover"
-              style={{
-                padding: 0,
-                overflow: 'hidden',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: 'var(--radius-xl)',
-                border: '1px solid rgba(148,163,184,0.24)',
-                boxShadow: '0 20px 35px -24px rgba(15, 23, 42, 0.4)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)',
-              }}
-            >
-              <div style={{ height: 175, position: 'relative', overflow: 'hidden' }}>
-                <img 
-                  src={course.thumbnailUrl} 
-                  alt={course.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s ease' }}
-                />
-                <span style={{
-                  position: 'absolute',
-                  top: 12,
-                  right: 12,
-                  backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                  backdropFilter: 'blur(4px)',
-                  color: '#FFFFFF',
-                  padding: '4px 10px',
-                  borderRadius: 999,
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                }}>
-                  {course.level}
-                </span>
-              </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            {educationTiers.map(tier => {
+              const isSelected = selectedTier === tier.id;
+              return (
+                <button
+                  key={tier.id}
+                  onClick={() => setSelectedTier(tier.id)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                    backgroundColor: isSelected ? 'var(--primary)' : '#FFFFFF',
+                    color: isSelected ? '#FFFFFF' : 'var(--navy-800)',
+                    fontSize: '0.85rem',
+                    fontWeight: isSelected ? 800 : 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: isSelected ? '0 4px 12px rgba(79, 70, 229, 0.25)' : 'none',
+                  }}
+                >
+                  {tier.label}
+                </button>
+              );
+            })}
+          </div>
 
-              <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              Showing {filteredCourses.length} of {courses.length} courses
+            </span>
+            {(activeAudience !== 'All' || selectedTier !== 'All' || selectedCategory !== 'All') && (
+              <button
+                onClick={() => { setActiveAudience('All'); setSelectedTier('All'); setSelectedCategory('All'); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textDecoration: 'underline'
+                }}
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Courses Grid or Empty State */}
+        {filteredCourses.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '60px 24px',
+            backgroundColor: '#FFFFFF',
+            borderRadius: 'var(--radius-xl)',
+            border: '1px dashed var(--border-color)',
+          }}>
+            <BookOpen size={44} color="var(--primary)" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 8 }}>
+              No courses found for the selected education level
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
+              Try selecting another educational tier or clear your active filters.
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => { setActiveAudience('All'); setSelectedTier('All'); setSelectedCategory('All'); }}
+            >
+              Clear All Filters
+            </Button>
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 28,
+          }}>
+            {filteredCourses.map(course => (
+              <div 
+                key={course.id}
+                onClick={() => openCourse(course.id)}
+                className="card card-hover"
+                style={{
+                  padding: 0,
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  borderRadius: 'var(--radius-xl)',
+                  border: '1px solid rgba(148,163,184,0.24)',
+                  boxShadow: '0 20px 35px -24px rgba(15, 23, 42, 0.4)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                  background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)',
+                }}
+              >
+                <div style={{ height: 175, position: 'relative', overflow: 'hidden' }}>
+                  <img 
+                    src={course.thumbnailUrl} 
+                    alt={course.title}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s ease' }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                    backdropFilter: 'blur(4px)',
+                    color: '#FFFFFF',
+                    padding: '4px 10px',
+                    borderRadius: 999,
                     fontSize: '0.72rem',
                     fontWeight: 800,
-                    color: 'var(--primary)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    marginBottom: 8,
                   }}>
-                    {course.category}
-                  </div>
-                  <h3 style={{
-                    fontSize: '1.12rem',
-                    fontWeight: 800,
-                    color: 'var(--navy-950)',
-                    marginBottom: 8,
-                    lineHeight: 1.38,
-                  }}>
-                    {course.title}
-                  </h3>
-                  <p style={{
-                    fontSize: '0.84rem',
-                    color: 'var(--text-muted)',
-                    marginBottom: 16,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    lineHeight: 1.6,
-                  }}>
-                    {course.tagline}
-                  </p>
+                    {course.level}
+                  </span>
                 </div>
 
-                <div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 12,
-                    fontSize: '0.88rem',
-                    gap: 10,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 800, color: '#D97706' }}>
-                      <Star size={16} fill="#F59E0B" color="#F59E0B" />
-                      <span>{course.rating.toFixed(1)}</span>
-                      <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.8rem' }}>
-                        ({(course.ratingCount / 1000).toFixed(1)}k)
-                      </span>
+                <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      color: 'var(--primary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      marginBottom: 8,
+                    }}>
+                      {course.category}
                     </div>
-                    <span style={{ fontWeight: 800, color: 'var(--teal-700)', fontSize: '1.08rem' }}>
-                      {course.price === 0 ? 'Free' : `$${course.price}`}
-                    </span>
+                    <h3 style={{
+                      fontSize: '1.12rem',
+                      fontWeight: 800,
+                      color: 'var(--navy-950)',
+                      marginBottom: 8,
+                      lineHeight: 1.38,
+                    }}>
+                      {course.title}
+                    </h3>
+                    <p style={{
+                      fontSize: '0.84rem',
+                      color: 'var(--text-muted)',
+                      marginBottom: 16,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      lineHeight: 1.6,
+                    }}>
+                      {course.tagline}
+                    </p>
                   </div>
 
-                  <div style={{
-                    fontSize: '0.82rem',
-                    color: 'var(--text-muted)',
-                    borderTop: '1px solid var(--border-color)',
-                    paddingTop: 12,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                  }}>
-                    <span style={{ fontWeight: 700, color: 'var(--navy-850)' }}>{course.institutionName || 'Institution Partner'}</span>
-                    <span style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.76rem' }}>Explore →</span>
+                  <div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: 12,
+                      fontSize: '0.88rem',
+                      gap: 10,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 800, color: '#D97706' }}>
+                        <Star size={16} fill="#F59E0B" color="#F59E0B" />
+                        <span>{course.rating.toFixed(1)}</span>
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.8rem' }}>
+                          ({(course.ratingCount / 1000).toFixed(1)}k)
+                        </span>
+                      </div>
+                      <span style={{ fontWeight: 800, color: 'var(--teal-700)', fontSize: '1.08rem' }}>
+                        {course.price === 0 ? 'Free' : `$${course.price}`}
+                      </span>
+                    </div>
+
+                    <div style={{
+                      fontSize: '0.82rem',
+                      color: 'var(--text-muted)',
+                      borderTop: '1px solid var(--border-color)',
+                      paddingTop: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                    }}>
+                      <span style={{ fontWeight: 700, color: 'var(--navy-850)' }}>{course.institutionName || 'Institution Partner'}</span>
+                      <span style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.76rem' }}>Explore →</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Social Proof Stats Banner */}

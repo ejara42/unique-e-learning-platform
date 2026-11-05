@@ -29,7 +29,7 @@ export const TeacherCourseStudio: React.FC = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Computer Science');
-  const [level, setLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels'>('Beginner');
+  const [level, setLevel] = useState<string>('University Undergraduate');
   const [price, setPrice] = useState(0);
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
@@ -316,18 +316,23 @@ export const TeacherCourseStudio: React.FC = () => {
                     className="input-field"
                     style={{ height: 44 }}
                   >
+                    <option value="Primary Education (Grades 1-8)">Primary Education (Grades 1-8)</option>
+                    <option value="Secondary High School (Grades 9-12)">Secondary High School (Grades 9-12)</option>
                     <option value="Computer Science">Computer Science</option>
                     <option value="Information Technology">Information Technology</option>
+                    <option value="Mathematics & Natural Sciences">Mathematics & Natural Sciences</option>
                     <option value="Data Science">Data Science</option>
                     <option value="Languages">Languages</option>
                     <option value="Business & Management">Business & Management</option>
+                    <option value="TVET & Vocational Trades">TVET & Vocational Trades</option>
                     <option value="Engineering">Engineering</option>
+                    <option value="Health & Medical Sciences">Health & Medical Sciences</option>
                   </select>
                 </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
-                    Difficulty Level
+                    Education Level / Tier
                   </label>
                   <select 
                     value={level}
@@ -335,10 +340,13 @@ export const TeacherCourseStudio: React.FC = () => {
                     className="input-field"
                     style={{ height: 44 }}
                   >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                    <option value="All Levels">All Levels</option>
+                    <option value="Primary / Elementary">Primary / Elementary (Grades 1-8)</option>
+                    <option value="High School / Secondary">High School / Secondary (Grades 9-12)</option>
+                    <option value="College / TVET">College / TVET Diploma</option>
+                    <option value="University Undergraduate">University Undergraduate Degree</option>
+                    <option value="Postgraduate / Advanced">Postgraduate / Advanced</option>
+                    <option value="Professional Certification">Professional Certification</option>
+                    <option value="All Levels">All Levels / Foundational</option>
                   </select>
                 </div>
 

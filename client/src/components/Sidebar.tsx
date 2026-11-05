@@ -26,19 +26,18 @@ export const Sidebar: React.FC = () => {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    padding: '10px 14px',
+    padding: '9px 12px',
     borderRadius: 'var(--radius-md)',
     color: isActive ? '#FFFFFF' : '#94A3B8',
     backgroundColor: isActive ? 'var(--primary)' : 'transparent',
-    fontWeight: isActive ? 700 : 500,
-    fontSize: '0.88rem',
+    fontWeight: isActive ? 600 : 500,
+    fontSize: '0.86rem',
     cursor: 'pointer',
-    transition: 'all var(--transition-fast)',
+    transition: 'all 0.15s ease',
     marginBottom: 4,
     border: 'none',
     width: '100%',
     textAlign: 'left',
-    boxShadow: isActive ? '0 2px 8px var(--primary-glow)' : 'none',
   });
 
   const sectionLabelStyle: React.CSSProperties = {

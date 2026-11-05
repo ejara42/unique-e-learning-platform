@@ -18,7 +18,8 @@ import {
   BookOpen,
   Sparkles,
   User,
-  Search
+  Search,
+  ArrowRight
 } from 'lucide-react';
 import { LanguageCode } from '../i18n';
 
@@ -344,16 +345,14 @@ export const Header: React.FC = () => {
             >
               <span>Edu</span>
               <span style={{
-                background: 'linear-gradient(135deg, #2563EB 0%, #38BDF8 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontWeight: 900,
+                color: 'var(--primary)',
+                fontWeight: 800,
               }}>
                 Sphere
               </span>
             </div>
             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 2 }}>
-              Ministry of Education • Unified LMS
+              Unified Multi-Tenant Platform
             </div>
           </div>
         </div>
@@ -484,64 +483,30 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCurrentPage('login')}
+                  className="btn btn-secondary"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #CBD5E1',
-                    color: '#0F172A',
-                    padding: '8px 18px',
-                    borderRadius: 8,
-                    fontSize: '0.92rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--primary)';
-                    e.currentTarget.style.color = 'var(--primary)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = '#CBD5E1';
-                    e.currentTarget.style.color = '#0F172A';
+                    padding: '8px 16px',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
                   }}
                 >
                   <LogIn size={15} />
                   <span>{t.signIn}</span>
                 </button>
 
-                {/* Sign Up Button (EXCLUSIVELY Sign Up text, no Register text!) */}
+                {/* Sign Up Button */}
                 <button
                   type="button"
                   onClick={() => setCurrentPage('register')}
+                  className="btn btn-primary"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    padding: '9px 22px',
-                    borderRadius: 8,
-                    fontSize: '0.92rem',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
-                    transition: 'all 0.18s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 6px 18px rgba(37, 99, 235, 0.45)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.35)';
+                    padding: '8px 18px',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
                   }}
                 >
-                  <Sparkles size={15} />
                   <span>Sign Up</span>
+                  <ArrowRight size={15} />
                 </button>
               </div>
             )}

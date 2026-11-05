@@ -1,34 +1,33 @@
 /* ==============================================================================
    EDUSPHERE ENTERPRISE DESIGN SYSTEM & CSS TOKEN ARCHITECTURE
-   Unified National LMS & Multi-Tenant Educational Platform
+   Professional Higher-Ed & Multi-Tenant Learning Management Platform
    ============================================================================== */
 
 :root {
   /* --------------------------------------------------------------------------
-     1. Color Palette: Deep Navy, Modern Indigo, Learning Teal & Slate Neutrals
+     1. Color Palette: Deep Slate, Authoritative Blue & Crisp Neutrals
      -------------------------------------------------------------------------- */
-  /* Primary Interactive Accent: Indigo */
-  --primary: #4F46E5;
-  --primary-hover: #4338CA;
-  --primary-active: #3730A3;
-  --primary-light: #EEF2FF;
-  --primary-50: #EEF2FF;
-  --primary-100: #E0E7FF;
-  --primary-200: #C7D2FE;
-  --primary-600: #4F46E5;
-  --primary-700: #4338CA;
-  --primary-glow: rgba(79, 70, 229, 0.22);
-  --primary-ring: rgba(79, 70, 229, 0.35);
+  /* Primary Interactive Accent: Confident Enterprise Blue */
+  --primary: #1D4ED8;
+  --primary-hover: #1E40AF;
+  --primary-active: #1E3A8A;
+  --primary-light: #EFF6FF;
+  --primary-50: #EFF6FF;
+  --primary-100: #DBEAFE;
+  --primary-200: #BFDBFE;
+  --primary-600: #2563EB;
+  --primary-700: #1D4ED8;
+  --primary-ring: rgba(29, 78, 216, 0.2);
 
-  /* Deep Navy: Primary Text, Selected Navigation, Sidebars & High-Trust Headers */
-  --navy-950: #0B1120;
+  /* Deep Slate: Primary Text, Navigation, Sidebars & Institutional Headers */
+  --navy-950: #090D16;
   --navy-900: #0F172A;
-  --navy-850: #17223B;
+  --navy-850: #141E33;
   --navy-800: #1E293B;
   --navy-700: #334155;
   --navy-600: #475569;
 
-  /* Slate Neutrals: Crisp Backgrounds, Borders, Cards & Text Tones */
+  /* Slate Neutrals: Crisp Backgrounds, Precise Borders & Text Hierarchy */
   --slate-50: #F8FAFC;
   --slate-100: #F1F5F9;
   --slate-200: #E2E8F0;
@@ -50,43 +49,42 @@
 
   /* Text Colors */
   --text-main: #0F172A;
-  --text-muted: #64748B;
-  --text-light: #94A3B8;
+  --text-muted: #526177;
+  --text-light: #8292A6;
   --text-white: #FFFFFF;
 
-  /* Learning Teal: Progress Indicators, Completion Badges & Certificates */
-  --teal-50: #F0FDFA;
-  --teal-100: #CCFBF1;
-  --teal-500: #14B8A6;
-  --teal-600: #0D9488;
-  --teal-700: #0F766E;
-  --teal-glow: rgba(13, 148, 136, 0.22);
+  /* Accent & Credential Badges: Academic Emerald & Indigo */
+  --teal-50: #F0FDF4;
+  --teal-100: #DCFCE7;
+  --teal-500: #16A34A;
+  --teal-600: #15803D;
+  --teal-700: #166534;
 
-  /* Semantic Feedback & Status Tokens */
-  --success: #10B981;
-  --success-hover: #059669;
-  --success-light: #ECFDF5;
-  --success-border: #A7F3D0;
-  --success-text: #065F46;
+  /* Semantic Status Tokens (Accessible, WCAG Compliant) */
+  --success: #15803D;
+  --success-hover: #166534;
+  --success-light: #F0FDF4;
+  --success-border: #BBF7D0;
+  --success-text: #14532D;
 
-  --warning: #F59E0B;
-  --warning-hover: #D97706;
+  --warning: #B45309;
+  --warning-hover: #92400E;
   --warning-light: #FFFBEB;
   --warning-border: #FDE68A;
-  --warning-text: #92400E;
+  --warning-text: #78350F;
 
-  --danger: #EF4444;
-  --danger-hover: #DC2626;
+  --danger: #DC2626;
+  --danger-hover: #B91C1C;
   --danger-light: #FEF2F2;
   --danger-border: #FECACA;
   --danger-text: #991B1B;
 
-  --info: #3B82F6;
+  --info: #2563EB;
   --info-light: #EFF6FF;
   --info-border: #BFDBFE;
   --info-text: #1E40AF;
 
-  --accent-purple: #8B5CF6;
+  --accent-purple: #7C3AED;
   --accent-purple-light: #F5F3FF;
   --accent-purple-border: #DDD6FE;
 
@@ -98,8 +96,8 @@
 
   --text-xs: 0.75rem;     /* 12px */
   --text-sm: 0.875rem;    /* 14px */
-  --text-base: 1rem;      /* 16px */
-  --text-lg: 1.125rem;    /* 18px */
+  --text-base: 0.9375rem; /* 15px */
+  --text-lg: 1.0625rem;   /* 17px */
   --text-xl: 1.25rem;     /* 20px */
   --text-2xl: 1.5rem;     /* 24px */
   --text-3xl: 1.875rem;   /* 30px */
@@ -107,37 +105,37 @@
 
   --leading-tight: 1.25;
   --leading-normal: 1.5;
-  --leading-relaxed: 1.65;
+  --leading-relaxed: 1.6;
 
   /* --------------------------------------------------------------------------
-     3. Elevation, Borders & Radii
+     3. Elevation, Borders & Restrained Radii (Enterprise Standards)
      -------------------------------------------------------------------------- */
   --border-color: #E2E8F0;
   --border-subtle: #F1F5F9;
   --border-strong: #CBD5E1;
 
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
   --radius-full: 9999px;
 
-  /* Restrained, Multi-Layered Enterprise Shadows */
-  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.07), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
-  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.09), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
-  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+  /* Precise, Crisp Multi-Layered Enterprise Shadows (No colored neon glows) */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.07), 0 4px 6px -4px rgba(15, 23, 42, 0.02);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.02);
+  --shadow-inner: inset 0 1px 2px 0 rgba(0, 0, 0, 0.04);
 
   /* --------------------------------------------------------------------------
      4. Animation & Transitions
      -------------------------------------------------------------------------- */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ----------------------------------------------------------------------------
@@ -281,28 +279,27 @@ html.high-contrast-mode body {
 .btn-primary {
   background-color: var(--primary);
   color: #FFFFFF;
+  border-color: var(--primary-700);
   box-shadow: var(--shadow-xs);
 }
 .btn-primary:hover:not(:disabled) {
   background-color: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--primary-glow);
+  box-shadow: var(--shadow-sm);
 }
 .btn-primary:active:not(:disabled) {
   background-color: var(--primary-active);
-  transform: translateY(0);
 }
 
 .btn-secondary {
   background-color: #FFFFFF;
-  color: var(--navy-800);
-  border-color: var(--border-color);
+  color: var(--navy-900);
+  border-color: var(--border-strong);
   box-shadow: var(--shadow-xs);
 }
 .btn-secondary:hover:not(:disabled) {
   background-color: var(--slate-50);
-  border-color: var(--border-strong);
-  color: var(--navy-900);
+  border-color: var(--slate-400);
+  color: var(--navy-950);
 }
 .btn-secondary:active:not(:disabled) {
   background-color: var(--slate-100);
@@ -311,12 +308,12 @@ html.high-contrast-mode body {
 .btn-teal {
   background-color: var(--teal-600);
   color: #FFFFFF;
+  border-color: var(--teal-700);
   box-shadow: var(--shadow-xs);
 }
 .btn-teal:hover:not(:disabled) {
   background-color: var(--teal-700);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--teal-glow);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-ghost {
@@ -337,17 +334,17 @@ html.high-contrast-mode body {
 }
 
 .btn-sm {
-  padding: 7px 12px;
+  padding: 6px 12px;
   font-size: var(--text-xs);
   min-height: 32px;
   border-radius: var(--radius-sm);
 }
 
 .btn-lg {
-  padding: 13px 24px;
+  padding: 12px 22px;
   font-size: var(--text-base);
-  min-height: 48px;
-  border-radius: var(--radius-lg);
+  min-height: 44px;
+  border-radius: var(--radius-md);
 }
 
 /* ----------------------------------------------------------------------------
@@ -370,8 +367,8 @@ html.high-contrast-mode body {
 
 .input-field {
   width: 100%;
-  height: 42px;
-  padding: 0 14px;
+  height: 40px;
+  padding: 0 12px;
   background-color: #FFFFFF;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -391,7 +388,7 @@ html.high-contrast-mode body {
 
 .input-field:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-glow);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
 .input-field:disabled {
@@ -412,21 +409,20 @@ textarea.input-field {
 }
 
 /* ----------------------------------------------------------------------------
-   Cards & Surfaces
+   Cards & Surfaces (Restrained, Enterprise Quality)
    ---------------------------------------------------------------------------- */
 .card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  padding: 24px;
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
   box-shadow: var(--shadow-xs);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .card-hover:hover {
   border-color: var(--slate-300);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .card-flat {
@@ -436,27 +432,27 @@ textarea.input-field {
   padding: 20px;
 }
 
-/* Stat & KPI Cards */
+/* Stat & KPI Displays */
 .stat-card {
   background-color: #FFFFFF;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  padding: 20px 24px;
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
   box-shadow: var(--shadow-xs);
   display: flex;
   align-items: center;
-  gap: 18px;
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  gap: 16px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-icon-wrapper {
-  width: 50px;
-  height: 50px;
-  border-radius: var(--radius-lg);
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;

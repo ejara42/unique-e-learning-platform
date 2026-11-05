@@ -3,8 +3,8 @@ import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { Sidebar } from '../components/Sidebar';
 import { IEnrollment } from '../types';
-import { EmptyState, Badge, Button } from '../components/ui';
-import { BookOpen, CheckCircle, Clock, Play, Award, Compass, Search } from 'lucide-react';
+import { EmptyState, Button } from '../components/ui';
+import { BookOpen, CheckCircle, Play, Award, Compass, Search } from 'lucide-react';
 
 export const MyCoursesPage: React.FC = () => {
   const { openCourse, openVerification, setCurrentPage } = useApp();
@@ -29,7 +29,7 @@ export const MyCoursesPage: React.FC = () => {
     : baseList;
 
   return (
-    <div className="dashboard-layout">
+    <div className="dashboard-layout" style={{ backgroundColor: 'var(--bg-main)' }}>
       <Sidebar />
 
       <main className="dashboard-main">
@@ -40,23 +40,29 @@ export const MyCoursesPage: React.FC = () => {
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 16,
-          marginBottom: 28,
+          marginBottom: 24,
+          padding: '24px',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border-color)',
+          backgroundColor: '#FFFFFF',
+          boxShadow: 'var(--shadow-xs)',
         }}>
           <div>
-            <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, color: 'var(--navy-900)', letterSpacing: '-0.025em' }}>
-              My Courses
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em', margin: 0 }}>
+              My Enrollments & Learning Path
             </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', marginTop: 4 }}>
-              Manage your active enrollments, track module progress, and download verified certificates.
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.88rem', marginTop: 4, margin: 0 }}>
+              Track courseware progress, resume active lessons, and view earned verifiable certificates.
             </p>
           </div>
 
           <Button 
             variant="secondary"
+            size="md"
             onClick={() => setCurrentPage('landing')}
-            leftIcon={<Compass size={16} />}
+            icon={<Compass size={15} />}
           >
-            Explore More Courses
+            Explore Catalog
           </Button>
         </div>
 
@@ -66,79 +72,125 @@ export const MyCoursesPage: React.FC = () => {
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 16,
+          gap: 14,
           borderBottom: '1px solid var(--border-color)',
           paddingBottom: 16,
-          marginBottom: 28,
+          marginBottom: 24,
         }}>
           {/* Segmented Filter Tabs */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button
               onClick={() => setActiveTab('all')}
-              className={`btn btn-sm ${activeTab === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ borderRadius: 'var(--radius-full)' }}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid',
+                borderColor: activeTab === 'all' ? 'var(--primary)' : 'var(--border-color)',
+                backgroundColor: activeTab === 'all' ? 'var(--primary)' : '#FFFFFF',
+                color: activeTab === 'all' ? '#FFFFFF' : 'var(--navy-900)',
+                fontSize: '0.82rem',
+                fontWeight: activeTab === 'all' ? 700 : 500,
+                cursor: 'pointer',
+              }}
             >
               All Enrolled ({enrollments.length})
             </button>
             <button
-              onClick={() => setActiveTab('completed')}
-              className={`btn btn-sm ${activeTab === 'completed' ? 'btn-teal' : 'btn-secondary'}`}
-              style={{ borderRadius: 'var(--radius-full)' }}
+              onClick={() => setActiveTab('in-progress')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid',
+                borderColor: activeTab === 'in-progress' ? 'var(--primary)' : 'var(--border-color)',
+                backgroundColor: activeTab === 'in-progress' ? 'var(--primary)' : '#FFFFFF',
+                color: activeTab === 'in-progress' ? '#FFFFFF' : 'var(--navy-900)',
+                fontSize: '0.82rem',
+                fontWeight: activeTab === 'in-progress' ? 700 : 500,
+                cursor: 'pointer',
+              }}
             >
-              Completed ({completedList.length})
+              In Progress ({inProgressList.length})
             </button>
             <button
-              onClick={() => setActiveTab('in-progress')}
-              className={`btn btn-sm ${activeTab === 'in-progress' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ borderRadius: 'var(--radius-full)' }}
+              onClick={() => setActiveTab('completed')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid',
+                borderColor: activeTab === 'completed' ? 'var(--primary)' : 'var(--border-color)',
+                backgroundColor: activeTab === 'completed' ? 'var(--primary)' : '#FFFFFF',
+                color: activeTab === 'completed' ? '#FFFFFF' : 'var(--navy-900)',
+                fontSize: '0.82rem',
+                fontWeight: activeTab === 'completed' ? 700 : 500,
+                cursor: 'pointer',
+              }}
             >
-              In-Progress ({inProgressList.length})
+              Completed ({completedList.length})
             </button>
           </div>
 
           {/* Search Box */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: 300 }}>
-            <Search size={16} color="var(--slate-400)" style={{ position: 'absolute', left: 12, top: 13 }} />
+          <div style={{ position: 'relative', width: '100%', maxWidth: 280 }}>
+            <Search size={15} color="var(--slate-400)" style={{ position: 'absolute', left: 12, top: 12 }} />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Filter by course title..."
+              placeholder="Search by course title..."
               className="input-field"
-              style={{ paddingLeft: 38, height: 40, fontSize: 'var(--text-xs)' }}
+              style={{ paddingLeft: 36, height: 38, fontSize: '0.84rem' }}
             />
           </div>
         </div>
 
         {/* Course Cards List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {filteredList.length === 0 ? (
-            <EmptyState
-              icon={<BookOpen size={36} />}
-              title={searchQuery ? 'No matching courses found' : 'No courses in this view'}
-              description={searchQuery 
-                ? `No enrolled courses match "${searchQuery}". Try a different keyword.` 
-                : 'Browse our catalog to enroll in courses and begin learning.'}
-              actionText="Explore Course Catalog"
-              onAction={() => setCurrentPage('landing')}
-              actionIcon={<Compass size={16} />}
-            />
+            <div style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '48px 24px',
+              textAlign: 'center',
+            }}>
+              <BookOpen size={36} color="var(--slate-400)" style={{ margin: '0 auto 12px' }} />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
+                {searchQuery ? 'No matching courses found' : 'No courses in this view'}
+              </h3>
+              <p style={{ color: 'var(--slate-500)', fontSize: '0.86rem', maxWidth: 400, margin: '0 auto 16px' }}>
+                {searchQuery 
+                  ? `No enrolled courses match "${searchQuery}". Try a different keyword.` 
+                  : 'Browse our catalog to enroll in foundational or accredited courses.'}
+              </p>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => setCurrentPage('landing')}
+                icon={<Compass size={15} />}
+              >
+                Browse Course Catalog
+              </Button>
+            </div>
           ) : (
             filteredList.map(enr => {
               const course = enr.course;
               if (!course) return null;
               const isCompleted = enr.status === 'COMPLETED' || enr.progressPercentage === 100;
+              const pct = Math.min(100, Math.max(0, enr.progressPercentage || 0));
 
               return (
                 <div 
                   key={enr.id} 
-                  className="card card-hover"
                   style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '16px 20px',
                     display: 'flex',
                     flexWrap: 'wrap',
                     alignItems: 'center',
-                    gap: 20,
-                    padding: 20,
+                    gap: 18,
+                    boxShadow: 'var(--shadow-xs)',
                   }}
                 >
                   {/* Course Thumbnail */}
@@ -146,45 +198,44 @@ export const MyCoursesPage: React.FC = () => {
                     src={course.thumbnailUrl || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=200&q=80'} 
                     alt={course.title}
                     style={{ 
-                      width: 140, 
-                      height: 90, 
-                      borderRadius: 'var(--radius-lg)', 
+                      width: 110, 
+                      height: 72, 
+                      borderRadius: 'var(--radius-md)', 
                       objectFit: 'cover',
                       flexShrink: 0,
+                      border: '1px solid var(--border-subtle)',
                     }}
                   />
 
                   {/* Course Details & Progress */}
-                  <div style={{ flex: '1 1 320px', minWidth: 260 }}>
+                  <div style={{ flex: '1 1 300px', minWidth: 240 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                         {course.category}
                       </span>
                       {isCompleted && (
-                        <Badge variant="teal" icon={<CheckCircle size={12} />}>
+                        <span style={{ backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', padding: '2px 6px', borderRadius: 'var(--radius-sm)', fontSize: '0.7rem', fontWeight: 700 }}>
                           Completed
-                        </Badge>
+                        </span>
                       )}
                     </div>
 
-                    <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: 'var(--navy-900)', marginBottom: 8, lineHeight: 1.3 }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--navy-950)', margin: '0 0 8px', lineHeight: 1.35 }}>
                       {course.title}
                     </h3>
 
-                    <div style={{ maxWidth: 440 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', fontWeight: 600, marginBottom: 4 }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Completion</span>
-                        <span style={{ color: isCompleted ? 'var(--teal-600)' : 'var(--primary)', fontWeight: 700 }}>
-                          {enr.progressPercentage || 0}%
-                        </span>
+                    <div style={{ maxWidth: 380 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', fontWeight: 600, color: 'var(--slate-500)', marginBottom: 4 }}>
+                        <span>Progress</span>
+                        <span>{pct}%</span>
                       </div>
-                      <div style={{ width: '100%', height: 6, backgroundColor: 'var(--slate-200)', borderRadius: 'var(--radius-full)' }}>
+                      <div style={{ width: '100%', height: 6, backgroundColor: 'var(--slate-100)', borderRadius: 999, overflow: 'hidden' }}>
                         <div 
                           style={{
-                            width: `${Math.min(100, Math.max(0, enr.progressPercentage || 0))}%`,
+                            width: `${pct}%`,
                             height: '100%',
-                            backgroundColor: isCompleted ? 'var(--teal-600)' : 'var(--primary)',
-                            borderRadius: 'var(--radius-full)',
+                            backgroundColor: isCompleted ? '#10B981' : 'var(--primary)',
+                            borderRadius: 999,
                             transition: 'width 0.4s ease',
                           }} 
                         />
@@ -195,35 +246,34 @@ export const MyCoursesPage: React.FC = () => {
                   {/* Actions Area */}
                   <div style={{ 
                     display: 'flex', 
-                    flexDirection: 'column', 
+                    alignItems: 'center',
                     gap: 8, 
-                    alignItems: 'stretch',
-                    minWidth: 160,
                     marginLeft: 'auto',
                   }}>
                     {isCompleted ? (
                       <>
                         <Button 
-                          variant="teal"
-                          onClick={() => openVerification(enr.certificateId || '')}
-                          leftIcon={<Award size={15} />}
+                          variant="secondary"
                           size="sm"
+                          onClick={() => openVerification(enr.certificateId || '')}
+                          icon={<Award size={14} />}
                         >
                           Certificate
                         </Button>
                         <Button 
                           variant="secondary"
-                          onClick={() => openCourse(course.id)}
                           size="sm"
+                          onClick={() => openCourse(course.id)}
                         >
-                          Review Lessons
+                          Review Syllabus
                         </Button>
                       </>
                     ) : (
                       <Button 
                         variant="primary"
+                        size="md"
                         onClick={() => openCourse(course.id)}
-                        leftIcon={<Play size={15} fill="#FFFFFF" />}
+                        icon={<Play size={14} />}
                       >
                         Continue Course
                       </Button>

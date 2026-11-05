@@ -142,27 +142,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
       <div style={{
         flex: '1 1 480px',
         minHeight: '100vh',
-        background: 'linear-gradient(145deg, var(--navy-950) 0%, var(--navy-900) 45%, #2563EB 100%)',
+        backgroundColor: 'var(--navy-950)',
         color: '#FFFFFF',
         padding: '56px 48px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         position: 'relative',
-        overflow: 'hidden',
+        borderRight: '1px solid var(--navy-800)',
       }}>
-        {/* Subtle Background Radial Highlights */}
-        <div style={{
-          position: 'absolute',
-          top: '-20%',
-          right: '-20%',
-          width: '500px',
-          height: '500px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(79, 70, 229, 0.25) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
         {/* Top: Ministry & Brand Navigation */}
         <div style={{ position: 'relative', zIndex: 2 }}>
           <div
@@ -176,21 +164,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
             }}
           >
             <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: 'rgba(255, 255, 255, 0.12)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              width: 40,
+              height: 40,
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <Logo size={32} />
+              <Logo size={28} />
             </div>
             <div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em' }}>EduSphere</div>
-              <div style={{ fontSize: '0.74rem', color: '#93C5FD', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <MinistryLogo size={14} />
+              <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em' }}>EduSphere</div>
+              <div style={{ fontSize: '0.74rem', color: '#94A3B8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <MinistryLogo size={13} />
                 <span>{t.nationalPortal}</span>
               </div>
             </div>
@@ -198,76 +186,76 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
         </div>
 
         {/* Center: Mission & High-Trust Features */}
-        <div style={{ maxWidth: 480, position: 'relative', zIndex: 2, margin: '24px 0' }}>
+        <div style={{ maxWidth: 460, position: 'relative', zIndex: 2, margin: '24px 0' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 8,
-            backgroundColor: 'rgba(255, 255, 255, 0.12)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            padding: '6px 14px',
-            borderRadius: 20,
+            gap: 6,
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            padding: '4px 12px',
+            borderRadius: 'var(--radius-sm)',
             fontSize: '0.78rem',
             fontWeight: 700,
-            color: '#E0E7FF',
+            color: '#E2E8F0',
             marginBottom: 20,
           }}>
-            <Sparkles size={14} color="#FBBF24" />
+            <ShieldCheck size={14} color="var(--primary-hover)" />
             <span>Accredited Academic Infrastructure</span>
           </div>
 
           <h2 style={{
-            fontSize: '2.4rem',
+            fontSize: '2.2rem',
             fontWeight: 800,
             lineHeight: 1.2,
             marginBottom: 16,
             letterSpacing: '-0.03em',
             color: '#FFFFFF',
           }}>
-            {t.heroTitle} <span style={{ color: '#93C5FD' }}>{t.heroHighlight}</span>
+            {t.heroTitle} <span style={{ color: '#60A5FA' }}>{t.heroHighlight}</span>
           </h2>
 
-          <p style={{ fontSize: '1.02rem', color: '#CBD5E1', lineHeight: 1.6, marginBottom: 28 }}>
+          <p style={{ fontSize: '0.98rem', color: '#94A3B8', lineHeight: 1.6, marginBottom: 28 }}>
             {t.heroSubtitle}
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: '0.9rem', color: '#F1F5F9' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, fontSize: '0.88rem', color: '#E2E8F0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle size={15} color="#34D399" />
+              <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={14} color="#10B981" />
               </div>
               <span style={{ fontWeight: 600 }}>Unified National Accreditation Standards</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle size={15} color="#34D399" />
+              <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={14} color="#10B981" />
               </div>
-              <span style={{ fontWeight: 600 }}>Interactive Live WebRTC Virtual Classrooms</span>
+              <span style={{ fontWeight: 600 }}>Low-Latency WebRTC Live Classrooms</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: 'rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle size={15} color="#34D399" />
+              <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={14} color="#10B981" />
               </div>
-              <span style={{ fontWeight: 600 }}>Cryptographically Verified QR Diplomas</span>
+              <span style={{ fontWeight: 600 }}>Cryptographically Verified SHA-256 Diplomas</span>
             </div>
           </div>
         </div>
 
-        {/* Bottom: ISO Guarantee */}
+        {/* Bottom: Guarantee */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          fontSize: '0.82rem',
-          color: '#94A3B8',
-          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-          paddingTop: 20,
+          gap: 8,
+          fontSize: '0.8rem',
+          color: '#64748B',
+          borderTop: '1px solid var(--navy-800)',
+          paddingTop: 18,
           position: 'relative',
           zIndex: 2,
         }}>
-          <ShieldCheck size={18} color="#60A5FA" />
+          <ShieldCheck size={16} color="#60A5FA" />
           <span>{t.footerAccreditation}</span>
         </div>
       </div>
@@ -278,19 +266,19 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        padding: '48px 40px',
-        maxWidth: 620,
+        padding: '48px 36px',
+        maxWidth: 580,
         margin: '0 auto',
         width: '100%',
         minHeight: '100vh',
-        background: 'linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%)',
+        backgroundColor: 'var(--slate-50)',
       }}>
         <div style={{
           backgroundColor: '#FFFFFF',
-          border: '1px solid rgba(148,163,184,0.25)',
-          borderRadius: 'var(--radius-2xl)',
-          boxShadow: '0 28px 45px -28px rgba(15, 23, 42, 0.45)',
-          padding: '28px 28px 24px',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-sm)',
+          padding: '32px 32px 28px',
         }}>
         <div style={{
           display: 'flex',

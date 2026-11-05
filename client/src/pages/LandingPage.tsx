@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
-import { ICourse } from '../types';
+import { ICourse, ITenant } from '../types';
 import { 
   Search, 
   School, 
@@ -10,26 +10,35 @@ import {
   UserCheck, 
   Star, 
   ArrowRight,
-  Sparkles,
   BookOpen,
   ShieldCheck,
   CheckCircle2,
-  Users,
-  Award
+  Lock,
+  Video,
+  FileCheck2,
+  Building2,
+  ExternalLink,
+  ChevronRight
 } from 'lucide-react';
-import { Button, Badge } from '../components/ui';
+import { Button } from '../components/ui';
 
 export const LandingPage: React.FC = () => {
-  const { openCourse, setCurrentPage, t } = useApp();
+  const { openCourse, setCurrentPage, openVerification, t } = useApp();
   const [courses, setCourses] = useState<ICourse[]>([]);
+  const [tenants, setTenants] = useState<ITenant[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [verifyCodeInput, setVerifyCodeInput] = useState('');
   const [activeAudience, setActiveAudience] = useState<string>('All');
   const [selectedTier, setSelectedTier] = useState<string>('All');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    api.getCourses().then(res => setCourses(res.courses));
+    // Parallel fetch for active courses and accredited institutions
+    Promise.all([
+      api.getCourses().then(res => setCourses(res.courses)).catch(() => setCourses([])),
+      api.getTenants().then(res => setTenants(res.tenants)).catch(() => setTenants([]))
+    ]);
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -40,15 +49,41 @@ export const LandingPage: React.FC = () => {
       .finally(() => setIsSearching(false));
   };
 
+  const handleDirectVerification = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyCodeInput.trim()) return;
+    openVerification(verifyCodeInput.trim().toUpperCase());
+  };
+
   const audienceCategories = [
-    { id: 'schools', label: t.schools, subtext: t.schoolsSub, icon: <School size={22} color="var(--primary)" /> },
-    { id: 'universities', label: t.universities, subtext: t.universitiesSub, icon: <GraduationCap size={22} color="var(--primary)" /> },
-    { id: 'training', label: t.trainingCenters, subtext: t.trainingSub, icon: <Briefcase size={22} color="var(--primary)" /> },
-    { id: 'independent', label: t.independentLearners, subtext: t.independentSub, icon: <UserCheck size={22} color="var(--primary)" /> },
+    { 
+      id: 'schools', 
+      label: 'Primary & High Schools', 
+      subtext: 'Grades 1-12 standardized curriculum, parent progress tracking, and digital attendance', 
+      icon: <School size={20} color="var(--primary)" /> 
+    },
+    { 
+      id: 'universities', 
+      label: 'Universities & Colleges', 
+      subtext: 'Accredited undergraduate and graduate degree coursework with strict multi-tenant isolation', 
+      icon: <GraduationCap size={20} color="var(--primary)" /> 
+    },
+    { 
+      id: 'training', 
+      label: 'TVET & Technical Institutes', 
+      subtext: 'Vocational certifications, hands-on lab modules, and industry career pathways', 
+      icon: <Briefcase size={20} color="var(--primary)" /> 
+    },
+    { 
+      id: 'independent', 
+      label: 'Independent Scholars', 
+      subtext: 'Self-paced professional courses, open syllabus access, and verified credentials', 
+      icon: <UserCheck size={20} color="var(--primary)" /> 
+    },
   ];
 
   const educationTiers = [
-    { id: 'All', label: 'All Levels & Tiers' },
+    { id: 'All', label: 'All Academic Tiers' },
     { id: 'primary', label: 'Primary (Grades 1-8)' },
     { id: 'secondary', label: 'High School (Grades 9-12)' },
     { id: 'college', label: 'College & TVET' },
@@ -103,92 +138,72 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div style={{ backgroundColor: 'var(--bg-main)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Hero Section: Clean, Authoritative, Photographic */}
       <section style={{
-        background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 42%, #EEF2FF 100%)',
-        padding: '56px 24px 40px',
+        backgroundColor: '#FFFFFF',
         borderBottom: '1px solid var(--border-color)',
-        position: 'relative',
-        overflow: 'hidden',
+        padding: '56px 24px 48px',
       }}>
-        <div style={{
-          position: 'absolute',
-          top: -60,
-          right: '7%',
-          width: 440,
-          height: 440,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(79, 70, 229, 0.12) 0%, rgba(79, 70, 229, 0.04) 28%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute',
-          bottom: -60,
-          left: '8%',
-          width: 360,
-          height: 360,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(20, 184, 166, 0.1) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
           <div className="landing-hero-grid">
+            {/* Left Column: Mission & Search */}
             <div>
-              <div style={{ marginBottom: 18 }}>
+              <div style={{ marginBottom: 16 }}>
                 <span style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  backgroundColor: 'rgba(79, 70, 229, 0.08)',
-                  border: '1px solid rgba(79, 70, 229, 0.2)',
-                  color: 'var(--primary)',
-                  padding: '7px 14px',
-                  borderRadius: 999,
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  backgroundColor: 'var(--slate-100)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--navy-900)',
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.02em',
                 }}>
-                  <Sparkles size={14} color="var(--primary)" />
-                  <span>{t.heroBadge}</span>
+                  <ShieldCheck size={14} color="var(--primary)" />
+                  <span>Accredited Multi-Tenant Academic Platform</span>
                 </span>
               </div>
 
-              <h1 className="hero-title">
-                {t.heroTitle} <span style={{ color: 'var(--primary)' }}>{t.heroHighlight}</span>
+              <h1 className="hero-title" style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--navy-950)', lineHeight: 1.12, letterSpacing: '-0.03em', marginBottom: 20 }}>
+                Unified Learning Infrastructure for <span style={{ color: 'var(--primary)' }}>National Scale</span>
               </h1>
 
               <p style={{
-                fontSize: '1.12rem',
+                fontSize: '1.08rem',
                 color: 'var(--slate-600)',
                 marginBottom: 28,
-                maxWidth: 600,
-                lineHeight: 1.7,
+                maxWidth: 580,
+                lineHeight: 1.65,
               }}>
-                {t.heroSubtitle}
+                EduSphere connects primary schools, high schools, TVET institutes, and national universities into one cohesive, verifiable learning management ecosystem with live classrooms and tamper-evident credentials.
               </p>
 
-              <form onSubmit={handleSearch} className="hero-search-form">
+              {/* Direct Course Discovery Form */}
+              <form onSubmit={handleSearch} className="hero-search-form" style={{ marginBottom: 20 }}>
                 <div style={{
                   position: 'relative',
                   flex: 1,
                   display: 'flex',
                   alignItems: 'center',
                 }}>
-                  <Search size={20} color="var(--text-muted)" style={{ position: 'absolute', left: 16 }} />
+                  <Search size={18} color="var(--slate-400)" style={{ position: 'absolute', left: 14 }} />
                   <input 
                     type="text" 
-                    placeholder={t.searchPlaceholder} 
+                    placeholder="Search by topic, faculty, course code, or syllabus..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     className="input-field"
                     style={{
-                      paddingLeft: 46,
-                      height: 52,
-                      borderRadius: 'var(--radius-lg)',
-                      fontSize: '0.96rem',
+                      paddingLeft: 42,
+                      height: 48,
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.94rem',
                       backgroundColor: '#FFFFFF',
-                      boxShadow: '0 8px 24px -16px rgba(79, 70, 229, 0.45)',
+                      border: '1px solid var(--border-color)',
                     }}
                   />
                 </div>
@@ -197,98 +212,170 @@ export const LandingPage: React.FC = () => {
                   variant="primary"
                   size="md"
                   isLoading={isSearching}
-                  style={{ height: 52, padding: '0 28px', borderRadius: 'var(--radius-lg)', boxShadow: '0 20px 30px -18px rgba(79, 70, 229, 0.85)' }}
+                  style={{ height: 48, padding: '0 24px', borderRadius: 'var(--radius-md)' }}
                 >
                   {t.searchBtn}
                 </Button>
               </form>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              {/* Primary Call to Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
                 <Button 
                   onClick={() => setCurrentPage('register')}
                   variant="primary"
-                  size="lg"
-                  icon={<ArrowRight size={18} />}
-                  style={{ boxShadow: '0 18px 35px -16px rgba(79, 70, 229, 0.7)' }}
+                  size="md"
+                  icon={<ArrowRight size={16} />}
                 >
-                  {t.signUp}
+                  Explore as Learner
                 </Button>
                 <Button 
-                  onClick={() => setCurrentPage('login')}
+                  onClick={() => setCurrentPage('institution-register')}
                   variant="secondary"
-                  size="lg"
+                  size="md"
+                  icon={<Building2 size={16} />}
                 >
-                  {t.signIn}
+                  Register Institution
                 </Button>
-              </div>
-
-              <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 12,
-                marginTop: 22,
-                color: 'var(--slate-600)',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-              }}>
-                {['12K learners', '320+ programs', '98% completion'].map((item) => (
-                  <div key={item} style={{
+                <button
+                  onClick={() => openVerification('')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--slate-600)',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    background: 'rgba(255,255,255,0.75)',
-                    border: '1px solid rgba(148,163,184,0.22)',
-                    borderRadius: 999,
-                    padding: '7px 12px',
-                  }}>
-                    <CheckCircle2 size={14} color="var(--teal-600)" />
-                    <span>{item}</span>
-                  </div>
-                ))}
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--slate-600)')}
+                >
+                  <Lock size={14} />
+                  <span>Verify Credential</span>
+                </button>
+              </div>
+
+              {/* Trust Badges */}
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 16,
+                paddingTop: 18,
+                borderTop: '1px solid var(--border-subtle)',
+                fontSize: '0.82rem',
+                color: 'var(--slate-600)',
+                fontWeight: 600,
+              }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <CheckCircle2 size={15} color="var(--primary)" />
+                  <span>Strict Data Isolation</span>
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <CheckCircle2 size={15} color="var(--primary)" />
+                  <span>Live WebRTC Classrooms</span>
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <CheckCircle2 size={15} color="var(--primary)" />
+                  <span>SHA-256 Verified Certificates</span>
+                </div>
               </div>
             </div>
 
+            {/* Right Column: High Quality Realistic Photography */}
             <div>
               <div style={{
-                borderRadius: 'var(--radius-2xl)',
+                borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
-                boxShadow: '0 32px 40px -20px rgba(15, 23, 42, 0.4)',
-                border: '4px solid #FFFFFF',
-                position: 'relative',
-                transform: 'perspective(1200px) rotateY(-4deg)',
-                transition: 'transform 0.3s ease',
+                border: '1px solid var(--border-color)',
+                boxShadow: 'var(--shadow-md)',
+                backgroundColor: 'var(--slate-100)',
               }}>
-                <img 
-                  src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=900&q=80" 
-                  alt="National Virtual Academy" 
-                  style={{ width: '100%', height: 380, objectFit: 'cover', display: 'block' }}
-                />
-                <div style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'linear-gradient(to top, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.18) 58%, transparent 100%)',
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  padding: 28,
-                }}>
-                  <div style={{ color: '#FFFFFF' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255, 255, 255, 0.2)', padding: '4px 10px', borderRadius: 999, fontSize: '0.74rem', fontWeight: 700, marginBottom: 10 }}>
-                      <ShieldCheck size={14} color="#5EEAD4" />
-                      <span>Accredited LMS</span>
+                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/10' }}>
+                  <img 
+                    src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1000&q=80" 
+                    alt="University students collaborating in academic session" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: '16px 20px',
+                    background: 'linear-gradient(to top, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.4) 60%, transparent 100%)',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.76rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                        National Higher Education Network
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: '0.98rem' }}>
+                        Addis Ababa University & Regional Partner Campuses
+                      </div>
                     </div>
-                    <p style={{ fontWeight: 800, fontSize: '1.4rem', marginBottom: 2 }}>National Virtual Academy</p>
-                    <p style={{ fontSize: '0.88rem', color: '#CBD5E1' }}>Accredited Higher Education & Continuous Professional Learning</p>
+                    <div style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                      backdropFilter: 'blur(4px)',
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      color: '#E2E8F0',
+                    }}>
+                      Verified Active
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub-strip with live platform indicators */}
+                <div style={{
+                  padding: '12px 20px',
+                  backgroundColor: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.8rem',
+                  color: 'var(--slate-600)',
+                  borderTop: '1px solid var(--border-subtle)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Video size={14} color="var(--primary)" />
+                    <span>Live Interactive Rooms Supported</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <FileCheck2 size={14} color="#10B981" />
+                    <span>Instant Anti-Cheating Telemetry</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Institutional Architecture: Audience Segments */}
+      <section style={{ backgroundColor: 'var(--slate-50)', padding: '40px 24px', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.02em', margin: 0 }}>
+              Tailored Environments for Every Educational Tier
+            </h2>
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.88rem', marginTop: 4 }}>
+              Select an academic sector to filter accredited programs, curricula, and institutional portals.
+            </p>
+          </div>
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
             gap: 16,
-            marginTop: 48,
           }}>
             {audienceCategories.map(cat => {
               const isActive = activeAudience === cat.id;
@@ -297,34 +384,59 @@ export const LandingPage: React.FC = () => {
                   key={cat.id}
                   onClick={() => setActiveAudience(activeAudience === cat.id ? 'All' : cat.id)}
                   style={{
-                    background: isActive ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(255,255,255,1))' : '#FFFFFF',
-                    borderRadius: 'var(--radius-xl)',
-                    padding: '18px 22px',
-                    border: isActive ? '2px solid rgba(79, 70, 229, 0.35)' : '1px solid var(--border-color)',
-                    boxShadow: isActive ? '0 18px 28px -20px rgba(79, 70, 229, 0.9)' : 'var(--shadow-xs)',
+                    backgroundColor: isActive ? '#FFFFFF' : '#FFFFFF',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '20px',
+                    border: isActive ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: 16,
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive) e.currentTarget.style.borderColor = 'var(--slate-400)';
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) e.currentTarget.style.borderColor = 'var(--border-color)';
                   }}
                 >
+                  <div>
+                    <div style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: isActive ? 'var(--primary)' : 'var(--slate-100)',
+                      color: isActive ? '#FFFFFF' : 'var(--primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 14,
+                    }}>
+                      {React.cloneElement(cat.icon, { color: isActive ? '#FFFFFF' : 'var(--primary)' })}
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--navy-950)', marginBottom: 6 }}>
+                      {cat.label}
+                    </div>
+                    <div style={{ fontSize: '0.84rem', color: 'var(--slate-600)', lineHeight: 1.5 }}>
+                      {cat.subtext}
+                    </div>
+                  </div>
+
                   <div style={{
-                    padding: 12,
-                    borderRadius: 'var(--radius-lg)',
-                    backgroundColor: isActive ? 'var(--primary)' : 'var(--primary-light)',
-                    color: isActive ? '#FFFFFF' : 'var(--primary)',
+                    marginTop: 16,
+                    paddingTop: 12,
+                    borderTop: '1px solid var(--border-subtle)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease',
-                    boxShadow: isActive ? '0 12px 20px -14px rgba(79, 70, 229, 0.9)' : 'none',
+                    justifyContent: 'space-between',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: isActive ? 'var(--primary)' : 'var(--slate-500)',
                   }}>
-                    {React.cloneElement(cat.icon, { color: isActive ? '#FFFFFF' : 'var(--primary)' })}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--navy-950)' }}>{cat.label}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>{cat.subtext}</div>
+                    <span>{isActive ? 'Filtered View Active' : 'Filter by this tier'}</span>
+                    <ChevronRight size={14} />
                   </div>
                 </div>
               );
@@ -333,15 +445,15 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Popular Courses Section */}
+      {/* Popular & Accredited Courses Section */}
       <section style={{ maxWidth: 1240, margin: '48px auto', padding: '0 24px', width: '100%', flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <h2 style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em' }}>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em' }}>
               {t.popularCourses}
             </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: 2 }}>
-              {t.popularCoursesSub}
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.92rem', marginTop: 4 }}>
+              Explore official syllabi across primary, secondary, vocational, and university faculties.
             </p>
           </div>
           <button 
@@ -350,16 +462,16 @@ export const LandingPage: React.FC = () => {
               background: 'none',
               border: 'none',
               color: 'var(--primary)',
-              fontWeight: 800,
-              fontSize: '0.92rem',
+              fontWeight: 700,
+              fontSize: '0.88rem',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               cursor: 'pointer',
             }}
           >
-            <span>{t.viewAll}</span>
-            <ArrowRight size={16} />
+            <span>Reset to All Programs</span>
+            <ArrowRight size={14} />
           </button>
         </div>
 
@@ -367,12 +479,12 @@ export const LandingPage: React.FC = () => {
         <div style={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: 10,
-          marginBottom: 24,
+          gap: 8,
+          marginBottom: 28,
           alignItems: 'center',
           justifyContent: 'space-between',
           borderBottom: '1px solid var(--border-color)',
-          paddingBottom: 18,
+          paddingBottom: 16,
         }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             {educationTiers.map(tier => {
@@ -382,16 +494,15 @@ export const LandingPage: React.FC = () => {
                   key={tier.id}
                   onClick={() => setSelectedTier(tier.id)}
                   style={{
-                    padding: '8px 16px',
-                    borderRadius: 999,
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-sm)',
                     border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-color)',
                     backgroundColor: isSelected ? 'var(--primary)' : '#FFFFFF',
                     color: isSelected ? '#FFFFFF' : 'var(--navy-800)',
-                    fontSize: '0.85rem',
-                    fontWeight: isSelected ? 800 : 600,
+                    fontSize: '0.84rem',
+                    fontWeight: isSelected ? 700 : 500,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
-                    boxShadow: isSelected ? '0 4px 12px rgba(79, 70, 229, 0.25)' : 'none',
                   }}
                 >
                   {tier.label}
@@ -401,25 +512,9 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--slate-500)', fontWeight: 600 }}>
               Showing {filteredCourses.length} of {courses.length} courses
             </span>
-            {(activeAudience !== 'All' || selectedTier !== 'All' || selectedCategory !== 'All') && (
-              <button
-                onClick={() => { setActiveAudience('All'); setSelectedTier('All'); setSelectedCategory('All'); }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--primary)',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  textDecoration: 'underline'
-                }}
-              >
-                Reset Filters
-              </button>
-            )}
           </div>
         </div>
 
@@ -429,18 +524,19 @@ export const LandingPage: React.FC = () => {
             textAlign: 'center',
             padding: '60px 24px',
             backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-xl)',
+            borderRadius: 'var(--radius-lg)',
             border: '1px dashed var(--border-color)',
           }}>
-            <BookOpen size={44} color="var(--primary)" style={{ margin: '0 auto 16px', opacity: 0.6 }} />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 8 }}>
-              No courses found for the selected education level
+            <BookOpen size={40} color="var(--slate-400)" style={{ margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 8 }}>
+              No courses match the selected tier filter
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.88rem', marginBottom: 20 }}>
               Try selecting another educational tier or clear your active filters.
             </p>
             <Button
               variant="primary"
+              size="md"
               onClick={() => { setActiveAudience('All'); setSelectedTier('All'); setSelectedCategory('All'); }}
             >
               Clear All Filters
@@ -450,7 +546,7 @@ export const LandingPage: React.FC = () => {
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 28,
+            gap: 24,
           }}>
             {filteredCourses.map(course => (
               <div 
@@ -463,65 +559,64 @@ export const LandingPage: React.FC = () => {
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
-                  borderRadius: 'var(--radius-xl)',
-                  border: '1px solid rgba(148,163,184,0.24)',
-                  boxShadow: '0 20px 35px -24px rgba(15, 23, 42, 0.4)',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: '#FFFFFF',
+                  boxShadow: 'var(--shadow-xs)',
+                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                 }}
               >
-                <div style={{ height: 175, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ height: 165, position: 'relative', overflow: 'hidden', backgroundColor: 'var(--slate-100)' }}>
                   <img 
                     src={course.thumbnailUrl} 
                     alt={course.title}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s ease' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
                   <span style={{
                     position: 'absolute',
-                    top: 12,
-                    right: 12,
-                    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                    backdropFilter: 'blur(4px)',
+                    top: 10,
+                    right: 10,
+                    backgroundColor: 'rgba(15, 23, 42, 0.88)',
                     color: '#FFFFFF',
-                    padding: '4px 10px',
-                    borderRadius: 999,
+                    padding: '3px 8px',
+                    borderRadius: 'var(--radius-sm)',
                     fontSize: '0.72rem',
-                    fontWeight: 800,
+                    fontWeight: 700,
                   }}>
                     {course.level}
                   </span>
                 </div>
 
-                <div style={{ padding: 20, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div style={{ padding: '18px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{
                       fontSize: '0.72rem',
-                      fontWeight: 800,
+                      fontWeight: 700,
                       color: 'var(--primary)',
                       textTransform: 'uppercase',
-                      letterSpacing: '0.08em',
-                      marginBottom: 8,
+                      letterSpacing: '0.06em',
+                      marginBottom: 6,
                     }}>
                       {course.category}
                     </div>
                     <h3 style={{
-                      fontSize: '1.12rem',
-                      fontWeight: 800,
+                      fontSize: '1.05rem',
+                      fontWeight: 700,
                       color: 'var(--navy-950)',
-                      marginBottom: 8,
-                      lineHeight: 1.38,
+                      marginBottom: 6,
+                      lineHeight: 1.4,
                     }}>
                       {course.title}
                     </h3>
                     <p style={{
                       fontSize: '0.84rem',
-                      color: 'var(--text-muted)',
+                      color: 'var(--slate-600)',
                       marginBottom: 16,
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
-                      lineHeight: 1.6,
+                      lineHeight: 1.55,
                     }}>
                       {course.tagline}
                     </p>
@@ -533,33 +628,35 @@ export const LandingPage: React.FC = () => {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       marginBottom: 12,
-                      fontSize: '0.88rem',
-                      gap: 10,
+                      fontSize: '0.86rem',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 800, color: '#D97706' }}>
-                        <Star size={16} fill="#F59E0B" color="#F59E0B" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, color: '#D97706' }}>
+                        <Star size={15} fill="#F59E0B" color="#F59E0B" />
                         <span>{course.rating.toFixed(1)}</span>
-                        <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.8rem' }}>
-                          ({(course.ratingCount / 1000).toFixed(1)}k)
+                        <span style={{ color: 'var(--slate-400)', fontWeight: 500, fontSize: '0.78rem' }}>
+                          ({course.ratingCount} reviews)
                         </span>
                       </div>
-                      <span style={{ fontWeight: 800, color: 'var(--teal-700)', fontSize: '1.08rem' }}>
+                      <span style={{ fontWeight: 800, color: 'var(--navy-950)', fontSize: '1rem' }}>
                         {course.price === 0 ? 'Free' : `$${course.price}`}
                       </span>
                     </div>
 
                     <div style={{
-                      fontSize: '0.82rem',
-                      color: 'var(--text-muted)',
-                      borderTop: '1px solid var(--border-color)',
+                      fontSize: '0.8rem',
+                      color: 'var(--slate-500)',
+                      borderTop: '1px solid var(--border-subtle)',
                       paddingTop: 12,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: 8,
                     }}>
-                      <span style={{ fontWeight: 700, color: 'var(--navy-850)' }}>{course.institutionName || 'Institution Partner'}</span>
-                      <span style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.76rem' }}>Explore →</span>
+                      <span style={{ fontWeight: 600, color: 'var(--navy-800)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                        {course.institutionName || 'Institutional Partner'}
+                      </span>
+                      <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '0.78rem' }}>
+                        View Syllabus →
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -569,36 +666,268 @@ export const LandingPage: React.FC = () => {
         )}
       </section>
 
-      {/* Social Proof Stats Banner */}
+      {/* How Institutional Learning Works: 4 Step Real Architecture */}
+      <section style={{ backgroundColor: '#FFFFFF', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '56px 24px' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto 48px' }}>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em' }}>
+              How Sovereign Learning Operates on EduSphere
+            </h2>
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.92rem', marginTop: 8 }}>
+              From Ministry accreditation to tamper-evident graduation, EduSphere guarantees institutional autonomy and verifiable academic records.
+            </p>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 24,
+          }}>
+            <div style={{
+              backgroundColor: 'var(--slate-50)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-color)',
+              padding: '24px',
+            }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                Step 01
+              </div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 8 }}>
+                Accreditation & Isolation
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', lineHeight: 1.6, margin: 0 }}>
+                Schools and universities upload official licenses for Platform Admin verification. Once approved, dedicated tenant barriers guarantee autonomous record management.
+              </p>
+            </div>
+
+            <div style={{
+              backgroundColor: 'var(--slate-50)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-color)',
+              padding: '24px',
+            }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                Step 02
+              </div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 8 }}>
+                Curriculum Authoring
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', lineHeight: 1.6, margin: 0 }}>
+                Instructors publish modular syllabi with video lectures, reading materials, SCORM documents, and graded anti-cheating assessments with custom pass benchmarks.
+              </p>
+            </div>
+
+            <div style={{
+              backgroundColor: 'var(--slate-50)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-color)',
+              padding: '24px',
+            }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                Step 03
+              </div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 8 }}>
+                Live Interactive Lectures
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', lineHeight: 1.6, margin: 0 }}>
+                Integrated low-latency WebRTC stages enable synchronized lectures, live screen sharing, chat discourse, and automatic participant attendance logs.
+              </p>
+            </div>
+
+            <div style={{
+              backgroundColor: 'var(--slate-50)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-color)',
+              padding: '24px',
+            }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
+                Step 04
+              </div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 8 }}>
+                Cryptographic Diplomas
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', lineHeight: 1.6, margin: 0 }}>
+                Upon syllabus completion, scholars receive verifiable diplomas stamped with SHA-256 hashes, instantly verifiable by employers without login requirements.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Partner Institutions Showcase (Data-driven from api.getTenants) */}
+      <section style={{ backgroundColor: 'var(--slate-50)', padding: '56px 24px', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                Accredited Institutional Partners
+              </div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em', margin: 0 }}>
+                Higher Education & Certified Academies
+              </h2>
+            </div>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => setCurrentPage('institution-register')}
+              icon={<ExternalLink size={14} />}
+            >
+              Onboard Your Institution
+            </Button>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 20,
+          }}>
+            {tenants.slice(0, 4).map(tenant => (
+              <div 
+                key={tenant.id}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border-color)',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: 'var(--shadow-xs)',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--slate-100)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--navy-800)',
+                      fontWeight: 800,
+                      fontSize: '0.9rem',
+                    }}>
+                      {tenant.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span style={{
+                      backgroundColor: tenant.status === 'VERIFIED' ? 'var(--success-light)' : 'var(--slate-100)',
+                      color: tenant.status === 'VERIFIED' ? 'var(--success-text)' : 'var(--slate-600)',
+                      border: `1px solid ${tenant.status === 'VERIFIED' ? 'var(--success-border)' : 'var(--slate-200)'}`,
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                    }}>
+                      {tenant.status === 'VERIFIED' ? 'Ministry Accredited' : tenant.status}
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
+                    {tenant.name}
+                  </h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)', marginBottom: 12 }}>
+                    {tenant.type || 'Higher Education Institution'}
+                  </div>
+
+                  <div style={{ fontSize: '0.82rem', color: 'var(--slate-600)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div><strong>Domain:</strong> {tenant.domains?.[0] || `${tenant.slug}.edusphere.edu`}</div>
+                    <div><strong>Contact:</strong> {tenant.contactEmail}</div>
+                  </div>
+                </div>
+
+                <div style={{
+                  marginTop: 16,
+                  paddingTop: 12,
+                  borderTop: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.78rem',
+                  color: 'var(--slate-500)',
+                }}>
+                  <span>Autonomous Tenant</span>
+                  <span style={{ color: 'var(--primary)', fontWeight: 700 }}>Active Syllabus →</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Public Credential Verification Gateway (No fake stats, real utility) */}
       <section style={{
         backgroundColor: 'var(--navy-950)',
         color: '#FFFFFF',
-        padding: '48px 24px',
+        padding: '56px 24px',
         borderTop: '1px solid var(--navy-800)',
       }}>
         <div style={{
-          maxWidth: 1240,
+          maxWidth: 900,
           margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 36,
           textAlign: 'center',
         }}>
-          <div>
-            <div style={{ fontSize: '2.6rem', fontWeight: 800, color: '#60A5FA', letterSpacing: '-0.03em' }}>50,000+</div>
-            <div style={{ fontSize: '0.92rem', color: '#CBD5E1', fontWeight: 600, marginTop: 4 }}>{t.activeLearnersCount}</div>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            color: '#38BDF8',
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            marginBottom: 16,
+          }}>
+            <Lock size={14} />
+            <span>Public Tamper-Evident Ledger</span>
           </div>
-          <div>
-            <div style={{ fontSize: '2.6rem', fontWeight: 800, color: '#34D399', letterSpacing: '-0.03em' }}>1,200+</div>
-            <div style={{ fontSize: '0.92rem', color: '#CBD5E1', fontWeight: 600, marginTop: 4 }}>{t.certifiedCoursesCount}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '2.6rem', fontWeight: 800, color: '#A78BFA', letterSpacing: '-0.03em' }}>240+</div>
-            <div style={{ fontSize: '0.92rem', color: '#CBD5E1', fontWeight: 600, marginTop: 4 }}>{t.accreditedInstitutionsCount}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: '2.6rem', fontWeight: 800, color: '#FBBF24', letterSpacing: '-0.03em' }}>150+</div>
-            <div style={{ fontSize: '0.92rem', color: '#CBD5E1', fontWeight: 600, marginTop: 4 }}>{t.expertInstructorsCount}</div>
+
+          <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.025em', marginBottom: 12 }}>
+            Instant Academic Diploma Verification
+          </h2>
+          <p style={{ color: 'var(--slate-400)', fontSize: '0.94rem', maxWidth: 620, margin: '0 auto 28px', lineHeight: 1.6 }}>
+            Employers, ministries, and universities can verify authentic completion diplomas issued by accredited EduSphere institutions without login credentials.
+          </p>
+
+          <form onSubmit={handleDirectVerification} style={{
+            display: 'flex',
+            gap: 12,
+            maxWidth: 540,
+            margin: '0 auto',
+            flexWrap: 'wrap',
+          }}>
+            <input 
+              type="text" 
+              placeholder="Enter credential code (e.g. EDU-2026-X89K-4921)" 
+              value={verifyCodeInput}
+              onChange={e => setVerifyCodeInput(e.target.value)}
+              className="input-field"
+              style={{
+                flex: 1,
+                minWidth: 260,
+                height: 48,
+                backgroundColor: 'var(--navy-900)',
+                borderColor: 'var(--navy-700)',
+                color: '#FFFFFF',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.9rem',
+              }}
+            />
+            <Button 
+              type="submit" 
+              variant="primary"
+              size="md"
+              style={{ height: 48, padding: '0 24px', borderRadius: 'var(--radius-md)' }}
+            >
+              Verify Credential
+            </Button>
+          </form>
+
+          <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)', marginTop: 16 }}>
+            Cryptographically signed with SHA-256 hash stamp • Zero private personal data exposed
           </div>
         </div>
       </section>

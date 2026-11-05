@@ -9,22 +9,20 @@ import {
   Users, 
   BookOpen, 
   Activity, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
   ShieldCheck,
   RefreshCw,
   PlusCircle,
   FileText,
   UserCheck,
   Eye,
-  AlertCircle,
   Search,
   Check,
   X,
+  Clock,
+  Lock,
   ExternalLink
 } from 'lucide-react';
-import { Button, Badge, StatCard, Modal, EmptyState, ToastViewport, useToast } from '../components/ui';
+import { Button, Badge, Modal, EmptyState, ToastViewport, useToast } from '../components/ui';
 
 export const AdminDashboard: React.FC = () => {
   const { currentUser, setCurrentPage } = useApp();
@@ -197,48 +195,55 @@ export const AdminDashboard: React.FC = () => {
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 16,
-          marginBottom: 32,
+          marginBottom: 28,
+          padding: '24px',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border-color)',
+          backgroundColor: '#FFFFFF',
+          boxShadow: 'var(--shadow-xs)',
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                backgroundColor: 'rgba(13, 148, 136, 0.1)',
-                border: '1px solid rgba(20, 184, 166, 0.3)',
-                color: 'var(--teal-700)',
-                padding: '4px 12px',
-                borderRadius: 20,
+                backgroundColor: 'var(--slate-100)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--navy-900)',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-sm)',
                 fontSize: '0.78rem',
                 fontWeight: 700,
               }}>
-                <MinistryLogo size={16} />
-                <span>Ministry Accredited Console</span>
+                <MinistryLogo size={14} />
+                <span>Ministry Accredited Control Plane</span>
               </span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Multi-Tenant Control Plane</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>Multi-Tenant Architecture</span>
             </div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em' }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em', margin: 0 }}>
               Institution & Governance Console
             </h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.94rem' }}>
-              Review and accept institution accreditation requests, onboard additional institutions, and govern admissions.
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.88rem', marginTop: 4, margin: 0 }}>
+              Review accreditation dossiers, onboard universities and academies, and oversee multi-tenant isolation.
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <Button 
               variant="primary"
+              size="md"
               onClick={() => setShowAddModal(true)} 
-              icon={<PlusCircle size={18} />}
+              icon={<PlusCircle size={15} />}
             >
               Add Institution
             </Button>
             <Button 
               variant="secondary"
+              size="md"
               onClick={loadData} 
               isLoading={isLoadingData}
-              icon={<RefreshCw size={16} />}
+              icon={<RefreshCw size={14} />}
               title="Reload live database records"
             >
               Refresh
@@ -246,48 +251,84 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 4 Standardized Stat Cards */}
+        {/* 4 Standardized Metric Cards */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 20,
-          marginBottom: 32,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 16,
+          marginBottom: 28,
         }}>
-          <StatCard 
-            label="Accredited Institutions"
-            value={tenants.length || metrics.totalInstitutions}
-            icon={<Building2 size={22} />}
-            color="primary"
-            trendText={`${tenants.filter(t => t.status === 'PENDING_VERIFICATION').length} awaiting acceptance`}
-            trendType="warning"
-          />
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '18px 20px',
+            boxShadow: 'var(--shadow-xs)',
+          }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Accredited Institutions
+            </div>
+            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--navy-950)', marginTop: 4, letterSpacing: '-0.02em' }}>
+              {tenants.length || metrics.totalInstitutions}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)', marginTop: 4 }}>
+              {tenants.filter(t => t.status === 'PENDING_VERIFICATION').length} awaiting acceptance
+            </div>
+          </div>
 
-          <StatCard 
-            label="Admissions Queue"
-            value={admissions.length}
-            icon={<UserCheck size={22} />}
-            color="teal"
-            trendText={`${admissions.filter(a => a.status === 'PENDING').length} pending student intake`}
-            trendType="neutral"
-          />
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '18px 20px',
+            boxShadow: 'var(--shadow-xs)',
+          }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Admissions Queue
+            </div>
+            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--primary)', marginTop: 4, letterSpacing: '-0.02em' }}>
+              {admissions.length}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)', marginTop: 4 }}>
+              {admissions.filter(a => a.status === 'PENDING').length} pending intake
+            </div>
+          </div>
 
-          <StatCard 
-            label="Registered Users"
-            value={metrics.totalUsers.toLocaleString()}
-            icon={<Users size={22} />}
-            color="indigo"
-            trendText="Multi-tenant isolated"
-            trendType="positive"
-          />
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '18px 20px',
+            boxShadow: 'var(--shadow-xs)',
+          }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Platform Users
+            </div>
+            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--navy-950)', marginTop: 4, letterSpacing: '-0.02em' }}>
+              {metrics.totalUsers.toLocaleString()}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)', marginTop: 4 }}>
+              Multi-tenant isolated
+            </div>
+          </div>
 
-          <StatCard 
-            label="Academic Courses"
-            value={metrics.totalCourses}
-            icon={<BookOpen size={22} />}
-            color="teal"
-            trendText="Verified credentials"
-            trendType="positive"
-          />
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '18px 20px',
+            boxShadow: 'var(--shadow-xs)',
+          }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--slate-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Accredited Courses
+            </div>
+            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#10B981', marginTop: 4, letterSpacing: '-0.02em' }}>
+              {metrics.totalCourses}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)', marginTop: 4 }}>
+              Active syllabi
+            </div>
+          </div>
         </div>
 
         {/* Segmented Tab Navigation Bar */}
@@ -295,38 +336,37 @@ export const AdminDashboard: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          borderBottom: '2px solid var(--border-color)',
-          marginBottom: 28,
+          borderBottom: '1px solid var(--border-color)',
+          marginBottom: 24,
           overflowX: 'auto',
           whiteSpace: 'nowrap',
         }}>
           <button
             onClick={() => setActiveTab('institutions')}
             style={{
-              padding: '12px 20px',
+              padding: '10px 16px',
               border: 'none',
               background: 'transparent',
-              fontSize: '0.94rem',
-              fontWeight: activeTab === 'institutions' ? 800 : 600,
-              color: activeTab === 'institutions' ? 'var(--primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'institutions' ? '3px solid var(--primary)' : '3px solid transparent',
+              fontSize: '0.88rem',
+              fontWeight: activeTab === 'institutions' ? 700 : 500,
+              color: activeTab === 'institutions' ? 'var(--primary)' : 'var(--slate-500)',
+              borderBottom: activeTab === 'institutions' ? '2px solid var(--primary)' : '2px solid transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              marginBottom: -2,
-              transition: 'all 0.15s ease',
+              marginBottom: -1,
             }}
           >
-            <Building2 size={18} />
+            <Building2 size={16} />
             <span>Institution Accreditation & Onboarding</span>
             <span style={{
-              backgroundColor: 'var(--primary-light)',
-              color: 'var(--primary)',
-              padding: '2px 8px',
-              borderRadius: 12,
-              fontSize: '0.75rem',
-              fontWeight: 800,
+              backgroundColor: 'var(--slate-100)',
+              color: 'var(--navy-800)',
+              padding: '2px 6px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.72rem',
+              fontWeight: 700,
             }}>
               {tenants.length}
             </span>
@@ -335,30 +375,29 @@ export const AdminDashboard: React.FC = () => {
           <button
             onClick={() => setActiveTab('admissions')}
             style={{
-              padding: '12px 20px',
+              padding: '10px 16px',
               border: 'none',
               background: 'transparent',
-              fontSize: '0.94rem',
-              fontWeight: activeTab === 'admissions' ? 800 : 600,
-              color: activeTab === 'admissions' ? 'var(--primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'admissions' ? '3px solid var(--primary)' : '3px solid transparent',
+              fontSize: '0.88rem',
+              fontWeight: activeTab === 'admissions' ? 700 : 500,
+              color: activeTab === 'admissions' ? 'var(--primary)' : 'var(--slate-500)',
+              borderBottom: activeTab === 'admissions' ? '2px solid var(--primary)' : '2px solid transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              marginBottom: -2,
-              transition: 'all 0.15s ease',
+              marginBottom: -1,
             }}
           >
-            <UserCheck size={18} />
-            <span>Student Admissions ("Accept / Take Students")</span>
+            <UserCheck size={16} />
+            <span>Student Admissions Queue</span>
             <span style={{
-              backgroundColor: admissions.filter(a => a.status === 'PENDING').length > 0 ? '#FEF3C7' : 'var(--slate-200)',
+              backgroundColor: admissions.filter(a => a.status === 'PENDING').length > 0 ? '#FEF3C7' : 'var(--slate-100)',
               color: admissions.filter(a => a.status === 'PENDING').length > 0 ? '#D97706' : 'var(--slate-700)',
-              padding: '2px 8px',
-              borderRadius: 12,
-              fontSize: '0.75rem',
-              fontWeight: 800,
+              padding: '2px 6px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.72rem',
+              fontWeight: 700,
             }}>
               {admissions.length}
             </span>
@@ -367,29 +406,34 @@ export const AdminDashboard: React.FC = () => {
           <button
             onClick={() => setActiveTab('audit')}
             style={{
-              padding: '12px 20px',
+              padding: '10px 16px',
               border: 'none',
               background: 'transparent',
-              fontSize: '0.94rem',
-              fontWeight: activeTab === 'audit' ? 800 : 600,
-              color: activeTab === 'audit' ? 'var(--primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'audit' ? '3px solid var(--primary)' : '3px solid transparent',
+              fontSize: '0.88rem',
+              fontWeight: activeTab === 'audit' ? 700 : 500,
+              color: activeTab === 'audit' ? 'var(--primary)' : 'var(--slate-500)',
+              borderBottom: activeTab === 'audit' ? '2px solid var(--primary)' : '2px solid transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              marginBottom: -2,
-              transition: 'all 0.15s ease',
+              marginBottom: -1,
             }}
           >
-            <Clock size={18} />
+            <Clock size={16} />
             <span>System Audit & Compliance Log</span>
           </button>
         </div>
 
         {/* TAB 1: INSTITUTION ACCREDITATION */}
         {activeTab === 'institutions' && (
-          <div className="card" style={{ padding: 24 }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '20px',
+            boxShadow: 'var(--shadow-xs)',
+          }}>
             {/* Search and Filters */}
             <div style={{
               display: 'flex',
@@ -400,19 +444,19 @@ export const AdminDashboard: React.FC = () => {
               marginBottom: 20,
             }}>
               <div style={{ position: 'relative', minWidth: 260, flex: 1, maxWidth: 360 }}>
-                <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 12 }} />
+                <Search size={15} color="var(--slate-400)" style={{ position: 'absolute', left: 12, top: 12 }} />
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search institutions by name or email..."
                   className="input-field"
-                  style={{ paddingLeft: 38, height: 40, fontSize: '0.88rem' }}
+                  style={{ paddingLeft: 36, height: 38, fontSize: '0.86rem' }}
                 />
               </div>
 
               {/* Status Filter Chips */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {(['ALL', 'PENDING_VERIFICATION', 'VERIFIED', 'REJECTED'] as const).map(st => {
                   const isSelected = statusFilter === st;
                   return (
@@ -420,14 +464,14 @@ export const AdminDashboard: React.FC = () => {
                       key={st}
                       onClick={() => setStatusFilter(st)}
                       style={{
-                        padding: '6px 14px',
+                        padding: '6px 12px',
                         fontSize: '0.8rem',
-                        fontWeight: 700,
-                        borderRadius: 'var(--radius-md)',
+                        fontWeight: isSelected ? 700 : 500,
+                        borderRadius: 'var(--radius-sm)',
                         border: '1px solid',
                         borderColor: isSelected ? 'var(--primary)' : 'var(--border-color)',
                         backgroundColor: isSelected ? 'var(--primary)' : '#FFFFFF',
-                        color: isSelected ? '#FFFFFF' : 'var(--text-main)',
+                        color: isSelected ? '#FFFFFF' : 'var(--navy-900)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
@@ -444,21 +488,24 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Institutions Table */}
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{
-                    borderBottom: '2px solid var(--border-color)',
+                    borderBottom: '1px solid var(--border-color)',
                     textAlign: 'left',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.8rem',
+                    color: 'var(--slate-500)',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
                     backgroundColor: 'var(--slate-50)',
                   }}>
-                    <th style={{ padding: '12px 16px' }}>INSTITUTION</th>
-                    <th style={{ padding: '12px 16px' }}>TYPE</th>
-                    <th style={{ padding: '12px 16px' }}>DOMAIN SLUG</th>
-                    <th style={{ padding: '12px 16px' }}>ACCREDITATION</th>
-                    <th style={{ padding: '12px 16px' }}>STATUS</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>ACCEPT / ACTIONS</th>
+                    <th style={{ padding: '10px 14px' }}>Institution</th>
+                    <th style={{ padding: '10px 14px' }}>Type</th>
+                    <th style={{ padding: '10px 14px' }}>Domain Slug</th>
+                    <th style={{ padding: '10px 14px' }}>Accreditation</th>
+                    <th style={{ padding: '10px 14px' }}>Status</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -470,83 +517,100 @@ export const AdminDashboard: React.FC = () => {
 
                       return (
                         <tr key={t.id} style={{
-                          borderBottom: '1px solid var(--border-color)',
-                          transition: 'background-color 0.15s',
+                          borderBottom: '1px solid var(--border-subtle)',
                         }}>
                           {/* Name & Contact */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <div style={{ fontWeight: 800, color: 'var(--navy-950)' }}>{t.name}</div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t.contactEmail}</div>
+                          <td style={{ padding: '12px 14px' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--navy-950)' }}>{t.name}</div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>{t.contactEmail}</div>
                           </td>
 
                           {/* Type */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <Badge variant="neutral">{t.type.replace('_', ' ')}</Badge>
+                          <td style={{ padding: '12px 14px' }}>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--slate-600)', backgroundColor: 'var(--slate-100)', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
+                              {t.type.replace('_', ' ')}
+                            </span>
                           </td>
 
                           {/* Domain */}
-                          <td style={{ padding: '14px 16px', fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--primary)' }}>
+                          <td style={{ padding: '12px 14px', fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--primary)' }}>
                             {t.domains[0] || `${t.slug}.edusphere.io`}
                           </td>
 
                           {/* Dossier Documents */}
-                          <td style={{ padding: '14px 16px' }}>
-                            <Button
-                              variant="secondary"
-                              size="sm"
+                          <td style={{ padding: '12px 14px' }}>
+                            <button
                               onClick={() => setSelectedTenantDossier(t)}
-                              icon={<FileText size={14} color="var(--primary)" />}
-                              title="Inspect accreditation documents"
+                              style={{
+                                background: 'none',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-sm)',
+                                padding: '4px 8px',
+                                fontSize: '0.76rem',
+                                color: 'var(--navy-900)',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
                             >
-                              {t.verificationDocuments?.length || 1} doc(s)
-                            </Button>
+                              <FileText size={13} color="var(--primary)" />
+                              <span>{t.verificationDocuments?.length || 1} doc(s)</span>
+                            </button>
                           </td>
 
                           {/* Status */}
-                          <td style={{ padding: '14px 16px' }}>
-                            {isVerified && <Badge variant="verified">Accepted / Verified</Badge>}
-                            {isPending && <Badge variant="pending">Pending Review</Badge>}
-                            {isRejected && <Badge variant="danger">Rejected</Badge>}
+                          <td style={{ padding: '12px 14px' }}>
+                            {isVerified && (
+                              <span style={{ backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                                Verified
+                              </span>
+                            )}
+                            {isPending && (
+                              <span style={{ backgroundColor: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                                Pending
+                              </span>
+                            )}
+                            {isRejected && (
+                              <span style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                                Rejected
+                              </span>
+                            )}
                           </td>
 
                           {/* Actions: ACCEPT / TAKE or REJECT */}
-                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                               {isPending ? (
                                 <>
                                   <Button
                                     size="sm"
-                                    variant="teal"
+                                    variant="primary"
                                     onClick={() => handleUpdateTenantStatus(t.id, 'VERIFIED', t.name)}
-                                    icon={<Check size={14} />}
+                                    icon={<Check size={13} />}
                                     title="Accept institution and grant license"
                                   >
-                                    Accept & Take
+                                    Accept
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="danger"
                                     onClick={() => handleUpdateTenantStatus(t.id, 'REJECTED', t.name)}
-                                    icon={<X size={14} />}
+                                    icon={<X size={13} />}
                                     title="Decline application"
                                   >
                                     Decline
                                   </Button>
                                 </>
                               ) : isVerified ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ fontSize: '0.8rem', color: 'var(--teal-700)', fontWeight: 700 }}>
-                                    ✓ Active Tenant
-                                  </span>
-                                  <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => setSelectedTenantDossier(t)}
-                                    icon={<Eye size={13} />}
-                                  >
-                                    View
-                                  </Button>
-                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => setSelectedTenantDossier(t)}
+                                  icon={<Eye size={12} />}
+                                >
+                                  Dossier
+                                </Button>
                               ) : (
                                 <Button
                                   size="sm"
@@ -563,7 +627,7 @@ export const AdminDashboard: React.FC = () => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} style={{ padding: 48, textAlign: 'center' }}>
+                      <td colSpan={6} style={{ padding: 36, textAlign: 'center' }}>
                         <EmptyState 
                           title="No Institutions Found"
                           description="No institutions match your search query or filter selection."
@@ -581,79 +645,100 @@ export const AdminDashboard: React.FC = () => {
 
         {/* TAB 2: STUDENT ADMISSIONS QUEUE */}
         {activeTab === 'admissions' && (
-          <div className="card" style={{ padding: 24 }}>
-            <div style={{ marginBottom: 20 }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)' }}>
-                Institutional Student Admissions ("Accept / Take Students")
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '20px',
+            boxShadow: 'var(--shadow-xs)',
+          }}>
+            <div style={{ marginBottom: 16 }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--navy-950)', margin: 0 }}>
+                Student Admissions & Cohort Enrollment
               </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                Review incoming student enrollment applications to institutional academic programs and accept ("take") them into active cohorts.
+              <p style={{ color: 'var(--slate-500)', fontSize: '0.86rem', marginTop: 2 }}>
+                Review incoming student enrollment applications to institutional programs and accept them into active cohorts.
               </p>
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{
-                    borderBottom: '2px solid var(--border-color)',
+                    borderBottom: '1px solid var(--border-color)',
                     textAlign: 'left',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.8rem',
+                    color: 'var(--slate-500)',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
                     backgroundColor: 'var(--slate-50)',
                   }}>
-                    <th style={{ padding: '12px 16px' }}>STUDENT APPLICANT</th>
-                    <th style={{ padding: '12px 16px' }}>TARGET INSTITUTION</th>
-                    <th style={{ padding: '12px 16px' }}>APPLIED PROGRAM</th>
-                    <th style={{ padding: '12px 16px' }}>QUALIFICATIONS</th>
-                    <th style={{ padding: '12px 16px' }}>STATUS</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>ACTION</th>
+                    <th style={{ padding: '10px 14px' }}>Applicant</th>
+                    <th style={{ padding: '10px 14px' }}>Target Institution</th>
+                    <th style={{ padding: '10px 14px' }}>Applied Program</th>
+                    <th style={{ padding: '10px 14px' }}>Qualifications</th>
+                    <th style={{ padding: '10px 14px' }}>Status</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'right' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {admissions.length > 0 ? (
                     admissions.map(adm => (
-                      <tr key={adm.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '14px 16px' }}>
-                          <div style={{ fontWeight: 800, color: 'var(--navy-950)' }}>{adm.studentName}</div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{adm.studentEmail}</div>
+                      <tr key={adm.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        <td style={{ padding: '12px 14px' }}>
+                          <div style={{ fontWeight: 700, color: 'var(--navy-950)' }}>{adm.studentName}</div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>{adm.studentEmail}</div>
                         </td>
-                        <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--primary)' }}>
+                        <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--primary)' }}>
                           {adm.institutionName}
                         </td>
-                        <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--navy-950)' }}>
+                        <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--navy-950)' }}>
                           {adm.programOrCourse}
                         </td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                        <td style={{ padding: '12px 14px', fontSize: '0.82rem', color: 'var(--slate-600)' }}>
                           {adm.qualifications}
                         </td>
-                        <td style={{ padding: '14px 16px' }}>
-                          {adm.status === 'ACCEPTED' && <Badge variant="verified">Accepted & Enrolled</Badge>}
-                          {adm.status === 'PENDING' && <Badge variant="pending">Pending Decision</Badge>}
-                          {adm.status === 'REJECTED' && <Badge variant="danger">Declined</Badge>}
+                        <td style={{ padding: '12px 14px' }}>
+                          {adm.status === 'ACCEPTED' && (
+                            <span style={{ backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                              Enrolled
+                            </span>
+                          )}
+                          {adm.status === 'PENDING' && (
+                            <span style={{ backgroundColor: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                              Pending
+                            </span>
+                          )}
+                          {adm.status === 'REJECTED' && (
+                            <span style={{ backgroundColor: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                              Declined
+                            </span>
+                          )}
                         </td>
-                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                           {adm.status === 'PENDING' ? (
-                            <div style={{ display: 'inline-flex', gap: 8 }}>
+                            <div style={{ display: 'inline-flex', gap: 6 }}>
                               <Button
                                 size="sm"
-                                variant="teal"
+                                variant="primary"
                                 onClick={() => handleUpdateAdmission(adm.id, 'ACCEPTED', adm.studentName)}
-                                icon={<Check size={14} />}
+                                icon={<Check size={13} />}
                               >
-                                Accept Student
+                                Accept
                               </Button>
                               <Button
                                 size="sm"
                                 variant="danger"
                                 onClick={() => handleUpdateAdmission(adm.id, 'REJECTED', adm.studentName)}
-                                icon={<X size={14} />}
+                                icon={<X size={13} />}
                               >
                                 Decline
                               </Button>
                             </div>
                           ) : adm.status === 'ACCEPTED' ? (
-                            <span style={{ fontSize: '0.82rem', color: 'var(--teal-700)', fontWeight: 700 }}>
-                              ✓ Enrolled on Roster
+                            <span style={{ fontSize: '0.8rem', color: '#166534', fontWeight: 700 }}>
+                              ✓ Active Roster
                             </span>
                           ) : (
                             <Button
@@ -669,7 +754,7 @@ export const AdminDashboard: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} style={{ padding: 48, textAlign: 'center' }}>
+                      <td colSpan={6} style={{ padding: 36, textAlign: 'center' }}>
                         <EmptyState 
                           title="No Admissions in Queue"
                           description="There are currently no pending student applications across institutional programs."
@@ -685,45 +770,51 @@ export const AdminDashboard: React.FC = () => {
 
         {/* TAB 3: AUDIT FEED */}
         {activeTab === 'audit' && (
-          <div className="card" style={{ padding: 24 }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 18 }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '20px',
+            boxShadow: 'var(--shadow-xs)',
+          }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 16 }}>
               Security & Compliance Audit Trail
             </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {activities.length > 0 ? (
                 activities.map(act => (
                   <div key={act.id} style={{
                     display: 'flex',
-                    gap: 16,
+                    gap: 14,
                     alignItems: 'flex-start',
-                    padding: '14px 16px',
+                    padding: '12px 14px',
                     backgroundColor: 'var(--slate-50)',
-                    borderRadius: 'var(--radius-lg)',
+                    borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-color)',
-                    fontSize: '0.88rem',
+                    fontSize: '0.86rem',
                   }}>
                     <div style={{
-                      padding: 10,
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--primary-light)',
-                      color: 'var(--primary)',
+                      padding: 8,
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--slate-200)',
+                      color: 'var(--navy-900)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                      <ShieldCheck size={20} />
+                      <ShieldCheck size={18} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 800, color: 'var(--navy-950)' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--navy-950)' }}>
                           {act.actorName} ({act.actorRole})
                         </span>
-                        <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--slate-500)' }}>
                           {new Date(act.timestamp).toLocaleString()}
                         </span>
                       </div>
-                      <div style={{ color: 'var(--slate-700)', marginTop: 4 }}>{act.details}</div>
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: 4, fontFamily: 'monospace' }}>
+                      <div style={{ color: 'var(--slate-700)', marginTop: 2 }}>{act.details}</div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', marginTop: 2, fontFamily: 'monospace' }}>
                         IP Address: {act.ipAddress}
                       </div>
                     </div>
@@ -744,67 +835,73 @@ export const AdminDashboard: React.FC = () => {
           isOpen={Boolean(selectedTenantDossier)}
           onClose={() => setSelectedTenantDossier(null)}
           title={selectedTenantDossier ? `${selectedTenantDossier.name} — Accreditation Dossier` : ''}
-          maxWidth={640}
+          maxWidth={620}
         >
           {selectedTenantDossier && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Badge variant="primary">{selectedTenantDossier.type}</Badge>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ backgroundColor: 'var(--slate-100)', color: 'var(--navy-900)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                  {selectedTenantDossier.type}
+                </span>
                 {selectedTenantDossier.status === 'VERIFIED' ? (
-                  <Badge variant="verified">Verified Institution</Badge>
+                  <span style={{ backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                    Verified Institution
+                  </span>
                 ) : (
-                  <Badge variant="pending">Awaiting Approval</Badge>
+                  <span style={{ backgroundColor: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                    Awaiting Approval
+                  </span>
                 )}
               </div>
 
               <div style={{
                 backgroundColor: 'var(--slate-50)',
-                padding: 16,
+                padding: 14,
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border-color)',
               }}>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', fontWeight: 700, textTransform: 'uppercase' }}>
                   Subdomain & Routing
                 </div>
-                <div style={{ fontFamily: 'monospace', color: 'var(--primary)', fontWeight: 800, fontSize: '0.98rem', marginTop: 4 }}>
+                <div style={{ fontFamily: 'monospace', color: 'var(--primary)', fontWeight: 700, fontSize: '0.92rem', marginTop: 2 }}>
                   {selectedTenantDossier.domains[0] || `${selectedTenantDossier.slug}.edusphere.io`}
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Contact Email</div>
-                  <div style={{ fontWeight: 700, color: 'var(--navy-950)', marginTop: 2 }}>{selectedTenantDossier.contactEmail}</div>
+                  <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--slate-500)', textTransform: 'uppercase' }}>Contact Email</div>
+                  <div style={{ fontWeight: 600, color: 'var(--navy-950)', marginTop: 2, fontSize: '0.88rem' }}>{selectedTenantDossier.contactEmail}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Campus Location</div>
-                  <div style={{ fontWeight: 700, color: 'var(--navy-950)', marginTop: 2 }}>{selectedTenantDossier.address || 'National Academic Territory'}</div>
+                  <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--slate-500)', textTransform: 'uppercase' }}>Campus Location</div>
+                  <div style={{ fontWeight: 600, color: 'var(--navy-950)', marginTop: 2, fontSize: '0.88rem' }}>{selectedTenantDossier.address || 'National Academic Territory'}</div>
                 </div>
               </div>
 
               {/* Submitted Legal Documents */}
               <div>
-                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--navy-950)', marginBottom: 8 }}>
-                  Submitted Accreditation Credentials:
+                <div style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--navy-950)', marginBottom: 6 }}>
+                  Submitted Accreditation Documents:
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {selectedTenantDossier.verificationDocuments?.map((doc, idx) => (
                     <div key={idx} style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: '#EEF2FF',
-                      border: '1px solid #C7D2FE',
-                      fontSize: '0.86rem',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--slate-50)',
+                      border: '1px solid var(--border-color)',
+                      fontSize: '0.84rem',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: 'var(--primary)' }}>
-                        <FileText size={16} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, color: 'var(--navy-900)' }}>
+                        <FileText size={15} color="var(--primary)" />
                         <span>{doc.title}</span>
                       </div>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 800 }}>
-                        Hash Verified 🛡️
+                      <span style={{ fontSize: '0.72rem', color: 'var(--slate-500)', fontWeight: 600 }}>
+                        Hash Verified
                       </span>
                     </div>
                   ))}
@@ -815,19 +912,20 @@ export const AdminDashboard: React.FC = () => {
               <div style={{
                 display: 'flex',
                 justifyContent: 'flex-end',
-                gap: 12,
-                marginTop: 12,
-                paddingTop: 16,
-                borderTop: '1px solid var(--border-color)',
+                gap: 10,
+                marginTop: 8,
+                paddingTop: 14,
+                borderTop: '1px solid var(--border-subtle)',
               }}>
-                <Button variant="secondary" onClick={() => setSelectedTenantDossier(null)}>
+                <Button variant="secondary" size="md" onClick={() => setSelectedTenantDossier(null)}>
                   Close
                 </Button>
                 {selectedTenantDossier.status !== 'VERIFIED' && (
                   <Button
-                    variant="teal"
+                    variant="primary"
+                    size="md"
                     onClick={() => handleUpdateTenantStatus(selectedTenantDossier.id, 'VERIFIED', selectedTenantDossier.name)}
-                    icon={<Check size={16} />}
+                    icon={<Check size={14} />}
                   >
                     Accept & Grant License
                   </Button>
@@ -835,6 +933,7 @@ export const AdminDashboard: React.FC = () => {
                 {selectedTenantDossier.status === 'VERIFIED' && (
                   <Button
                     variant="danger"
+                    size="md"
                     onClick={() => handleUpdateTenantStatus(selectedTenantDossier.id, 'REJECTED', selectedTenantDossier.name)}
                   >
                     Revoke License
@@ -850,11 +949,11 @@ export const AdminDashboard: React.FC = () => {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           title="Onboard Additional Institution"
-          maxWidth={580}
+          maxWidth={560}
         >
-          <form onSubmit={handleCreateAdditionalInstitution} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <form onSubmit={handleCreateAdditionalInstitution} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
                 Institution Name *
               </label>
               <input 
@@ -863,19 +962,21 @@ export const AdminDashboard: React.FC = () => {
                 onChange={e => setNewInstName(e.target.value)}
                 placeholder="e.g. Addis Ababa Institute of Technology"
                 className="input-field"
+                style={{ height: 40, fontSize: '0.88rem' }}
                 required
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
                   Institution Type
                 </label>
                 <select
                   value={newInstType}
                   onChange={e => setNewInstType(e.target.value)}
                   className="input-field"
+                  style={{ height: 40, fontSize: '0.88rem' }}
                 >
                   <option value="UNIVERSITY">University & Higher Ed</option>
                   <option value="K12_SCHOOL">K-12 School</option>
@@ -885,7 +986,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
                   Contact Email *
                 </label>
                 <input 
@@ -894,13 +995,14 @@ export const AdminDashboard: React.FC = () => {
                   onChange={e => setNewInstEmail(e.target.value)}
                   placeholder="admin@institution.edu"
                   className="input-field"
+                  style={{ height: 40, fontSize: '0.88rem' }}
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
                 Campus Location
               </label>
               <input 
@@ -909,25 +1011,27 @@ export const AdminDashboard: React.FC = () => {
                 onChange={e => setNewInstAddress(e.target.value)}
                 placeholder="Campus address / city"
                 className="input-field"
+                style={{ height: 40, fontSize: '0.88rem' }}
               />
             </div>
 
             <div style={{
-              backgroundColor: 'var(--primary-light)',
-              padding: 14,
+              backgroundColor: 'var(--slate-50)',
+              border: '1px solid var(--border-color)',
+              padding: 12,
               borderRadius: 'var(--radius-md)',
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: 10,
             }}>
               <input 
                 type="checkbox" 
                 id="autoAcceptCheck"
                 checked={newInstAutoAccept}
                 onChange={e => setNewInstAutoAccept(e.target.checked)}
-                style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }}
               />
-              <label htmlFor="autoAcceptCheck" style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', cursor: 'pointer' }}>
+              <label htmlFor="autoAcceptCheck" style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--navy-950)', cursor: 'pointer' }}>
                 Accept & Activate Immediately (Bypasses pending review queue)
               </label>
             </div>
@@ -935,15 +1039,15 @@ export const AdminDashboard: React.FC = () => {
             <div style={{
               display: 'flex',
               justifyContent: 'flex-end',
-              gap: 12,
-              marginTop: 10,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border-color)',
+              gap: 10,
+              marginTop: 6,
+              paddingTop: 14,
+              borderTop: '1px solid var(--border-subtle)',
             }}>
-              <Button type="button" variant="secondary" onClick={() => setShowAddModal(false)}>
+              <Button type="button" variant="secondary" size="md" onClick={() => setShowAddModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" isLoading={isSubmittingNew}>
+              <Button type="submit" variant="primary" size="md" isLoading={isSubmittingNew}>
                 {isSubmittingNew ? 'Registering...' : 'Register & Onboard'}
               </Button>
             </div>

@@ -11,12 +11,12 @@ import {
   Video, 
   FileText, 
   ShieldCheck, 
+  UploadCloud, 
+  CheckCircle2, 
+  DollarSign,
+  Layers,
   Sparkles,
-  UploadCloud,
-  CheckCircle2,
-  Settings,
-  BookOpen,
-  DollarSign
+  HelpCircle
 } from 'lucide-react';
 import { Button, Badge, ToastViewport, useToast } from '../components/ui';
 
@@ -46,9 +46,9 @@ export const TeacherCourseStudio: React.FC = () => {
     }>;
   }>>([
     {
-      title: 'Module 1: Introduction & Overview',
+      title: 'Module 1: Foundations & Architecture',
       lessons: [
-        { title: 'Welcome and Course Roadmap', type: 'VIDEO', duration: 15 },
+        { title: 'Lecture 1: Core Principles and Objectives', type: 'VIDEO', duration: 20 },
       ],
     },
   ]);
@@ -66,8 +66,8 @@ export const TeacherCourseStudio: React.FC = () => {
     setModules([
       ...modules,
       {
-        title: `Module ${modules.length + 1}: Core Concepts`,
-        lessons: [{ title: 'Hands-on Lab Exercise', type: 'VIDEO', duration: 20 }],
+        title: `Module ${modules.length + 1}: Advanced Concepts`,
+        lessons: [{ title: 'Hands-on Laboratory Exercise', type: 'VIDEO', duration: 25 }],
       },
     ]);
   };
@@ -80,7 +80,7 @@ export const TeacherCourseStudio: React.FC = () => {
   const handleAddLesson = (moduleIndex: number) => {
     const updated = [...modules];
     updated[moduleIndex].lessons.push({
-      title: `New Lesson ${updated[moduleIndex].lessons.length + 1}`,
+      title: `Lesson ${updated[moduleIndex].lessons.length + 1}: Topic Discussion`,
       type: 'VIDEO',
       duration: 15,
     });
@@ -133,7 +133,7 @@ export const TeacherCourseStudio: React.FC = () => {
       });
 
       setSuccessMsg(`Course "${title}" successfully published to EduSphere!`);
-      showToast({ title: 'Course published', description: 'Your curriculum is now live in the marketplace.', tone: 'success' });
+      showToast({ title: 'Course published', description: 'Your curriculum is now live in the academic catalog.', tone: 'success' });
       setTimeout(() => {
         openCourse(res.course.id);
       }, 1500);
@@ -145,10 +145,10 @@ export const TeacherCourseStudio: React.FC = () => {
   };
 
   const steps = [
-    { number: 1, label: 'Basic Info' },
-    { number: 2, label: 'Curriculum' },
-    { number: 3, label: 'Settings' },
-    { number: 4, label: 'Publish' },
+    { number: 1, label: 'Course Metadata' },
+    { number: 2, label: 'Curriculum & Modules' },
+    { number: 3, label: 'Grading & Integrity' },
+    { number: 4, label: 'Review & Publish' },
   ];
 
   return (
@@ -159,36 +159,37 @@ export const TeacherCourseStudio: React.FC = () => {
       <main className="dashboard-main">
         {/* Header Section */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <span style={{
-              backgroundColor: 'var(--primary-light)',
-              color: 'var(--primary)',
+              backgroundColor: 'var(--slate-100)',
+              color: 'var(--navy-900)',
+              border: '1px solid var(--border-color)',
               padding: '3px 10px',
-              borderRadius: 20,
+              borderRadius: 'var(--radius-sm)',
               fontSize: '0.78rem',
-              fontWeight: 800,
+              fontWeight: 700,
             }}>
-              Curriculum Authoring
+              Curriculum Authoring Studio
             </span>
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em' }}>
-            Course Studio
+          <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.025em', margin: 0 }}>
+            Course Creator
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.94rem' }}>
-            Design, assemble, and publish accredited curriculum with automated grading and verifiable credentials.
+          <p style={{ color: 'var(--slate-500)', fontSize: '0.9rem', marginTop: 4 }}>
+            Design accredited multi-tier courses, upload media lessons, and set proctored examination benchmarks.
           </p>
         </div>
 
         {/* 4-Stage Stepper Header */}
         <div style={{
           backgroundColor: '#FFFFFF',
-          padding: '20px 32px',
-          borderRadius: 'var(--radius-xl)',
+          padding: '16px 24px',
+          borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 32,
+          marginBottom: 28,
           boxShadow: 'var(--shadow-xs)',
           overflowX: 'auto',
           gap: 16,
@@ -203,32 +204,31 @@ export const TeacherCourseStudio: React.FC = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
+                    gap: 10,
                     cursor: 'pointer',
                     userSelect: 'none',
-                    opacity: isCurrent || isCompleted ? 1 : 0.55,
-                    transition: 'all 0.15s ease',
+                    opacity: isCurrent || isCompleted ? 1 : 0.6,
+                    transition: 'opacity 0.15s ease',
                   }}
                 >
                   <div style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: '50%',
-                    backgroundColor: isCompleted ? 'var(--teal-600)' : isCurrent ? 'var(--primary)' : 'var(--slate-200)',
+                    width: 28,
+                    height: 28,
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: isCompleted ? '#10B981' : isCurrent ? 'var(--primary)' : 'var(--slate-100)',
                     color: isCompleted || isCurrent ? '#FFFFFF' : 'var(--slate-600)',
+                    border: `1px solid ${isCompleted ? '#10B981' : isCurrent ? 'var(--primary)' : 'var(--border-color)'}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: '0.88rem',
-                    boxShadow: isCurrent ? '0 0 0 4px var(--primary-light)' : 'none',
-                    transition: 'all 0.2s ease',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
                   }}>
-                    {isCompleted ? <Check size={18} /> : s.number}
+                    {isCompleted ? <Check size={14} /> : s.number}
                   </div>
                   <span style={{
-                    fontWeight: isCurrent ? 800 : 600,
-                    fontSize: '0.94rem',
+                    fontWeight: isCurrent ? 700 : 500,
+                    fontSize: '0.88rem',
                     color: isCurrent ? 'var(--navy-950)' : 'var(--slate-600)',
                     whiteSpace: 'nowrap',
                   }}>
@@ -238,10 +238,9 @@ export const TeacherCourseStudio: React.FC = () => {
                 {idx < steps.length - 1 && (
                   <div style={{
                     flex: 1,
-                    height: 2,
-                    backgroundColor: currentStep > s.number ? 'var(--teal-600)' : 'var(--slate-200)',
-                    minWidth: 30,
-                    transition: 'background-color 0.2s ease',
+                    height: 1,
+                    backgroundColor: currentStep > s.number ? '#10B981' : 'var(--border-color)',
+                    minWidth: 24,
                   }} />
                 )}
               </React.Fragment>
@@ -252,69 +251,79 @@ export const TeacherCourseStudio: React.FC = () => {
         {/* Success Alert Banner */}
         {successMsg && (
           <div style={{
-            backgroundColor: 'var(--teal-50)',
-            color: 'var(--teal-900)',
-            border: '1px solid var(--teal-200)',
-            padding: 18,
-            borderRadius: 'var(--radius-lg)',
+            backgroundColor: '#F0FDF4',
+            color: '#166534',
+            border: '1px solid #BBF7D0',
+            padding: '16px 20px',
+            borderRadius: 'var(--radius-md)',
             marginBottom: 24,
-            fontWeight: 700,
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            boxShadow: 'var(--shadow-sm)',
+            fontSize: '0.9rem',
           }}>
-            <CheckCircle2 size={22} color="var(--teal-600)" />
+            <CheckCircle2 size={20} color="#166534" />
             <span>{successMsg}</span>
           </div>
         )}
 
         {/* Step 1: Basic Info Form */}
         {currentStep === 1 && (
-          <div className="card" style={{ maxWidth: 840, padding: 32 }}>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 20 }}>
-              Course Information & Details
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '28px',
+            boxShadow: 'var(--shadow-xs)',
+            maxWidth: 820,
+          }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 6 }}>
+              1. Course Information & Scope
             </h2>
+            <p style={{ fontSize: '0.86rem', color: 'var(--slate-500)', marginBottom: 24 }}>
+              Provide clear academic identifiers, accreditation tiers, and enrollment pricing.
+            </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                   Course Title *
                 </label>
                 <input 
                   type="text" 
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g. Distributed Systems & Cloud Computing Architectures"
+                  placeholder="e.g. Advanced Operating Systems and Kernel Internals"
                   className="input-field"
-                  style={{ height: 44, fontSize: '0.95rem' }}
+                  style={{ height: 42, fontSize: '0.92rem' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
-                  Course Description & Syllabus *
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                  Course Syllabus & Learning Objectives *
                 </label>
                 <textarea 
                   rows={4}
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  placeholder="Outline what scholars will learn, core prerequisites, and expected outcomes..."
+                  placeholder="Outline syllabus prerequisites, core topics covered, and target learning outcomes..."
                   className="input-field"
-                  style={{ resize: 'vertical', fontSize: '0.92rem', minHeight: 110 }}
+                  style={{ resize: 'vertical', fontSize: '0.9rem', minHeight: 100 }}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                     Academic Category
                   </label>
                   <select 
                     value={category}
                     onChange={e => setCategory(e.target.value)}
                     className="input-field"
-                    style={{ height: 44 }}
+                    style={{ height: 42, fontSize: '0.88rem' }}
                   >
                     <option value="Primary Education (Grades 1-8)">Primary Education (Grades 1-8)</option>
                     <option value="Secondary High School (Grades 9-12)">Secondary High School (Grades 9-12)</option>
@@ -331,14 +340,14 @@ export const TeacherCourseStudio: React.FC = () => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                     Education Level / Tier
                   </label>
                   <select 
                     value={level}
                     onChange={e => setLevel(e.target.value as any)}
                     className="input-field"
-                    style={{ height: 44 }}
+                    style={{ height: 42, fontSize: '0.88rem' }}
                   >
                     <option value="Primary / Elementary">Primary / Elementary (Grades 1-8)</option>
                     <option value="High School / Secondary">High School / Secondary (Grades 9-12)</option>
@@ -351,11 +360,11 @@ export const TeacherCourseStudio: React.FC = () => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                     Tuition Price ($ USD)
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <DollarSign size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: 14 }} />
+                    <DollarSign size={15} color="var(--slate-400)" style={{ position: 'absolute', left: 12, top: 13 }} />
                     <input 
                       type="number"
                       min={0}
@@ -363,15 +372,15 @@ export const TeacherCourseStudio: React.FC = () => {
                       onChange={e => setPrice(Math.max(0, parseInt(e.target.value, 10) || 0))}
                       placeholder="0 for Free"
                       className="input-field"
-                      style={{ paddingLeft: 36, height: 44 }}
+                      style={{ paddingLeft: 34, height: 42, fontSize: '0.88rem' }}
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
-                  Course Cover Thumbnail
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                  Course Cover Image
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <label style={{
@@ -379,16 +388,16 @@ export const TeacherCourseStudio: React.FC = () => {
                     alignItems: 'center',
                     gap: 8,
                     cursor: uploadingThumbnail ? 'not-allowed' : 'pointer',
-                    padding: '9px 16px',
+                    padding: '8px 16px',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: thumbnailUrl ? '#F0FDF4' : '#F8FAFC',
+                    backgroundColor: thumbnailUrl ? '#F0FDF4' : 'var(--slate-50)',
                     color: thumbnailUrl ? '#166534' : 'var(--navy-900)',
-                    fontSize: '0.86rem',
+                    fontSize: '0.84rem',
                     fontWeight: 600,
                   }}>
                     <UploadCloud size={16} />
-                    <span>{uploadingThumbnail ? 'Uploading image...' : thumbnailUrl ? 'Thumbnail Uploaded ✓' : 'Upload Cover Image'}</span>
+                    <span>{uploadingThumbnail ? 'Uploading image...' : thumbnailUrl ? 'Cover Image Ready ✓' : 'Upload Cover Image'}</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -411,7 +420,7 @@ export const TeacherCourseStudio: React.FC = () => {
                     />
                   </label>
                   {thumbnailUrl && (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--slate-500)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>
                       {thumbnailUrl}
                     </span>
                   )}
@@ -422,13 +431,14 @@ export const TeacherCourseStudio: React.FC = () => {
                 display: 'flex',
                 justifyContent: 'flex-end',
                 gap: 12,
-                marginTop: 16,
-                paddingTop: 20,
-                borderTop: '1px solid var(--border-color)',
+                marginTop: 12,
+                paddingTop: 18,
+                borderTop: '1px solid var(--border-subtle)',
               }}>
                 <Button 
                   type="button" 
                   variant="secondary"
+                  size="md"
                   onClick={() => setCurrentPage('learner-dashboard')}
                 >
                   Cancel
@@ -436,6 +446,7 @@ export const TeacherCourseStudio: React.FC = () => {
                 <Button 
                   type="button" 
                   variant="primary"
+                  size="md"
                   onClick={() => {
                     if (!title.trim()) {
                       showToast({ title: 'Course title missing', description: 'Please provide a course title to continue.', tone: 'warning' });
@@ -443,7 +454,7 @@ export const TeacherCourseStudio: React.FC = () => {
                     }
                     setCurrentStep(2);
                   }}
-                  icon={<ArrowRight size={16} />}
+                  icon={<ArrowRight size={15} />}
                 >
                   Next: Curriculum Structure
                 </Button>
@@ -454,14 +465,21 @@ export const TeacherCourseStudio: React.FC = () => {
 
         {/* Step 2: Content Modules */}
         {currentStep === 2 && (
-          <div className="card" style={{ maxWidth: 840, padding: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '28px',
+            boxShadow: 'var(--shadow-xs)',
+            maxWidth: 820,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--navy-950)' }}>
-                  Curriculum Structure
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', margin: 0 }}>
+                  2. Curriculum Modules & Lessons
                 </h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: 2 }}>
-                  Organize your course into structured modules and individual learning activities.
+                <p style={{ color: 'var(--slate-500)', fontSize: '0.86rem', marginTop: 2 }}>
+                  Organize your syllabus into sequential modules, video lectures, and learning units.
                 </p>
               </div>
 
@@ -469,18 +487,18 @@ export const TeacherCourseStudio: React.FC = () => {
                 variant="secondary"
                 size="sm"
                 onClick={handleAddModule}
-                icon={<Plus size={16} />}
+                icon={<Plus size={14} />}
               >
                 Add Module
               </Button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 28 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 24 }}>
               {modules.map((mod, mIdx) => (
                 <div key={mIdx} style={{
                   border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: 20,
+                  borderRadius: 'var(--radius-md)',
+                  padding: '18px',
                   backgroundColor: 'var(--slate-50)',
                 }}>
                   {/* Module Title Bar */}
@@ -488,17 +506,18 @@ export const TeacherCourseStudio: React.FC = () => {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: 16,
+                    marginBottom: 14,
                     flexWrap: 'wrap',
                     gap: 12,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
                       <span style={{
-                        fontWeight: 800,
-                        fontSize: '0.85rem',
-                        color: 'var(--primary)',
-                        backgroundColor: 'var(--primary-light)',
-                        padding: '4px 10px',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        color: 'var(--navy-900)',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid var(--border-color)',
+                        padding: '4px 8px',
                         borderRadius: 'var(--radius-sm)',
                       }}>
                         M{mIdx + 1}
@@ -512,7 +531,7 @@ export const TeacherCourseStudio: React.FC = () => {
                           setModules(updated);
                         }}
                         className="input-field"
-                        style={{ fontWeight: 700, backgroundColor: '#FFFFFF', height: 40 }}
+                        style={{ fontWeight: 600, backgroundColor: '#FFFFFF', height: 38, fontSize: '0.88rem' }}
                       />
                     </div>
 
@@ -521,37 +540,42 @@ export const TeacherCourseStudio: React.FC = () => {
                         size="sm"
                         variant="primary"
                         onClick={() => handleAddLesson(mIdx)}
-                        icon={<Plus size={14} />}
+                        icon={<Plus size={13} />}
                       >
                         Add Lesson
                       </Button>
                       {modules.length > 1 && (
-                        <Button
-                          size="sm"
-                          variant="danger"
+                        <button
+                          type="button"
                           onClick={() => handleRemoveModule(mIdx)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--danger-text)',
+                            cursor: 'pointer',
+                            padding: 6,
+                          }}
                           title="Delete module"
                         >
-                          <Trash2 size={15} />
-                        </Button>
+                          <Trash2 size={16} />
+                        </button>
                       )}
                     </div>
                   </div>
 
                   {/* Lessons list */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {mod.lessons.map((lesson, lIdx) => (
                       <div key={lIdx} style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 12,
+                        gap: 10,
                         backgroundColor: '#FFFFFF',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--slate-200)',
-                        boxShadow: 'var(--shadow-xs)',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border-color)',
                       }}>
-                        <Video size={16} color="var(--primary)" />
+                        <Video size={15} color="var(--primary)" />
                         <input 
                           type="text" 
                           value={lesson.title}
@@ -561,9 +585,9 @@ export const TeacherCourseStudio: React.FC = () => {
                             setModules(updated);
                           }}
                           className="input-field"
-                          style={{ padding: '6px 12px', fontSize: '0.9rem', flex: 1, height: 36 }}
+                          style={{ padding: '4px 10px', fontSize: '0.86rem', flex: 1, height: 34 }}
                         />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <input
                             type="number"
                             min={1}
@@ -574,9 +598,9 @@ export const TeacherCourseStudio: React.FC = () => {
                               setModules(updated);
                             }}
                             className="input-field"
-                            style={{ width: 64, height: 36, padding: '4px 8px', fontSize: '0.85rem' }}
+                            style={{ width: 56, height: 34, padding: '4px 6px', fontSize: '0.82rem' }}
                           />
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>min</span>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>min</span>
                         </div>
 
                         {/* Video / Resource Upload Button */}
@@ -585,17 +609,17 @@ export const TeacherCourseStudio: React.FC = () => {
                           alignItems: 'center',
                           gap: 6,
                           cursor: lesson.uploading ? 'not-allowed' : 'pointer',
-                          padding: '6px 10px',
+                          padding: '5px 10px',
                           borderRadius: 'var(--radius-sm)',
                           border: '1px solid var(--border-color)',
-                          backgroundColor: lesson.videoUrl ? '#F0FDF4' : '#F8FAFC',
+                          backgroundColor: lesson.videoUrl ? '#F0FDF4' : 'var(--slate-50)',
                           color: lesson.videoUrl ? '#166534' : 'var(--navy-900)',
-                          fontSize: '0.8rem',
+                          fontSize: '0.78rem',
                           fontWeight: 600,
                           whiteSpace: 'nowrap',
                         }}>
-                          <UploadCloud size={14} />
-                          <span>{lesson.uploading ? 'Uploading...' : lesson.videoUrl ? 'Video ✓' : 'Upload Video'}</span>
+                          <UploadCloud size={13} />
+                          <span>{lesson.uploading ? 'Uploading...' : lesson.videoUrl ? 'Video Ready ✓' : 'Upload Video'}</span>
                           <input
                             type="file"
                             accept="video/*,application/pdf"
@@ -636,7 +660,7 @@ export const TeacherCourseStudio: React.FC = () => {
                             }}
                             title="Remove lesson"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </button>
                         )}
                       </div>
@@ -649,24 +673,26 @@ export const TeacherCourseStudio: React.FC = () => {
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              paddingTop: 20,
-              borderTop: '1px solid var(--border-color)',
+              paddingTop: 18,
+              borderTop: '1px solid var(--border-subtle)',
             }}>
               <Button 
                 type="button" 
                 variant="secondary"
+                size="md"
                 onClick={() => setCurrentStep(1)}
-                icon={<ArrowLeft size={16} />}
+                icon={<ArrowLeft size={15} />}
               >
-                Back: Basic Info
+                Back: Metadata
               </Button>
               <Button 
                 type="button" 
                 variant="primary"
+                size="md"
                 onClick={() => setCurrentStep(3)}
-                icon={<ArrowRight size={16} />}
+                icon={<ArrowRight size={15} />}
               >
-                Next: Settings & Grading
+                Next: Grading & Integrity
               </Button>
             </div>
           </div>
@@ -674,17 +700,24 @@ export const TeacherCourseStudio: React.FC = () => {
 
         {/* Step 3: Settings */}
         {currentStep === 3 && (
-          <div className="card" style={{ maxWidth: 840, padding: 32 }}>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 8 }}>
-              Grading & Enterprise Settings
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '28px',
+            boxShadow: 'var(--shadow-xs)',
+            maxWidth: 820,
+          }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 6 }}>
+              3. Examination & Integrity Standards
             </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 24 }}>
-              Configure passing score criteria, automated anti-cheating proctoring, and media encoding.
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.86rem', marginBottom: 24 }}>
+              Set passing score thresholds for official diploma generation and configure exam telemetry.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 28 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
                   Minimum Passing Grade (%) for Official Credential
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -695,9 +728,9 @@ export const TeacherCourseStudio: React.FC = () => {
                     min={50}
                     max={100}
                     className="input-field"
-                    style={{ maxWidth: 160, height: 44, fontSize: '1rem', fontWeight: 700 }}
+                    style={{ maxWidth: 120, height: 42, fontSize: '0.94rem', fontWeight: 700 }}
                   />
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: '0.84rem', color: 'var(--slate-500)' }}>
                     Scholars scoring at or above this threshold automatically receive a cryptographically signed diploma.
                   </span>
                 </div>
@@ -708,25 +741,25 @@ export const TeacherCourseStudio: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '16px 20px',
+                padding: '16px 18px',
                 backgroundColor: 'var(--slate-50)',
-                borderRadius: 'var(--radius-lg)',
+                borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border-color)',
               }}>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: '0.96rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <ShieldCheck size={18} color="var(--teal-600)" />
-                    <span>Real-Time Anti-Cheating Telemetry</span>
+                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <ShieldCheck size={16} color="var(--primary)" />
+                    <span>Real-Time Anti-Cheating Examination Telemetry</span>
                   </div>
-                  <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                    Detects browser tab switching, blocks unauthorized copy/paste, and records tamper-proof audit trails.
+                  <div style={{ fontSize: '0.82rem', color: 'var(--slate-500)', marginTop: 2 }}>
+                    Monitors browser window focus, tab switching, and proctoring events during assessments.
                   </div>
                 </div>
                 <input 
                   type="checkbox" 
                   checked={antiCheatingEnabled} 
                   onChange={e => setAntiCheatingEnabled(e.target.checked)}
-                  style={{ width: 22, height: 22, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                  style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
                 />
               </div>
 
@@ -735,25 +768,25 @@ export const TeacherCourseStudio: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '16px 20px',
+                padding: '16px 18px',
                 backgroundColor: 'var(--slate-50)',
-                borderRadius: 'var(--radius-lg)',
+                borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border-color)',
               }}>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: '0.96rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={18} color="var(--primary)" />
-                    <span>Adaptive HLS Multi-Bitrate Transcoding</span>
+                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Sparkles size={16} color="var(--primary)" />
+                    <span>Adaptive Multi-Bitrate Media Delivery</span>
                   </div>
-                  <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                    Encodes uploaded videos into 360p, 720p, and 1080p streams for seamless playback on constrained connections.
+                  <div style={{ fontSize: '0.82rem', color: 'var(--slate-500)', marginTop: 2 }}>
+                    Optimizes video streams for smooth low-bandwidth playback across mobile and regional networks.
                   </div>
                 </div>
                 <input 
                   type="checkbox" 
                   checked={hlsTranscoding} 
                   onChange={e => setHlsTranscoding(e.target.checked)}
-                  style={{ width: 22, height: 22, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                  style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
                 />
               </div>
             </div>
@@ -761,22 +794,24 @@ export const TeacherCourseStudio: React.FC = () => {
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              paddingTop: 20,
-              borderTop: '1px solid var(--border-color)',
+              paddingTop: 18,
+              borderTop: '1px solid var(--border-subtle)',
             }}>
               <Button 
                 type="button" 
                 variant="secondary"
+                size="md"
                 onClick={() => setCurrentStep(2)}
-                icon={<ArrowLeft size={16} />}
+                icon={<ArrowLeft size={15} />}
               >
                 Back: Curriculum
               </Button>
               <Button 
                 type="button" 
                 variant="primary"
+                size="md"
                 onClick={() => setCurrentStep(4)}
-                icon={<ArrowRight size={16} />}
+                icon={<ArrowRight size={15} />}
               >
                 Next: Review & Publish
               </Button>
@@ -786,51 +821,64 @@ export const TeacherCourseStudio: React.FC = () => {
 
         {/* Step 4: Publish */}
         {currentStep === 4 && (
-          <div className="card" style={{ maxWidth: 840, padding: 32 }}>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 8 }}>
-              Ready to Publish to EduSphere
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '28px',
+            boxShadow: 'var(--shadow-xs)',
+            maxWidth: 820,
+          }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 6 }}>
+              4. Review Curriculum Dossier & Publish
             </h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontSize: '0.92rem' }}>
-              Confirm your curriculum settings. Once published, this course will be immediately discoverable in the catalog.
+            <p style={{ color: 'var(--slate-500)', marginBottom: 20, fontSize: '0.86rem' }}>
+              Verify syllabus structure, assessment passing benchmark, and catalog discovery.
             </p>
 
             <div style={{
               backgroundColor: 'var(--slate-50)',
-              padding: 24,
-              borderRadius: 'var(--radius-lg)',
+              padding: '20px',
+              borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-color)',
-              marginBottom: 28,
+              marginBottom: 24,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <Badge variant="primary">{category}</Badge>
-                <Badge variant="neutral">{level}</Badge>
-                <Badge variant="teal">{price === 0 ? 'Free Tuition' : `$${price} USD`}</Badge>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ backgroundColor: 'var(--slate-200)', color: 'var(--navy-900)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                  {category}
+                </span>
+                <span style={{ backgroundColor: 'var(--slate-200)', color: 'var(--navy-900)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                  {level}
+                </span>
+                <span style={{ backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                  {price === 0 ? 'Free Tuition' : `$${price} USD`}
+                </span>
               </div>
 
-              <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--navy-950)', marginBottom: 6 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--navy-950)', marginBottom: 6 }}>
                 {title || 'Untitled Course'}
               </div>
 
-              <p style={{ fontSize: '0.92rem', color: 'var(--slate-700)', marginBottom: 16, lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.88rem', color: 'var(--slate-600)', marginBottom: 14, lineHeight: 1.5 }}>
                 {description || 'No description provided.'}
               </p>
 
               <div style={{
                 display: 'flex',
-                gap: 20,
-                fontSize: '0.85rem',
-                color: 'var(--text-muted)',
+                gap: 16,
+                fontSize: '0.82rem',
+                color: 'var(--slate-500)',
                 borderTop: '1px solid var(--border-color)',
                 paddingTop: 12,
                 flexWrap: 'wrap',
               }}>
                 <span><strong>{modules.length}</strong> Modules</span>
                 <span>•</span>
-                <span><strong>{modules.reduce((acc, m) => acc + m.lessons.length, 0)}</strong> Lessons</span>
+                <span><strong>{modules.reduce((acc, m) => acc + m.lessons.length, 0)}</strong> Total Lessons</span>
                 <span>•</span>
                 <span>Passing Grade: <strong>{passingGrade}%</strong></span>
                 <span>•</span>
-                <span>Anti-Cheating: <strong>{antiCheatingEnabled ? 'Active' : 'Disabled'}</strong></span>
+                <span>Anti-Cheating Telemetry: <strong>{antiCheatingEnabled ? 'Active' : 'Disabled'}</strong></span>
               </div>
             </div>
 
@@ -838,26 +886,27 @@ export const TeacherCourseStudio: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              paddingTop: 20,
-              borderTop: '1px solid var(--border-color)',
+              paddingTop: 18,
+              borderTop: '1px solid var(--border-subtle)',
             }}>
               <Button 
                 type="button" 
                 variant="secondary"
+                size="md"
                 onClick={() => setCurrentStep(3)}
-                icon={<ArrowLeft size={16} />}
+                icon={<ArrowLeft size={15} />}
               >
                 Back: Settings
               </Button>
               <Button 
                 type="button" 
-                variant="teal"
-                size="lg"
+                variant="primary"
+                size="md"
                 onClick={handlePublish} 
                 isLoading={isSubmitting}
-                style={{ padding: '12px 32px' }}
+                style={{ padding: '10px 28px' }}
               >
-                {isSubmitting ? 'Publishing Course...' : 'Publish Course'}
+                {isSubmitting ? 'Publishing Course...' : 'Publish Course to Catalog'}
               </Button>
             </div>
           </div>

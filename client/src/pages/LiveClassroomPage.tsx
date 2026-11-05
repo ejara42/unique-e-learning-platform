@@ -240,11 +240,10 @@ export const LiveClassroomPage: React.FC = () => {
           {/* Teacher Primary Stage Feed */}
           <div style={{
             backgroundColor: '#0F172A',
-            background: 'radial-gradient(circle at 50% 40%, rgba(79, 70, 229, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%)',
-            borderRadius: 'var(--radius-xl)',
+            borderRadius: 'var(--radius-lg)',
             overflow: 'hidden',
-            border: '2px solid rgba(79, 70, 229, 0.5)',
-            boxShadow: 'var(--shadow-xl)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            boxShadow: 'var(--shadow-md)',
             position: 'relative',
             minHeight: 280,
             display: 'flex',
@@ -254,54 +253,53 @@ export const LiveClassroomPage: React.FC = () => {
             padding: 24,
           }}>
             <div style={{
-              width: 84,
-              height: 84,
+              width: 72,
+              height: 72,
               borderRadius: '50%',
-              backgroundColor: 'rgba(79, 70, 229, 0.2)',
-              border: '2px solid rgba(129, 140, 248, 0.5)',
+              backgroundColor: 'rgba(29, 78, 216, 0.2)',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: 16,
-              boxShadow: '0 0 30px rgba(79, 70, 229, 0.35)',
+              marginBottom: 14,
             }}>
-              <GraduationCap size={44} color="#818CF8" />
+              <GraduationCap size={36} color="#60A5FA" />
             </div>
 
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FFFFFF', marginBottom: 4 }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#FFFFFF', marginBottom: 4 }}>
               {isInstructor ? (currentUser?.fullName || 'Faculty Lead') : 'Faculty Lead Instructor'}
             </h3>
-            <p style={{ fontSize: '0.82rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Radio size={14} color="#34D399" />
+            <p style={{ fontSize: '0.8rem', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Radio size={13} color="#34D399" />
               Live Interactive Audio & Video Stream Active
             </p>
 
             <div style={{
               position: 'absolute',
-              bottom: 14,
-              left: 14,
+              bottom: 12,
+              left: 12,
               backgroundColor: 'rgba(15, 23, 42, 0.85)',
               backdropFilter: 'blur(4px)',
-              padding: '6px 12px',
-              borderRadius: 6,
-              fontSize: '0.82rem',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.78rem',
               fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 6,
             }}>
-              <Volume2 size={15} color="#34D399" />
+              <Volume2 size={14} color="#34D399" />
               <span>{isInstructor ? `${currentUser?.fullName} (Host)` : 'Instructor'}</span>
             </div>
             <div style={{
               position: 'absolute',
-              top: 14,
-              right: 14,
-              backgroundColor: 'rgba(79, 70, 229, 0.9)',
+              top: 12,
+              right: 12,
+              backgroundColor: 'var(--primary)',
               color: '#FFFFFF',
-              padding: '3px 10px',
-              borderRadius: 4,
-              fontSize: '0.72rem',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.7rem',
               fontWeight: 800,
             }}>
               STAGE HOST
@@ -311,8 +309,7 @@ export const LiveClassroomPage: React.FC = () => {
           {/* User Participant Feed */}
           <div style={{
             backgroundColor: '#0F172A',
-            background: 'radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.95) 100%)',
-            borderRadius: 'var(--radius-xl)',
+            borderRadius: 'var(--radius-lg)',
             overflow: 'hidden',
             border: '1px solid rgba(255, 255, 255, 0.12)',
             position: 'relative',
@@ -333,18 +330,17 @@ export const LiveClassroomPage: React.FC = () => {
               ) : (
                 <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{
-                    width: 80,
-                    height: 80,
+                    width: 72,
+                    height: 72,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                    backgroundColor: 'var(--primary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.8rem',
+                    fontSize: '1.6rem',
                     fontWeight: 800,
                     color: '#FFFFFF',
-                    marginBottom: 12,
-                    boxShadow: '0 8px 24px rgba(79, 70, 229, 0.3)',
+                    marginBottom: 10,
                   }}>
                     {userInitials}
                   </div>

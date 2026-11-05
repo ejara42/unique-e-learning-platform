@@ -2,11 +2,21 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { Logo } from './Logo';
-import { ShieldCheck, ArrowUp, HelpCircle, Info, Send, CheckCircle2 } from 'lucide-react';
+import { 
+  ShieldCheck, 
+  ArrowUp, 
+  HelpCircle, 
+  Info, 
+  Send, 
+  CheckCircle2, 
+  Lock, 
+  Check,
+  FileText
+} from 'lucide-react';
 import { Modal, Button } from './ui';
 
 export const Footer: React.FC = () => {
-  const { openVerification, t } = useApp();
+  const { openVerification, t, setCurrentPage } = useApp();
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -35,7 +45,7 @@ export const Footer: React.FC = () => {
         subject: ticketSubject.trim(),
         message: ticketMessage.trim(),
       });
-      setTicketSuccess(res.message || 'Ticket submitted successfully.');
+      setTicketSuccess(res.message || 'Ticket submitted successfully. Our operations desk will respond shortly.');
       setTicketSubject('');
       setTicketMessage('');
     } catch (err: any) {
@@ -54,73 +64,271 @@ export const Footer: React.FC = () => {
   return (
     <>
       <footer className="app-footer" role="contentinfo">
-        <div className="app-footer-container">
-          {/* Brand & Dynamic Copyright */}
-          <div className="app-footer-brand">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Logo size={22} />
-              <span style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '0.96rem', letterSpacing: '-0.02em' }}>
-                Edu<span style={{ color: 'var(--primary-hover)' }}>Sphere</span>
+        {/* Status & Trust Bar */}
+        <div style={{
+          borderBottom: '1px solid var(--navy-800)',
+          padding: '12px 24px',
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          fontSize: '0.8rem',
+          color: 'var(--slate-400)',
+        }}>
+          <div style={{
+            maxWidth: 1240,
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: '#10B981',
+                boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
+                display: 'inline-block',
+              }} />
+              <span style={{ fontWeight: 600, color: 'var(--slate-300)' }}>
+                All Platform Systems Operational
               </span>
+              <span style={{ color: 'var(--slate-600)' }}>•</span>
+              <span>Cloudflare Edge + LiveKit WebRTC Active</span>
             </div>
-            <span style={{ color: 'var(--slate-600)', fontSize: '0.8rem' }}>•</span>
-            <span style={{ fontSize: '0.82rem', color: 'var(--slate-400)' }}>
-              © {currentYear} EduSphere. All rights reserved.
-            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Lock size={12} color="#10B981" />
+                <span>SHA-256 Tamper-Evident Ledger</span>
+              </span>
+              <span style={{ color: 'var(--slate-600)' }}>•</span>
+              <span>WCAG 2.1 AA Compliant</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Footer Navigation Columns */}
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '48px 24px 36px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 40,
+            marginBottom: 40,
+          }}>
+            {/* Column 1: Brand & Enterprise Profile */}
+            <div style={{ gridColumn: 'span 1' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <Logo size={24} />
+                <span style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '1.1rem', letterSpacing: '-0.02em' }}>
+                  Edu<span style={{ color: 'var(--primary-hover)' }}>Sphere</span>
+                </span>
+              </div>
+              <p style={{
+                fontSize: '0.86rem',
+                lineHeight: 1.65,
+                color: 'var(--slate-400)',
+                marginBottom: 20,
+              }}>
+                The unified national learning infrastructure bridging schools, universities, vocational training colleges, and independent scholars with verified digital credentials and low-latency virtual classrooms.
+              </p>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                backgroundColor: 'rgba(30, 41, 59, 0.8)',
+                border: '1px solid var(--navy-800)',
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.78rem',
+                color: 'var(--slate-300)',
+              }}>
+                <ShieldCheck size={14} color="#38BDF8" />
+                <span>National Accreditation Standard v2.4</span>
+              </div>
+            </div>
+
+            {/* Column 2: Academic Ecosystem */}
+            <div>
+              <h4 style={{
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                color: '#FFFFFF',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 16,
+              }}>
+                Academic Ecosystem
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <li>
+                  <button
+                    onClick={() => setCurrentPage('landing')}
+                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
+                  >
+                    Primary Education (Grades 1-8)
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setCurrentPage('landing')}
+                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
+                  >
+                    High School & Secondary (Grades 9-12)
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setCurrentPage('landing')}
+                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
+                  >
+                    Technical & Vocational TVET
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setCurrentPage('landing')}
+                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
+                  >
+                    University Degree Programs
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => setCurrentPage('institution-register')}
+                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
+                  >
+                    Institutional Accreditation Portal
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 3: Governance & Security */}
+            <div>
+              <h4 style={{
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                color: '#FFFFFF',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 16,
+              }}>
+                Governance & Security
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
+                  <Check size={14} color="#10B981" />
+                  <span>Tenant Isolation Architecture</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
+                  <Check size={14} color="#10B981" />
+                  <span>Cryptographic SHA-256 Ledger</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
+                  <Check size={14} color="#10B981" />
+                  <span>Proctored Anti-Cheating Telemetry</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
+                  <Check size={14} color="#10B981" />
+                  <span>Real-time LiveKit Cloud WebRTC</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
+                  <Check size={14} color="#10B981" />
+                  <span>Strict Role-Based Access Control</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 4: Verification & Operations */}
+            <div>
+              <h4 style={{
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                color: '#FFFFFF',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 16,
+              }}>
+                Trust & Assistance
+              </h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => openVerification('')}
+                    className="app-footer-link"
+                    style={{
+                      backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      color: '#38BDF8',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <ShieldCheck size={14} />
+                    <span>{t.verifyCertificate}</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setIsAboutOpen(true)}
+                    className="app-footer-link"
+                  >
+                    <Info size={14} />
+                    <span>About EduSphere</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setIsHelpOpen(true)}
+                    className="app-footer-link"
+                  >
+                    <HelpCircle size={14} />
+                    <span>Help Desk & Academic FAQ</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setIsPrivacyOpen(true)}
+                    className="app-footer-link"
+                  >
+                    <FileText size={14} />
+                    <span>{t.footerPrivacy}</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => setIsTermsOpen(true)}
+                    className="app-footer-link"
+                  >
+                    <FileText size={14} />
+                    <span>{t.footerTerms}</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          {/* Essential Verified Actions & Legal Modals */}
-          <nav className="app-footer-links" aria-label="Footer Navigation">
-            {/* Direct Link to Official Verification Gateway */}
-            <button
-              type="button"
-              onClick={() => openVerification('')}
-              className="app-footer-link"
-              title="Verify academic certificate authenticity"
-            >
-              <ShieldCheck size={14} color="var(--teal-400)" />
-              <span>{t.verifyCertificate}</span>
-            </button>
+          {/* Bottom Copyright and Return to Top */}
+          <div style={{
+            borderTop: '1px solid var(--navy-800)',
+            paddingTop: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+          }}>
+            <div style={{ fontSize: '0.84rem', color: 'var(--slate-500)' }}>
+              © {currentYear} EduSphere Unified E-Learning Platform. Built for sovereign multi-tenant education.
+            </div>
 
-            {/* About Platform Modal Trigger (WEB-02) */}
-            <button
-              type="button"
-              onClick={() => setIsAboutOpen(true)}
-              className="app-footer-link"
-            >
-              <Info size={13} color="var(--primary-hover)" />
-              <span>About EduSphere</span>
-            </button>
-
-            {/* Help & Support / FAQ Modal Trigger (WEB-02, ADM-04) */}
-            <button
-              type="button"
-              onClick={() => setIsHelpOpen(true)}
-              className="app-footer-link"
-            >
-              <HelpCircle size={13} color="var(--teal-400)" />
-              <span>Help & FAQ</span>
-            </button>
-
-            {/* Privacy Policy Modal Trigger */}
-            <button
-              type="button"
-              onClick={() => setIsPrivacyOpen(true)}
-              className="app-footer-link"
-            >
-              {t.footerPrivacy}
-            </button>
-
-            {/* Terms of Service Modal Trigger */}
-            <button
-              type="button"
-              onClick={() => setIsTermsOpen(true)}
-              className="app-footer-link"
-            >
-              {t.footerTerms}
-            </button>
-
-            {/* Accessible Back to Top Action */}
             <button
               type="button"
               onClick={scrollToTop}
@@ -131,7 +339,7 @@ export const Footer: React.FC = () => {
               <span>Back to Top</span>
               <ArrowUp size={12} />
             </button>
-          </nav>
+          </div>
         </div>
       </footer>
 

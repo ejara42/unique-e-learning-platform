@@ -105,17 +105,25 @@ export const Header: React.FC = () => {
 
   const currentLangObj = languages.find(l => l.code === language) || languages[0];
 
+  const navItems = [
+    { key: 'home', label: t.home, icon: Home, isActive: currentPage === 'landing', action: () => setCurrentPage('landing') },
+    { key: 'courses', label: t.courses, icon: BookOpen, isActive: currentPage === 'landing', action: () => setCurrentPage('landing') },
+    { key: 'institutions', label: t.institutions, icon: Building2, isActive: currentPage === 'institution-register', action: () => setCurrentPage('institution-register') },
+    { key: 'verify', label: t.verifyCertificate, icon: ShieldCheck, isActive: currentPage === 'certificate-verify', action: () => openVerification('') },
+  ];
+
   const navItemClass = (isActive: boolean) => ({
     display: 'inline-flex',
     alignItems: 'center',
     gap: 7,
     padding: '8px 14px',
-    borderRadius: 8,
+    borderRadius: 10,
     fontSize: '0.92rem',
     fontWeight: isActive ? 800 : 600,
     color: isActive ? 'var(--primary)' : '#334155',
     backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-    border: 'none',
+    border: isActive ? '1px solid rgba(29, 78, 216, 0.14)' : '1px solid transparent',
+    boxShadow: isActive ? '0 10px 18px -14px rgba(29, 78, 216, 0.6)' : 'none',
     cursor: 'pointer',
     transition: 'all 0.18s ease',
   });
@@ -398,6 +406,7 @@ export const Header: React.FC = () => {
           type="button"
           aria-label="Go to the home page"
           onClick={() => setCurrentPage('landing')}
+          className="header-brand"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -438,68 +447,47 @@ export const Header: React.FC = () => {
         </button>
 
         {/* Desktop Navigation Links & Action Buttons */}
-        <div className="desktop-nav" style={{ alignItems: 'center', gap: 28 }}>
-          <nav aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.92rem' }}>
-            <button
-              type="button"
-              aria-current={currentPage === 'landing' ? 'page' : undefined}
-              onClick={() => setCurrentPage('landing')}
-              style={navItemClass(currentPage === 'landing')}
-            >
-              <Home size={15} />
-              <span>{t.home}</span>
-            </button>
-
-            <button
-              type="button"
-              aria-current={currentPage === 'landing' ? 'page' : undefined}
-              onClick={() => setCurrentPage('landing')}
-              style={navItemClass(false)}
-            >
-              <BookOpen size={15} />
-              <span>{t.courses}</span>
-            </button>
-
-            <button
-              type="button"
-              aria-current={currentPage === 'institution-register' ? 'page' : undefined}
-              onClick={() => setCurrentPage('institution-register')}
-              style={navItemClass(currentPage === 'institution-register')}
-            >
-              <Building2 size={15} />
-              <span>{t.institutions}</span>
-            </button>
-
-            <button
-              type="button"
-              aria-current={currentPage === 'certificate-verify' ? 'page' : undefined}
-              onClick={() => openVerification('')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '7px 12px',
-                borderRadius: 8,
-                fontSize: '0.88rem',
-                fontWeight: 600,
-                color: currentPage === 'certificate-verify' ? 'var(--primary)' : 'var(--text-muted)',
-                border: '1px solid var(--border-color)',
-                backgroundColor: currentPage === 'certificate-verify' ? 'var(--primary-light)' : '#FFFFFF',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <ShieldCheck size={16} color="var(--primary)" />
-              <span>{t.verifyCertificate}</span>
-            </button>
+        <div className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+          <nav className="header-main-nav" aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.92rem' }}>
+            {navItems.map(({ key, label, icon: Icon, isActive, action }) => (
+              <button
+                key={key}
+                type="button"
+                className="header-nav-link"
+                aria-current={isActive ? 'page' : undefined}
+                onClick={action}
+                style={
+                  key === 'verify'
+                    ? {
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '8px 14px',
+                        borderRadius: 10,
+                        fontSize: '0.88rem',
+                        fontWeight: isActive ? 700 : 600,
+                        color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                        border: isActive ? '1px solid rgba(29, 78, 216, 0.18)' : '1px solid var(--border-color)',
+                        backgroundColor: isActive ? 'var(--primary-light)' : '#FFFFFF',
+                        boxShadow: isActive ? '0 10px 18px -14px rgba(29, 78, 216, 0.6)' : '0 1px 1px rgba(15, 23, 42, 0.02)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }
+                    : navItemClass(isActive)
+                }
+              >
+                <Icon size={15} color={key === 'verify' ? 'var(--primary)' : undefined} />
+                <span>{label}</span>
+              </button>
+            ))}
           </nav>
 
           {/* Authentication Action Zone: Prominent Sign In and Sign Up (ONLY Sign Up text) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {currentUser ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 {/* User Info Chip */}
-                <div style={{
+                <div className="header-user-chip" style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
@@ -543,7 +531,7 @@ export const Header: React.FC = () => {
                       setCurrentPage('learner-dashboard');
                     }
                   }}
-                  className="btn btn-primary"
+                  className="btn btn-primary header-cta-btn"
                   style={{ padding: '8px 16px', fontSize: '0.88rem', fontWeight: 700, borderRadius: 8 }}
                 >
                   <LayoutDashboard size={15} />
@@ -554,7 +542,7 @@ export const Header: React.FC = () => {
                   type="button"
                   onClick={logoutUser}
                   title={t.logout}
-                  className="btn btn-secondary"
+                  className="btn btn-secondary header-ghost-btn"
                   style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: 8 }}
                 >
                   <LogOut size={15} />
@@ -567,11 +555,13 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCurrentPage('login')}
-                  className="btn btn-secondary"
+                  className="btn btn-secondary header-ghost-btn"
                   style={{
-                    padding: '8px 16px',
+                    padding: '9px 16px',
                     fontSize: '0.9rem',
                     fontWeight: 600,
+                    borderRadius: 10,
+                    borderColor: 'rgba(148, 163, 184, 0.5)',
                   }}
                 >
                   <LogIn size={15} />
@@ -582,11 +572,13 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setCurrentPage('register')}
-                  className="btn btn-primary"
+                  className="btn btn-primary header-cta-btn"
                   style={{
-                    padding: '8px 18px',
+                    padding: '9px 18px',
                     fontSize: '0.9rem',
-                    fontWeight: 600,
+                    fontWeight: 700,
+                    borderRadius: 10,
+                    boxShadow: '0 10px 20px -14px rgba(29, 78, 216, 0.7)',
                   }}
                 >
                   <span>Sign Up</span>
@@ -604,7 +596,7 @@ export const Header: React.FC = () => {
           aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
           aria-expanded={mobileMenuOpen}
           aria-controls="mobile-navigation-menu"
-          style={{ padding: 8, border: 'none', background: 'transparent', cursor: 'pointer' }}
+          style={{ display: 'none', padding: 8, border: 'none', background: 'transparent', cursor: 'pointer' }}
         >
           {mobileMenuOpen ? <X size={26} color="#0F172A" /> : <Menu size={26} color="#0F172A" />}
         </button>
@@ -613,42 +605,21 @@ export const Header: React.FC = () => {
       {/* Mobile Drawer Navigation Menu */}
       {mobileMenuOpen && (
         <div ref={mobileMenuRef} id="mobile-navigation-menu" className="mobile-drawer" role="navigation" aria-label="Mobile navigation menu">
-          <button
-            type="button"
-            onClick={() => { setCurrentPage('landing'); setMobileMenuOpen(false); }}
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '14px 18px', fontSize: '1rem' }}
-          >
-            <Home size={18} />
-            <span>{t.home}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setCurrentPage('landing'); setMobileMenuOpen(false); }}
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '14px 18px', fontSize: '1rem' }}
-          >
-            <BookOpen size={18} />
-            <span>{t.courses}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { setCurrentPage('institution-register'); setMobileMenuOpen(false); }}
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '14px 18px', fontSize: '1rem' }}
-          >
-            <Building2 size={18} />
-            <span>{t.institutions}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => { openVerification(''); setMobileMenuOpen(false); }}
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '14px 18px', fontSize: '1rem' }}
-          >
-            <ShieldCheck size={18} color="var(--primary)" />
-            <span>{t.verifyCertificate}</span>
-          </button>
+          {navItems.map(({ key, label, icon: Icon, action }) => (
+            <button
+              key={`mobile-${key}`}
+              type="button"
+              onClick={() => {
+                action();
+                setMobileMenuOpen(false);
+              }}
+              className="btn btn-secondary"
+              style={{ justifyContent: 'flex-start', padding: '14px 18px', fontSize: '1rem' }}
+            >
+              <Icon size={18} color={key === 'verify' ? 'var(--primary)' : undefined} />
+              <span>{label}</span>
+            </button>
+          ))}
 
           <div style={{ height: 1, backgroundColor: 'var(--border-color)', margin: '8px 0' }} />
 

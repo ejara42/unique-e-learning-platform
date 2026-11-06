@@ -64,249 +64,97 @@ export const Footer: React.FC = () => {
   return (
     <>
       <footer className="app-footer" role="contentinfo">
-        {/* Status & Trust Bar */}
-        <div style={{
-          borderBottom: '1px solid var(--navy-800)',
-          padding: '12px 24px',
-          backgroundColor: 'rgba(15, 23, 42, 0.6)',
-          fontSize: '0.8rem',
-          color: 'var(--slate-400)',
-        }}>
-          <div style={{
-            maxWidth: 1240,
-            margin: '0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: '#10B981',
-                boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
-                display: 'inline-block',
-              }} />
-              <span style={{ fontWeight: 600, color: 'var(--slate-300)' }}>
-                All Platform Systems Operational
-              </span>
-              <span style={{ color: 'var(--slate-600)' }}>•</span>
+        <div className="app-footer-status">
+          <div className="app-footer-status-inner">
+            <div className="app-footer-status-group">
+              <span className="app-footer-status-dot" />
+              <span className="app-footer-status-text">All Platform Systems Operational</span>
+              <span className="app-footer-status-divider">•</span>
               <span>Cloudflare Edge + LiveKit WebRTC Active</span>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <div className="app-footer-status-group app-footer-status-meta">
+              <span className="app-footer-status-inline">
                 <Lock size={12} color="#10B981" />
                 <span>SHA-256 Tamper-Evident Ledger</span>
               </span>
-              <span style={{ color: 'var(--slate-600)' }}>•</span>
+              <span className="app-footer-status-divider">•</span>
               <span>WCAG 2.1 AA Compliant</span>
             </div>
           </div>
         </div>
 
-        {/* Main Footer Navigation Columns */}
-        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '48px 24px 36px' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 40,
-            marginBottom: 40,
-          }}>
-            {/* Column 1: Brand & Enterprise Profile */}
-            <div style={{ gridColumn: 'span 1' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div className="app-footer-main">
+          <div className="app-footer-grid">
+            <div className="app-footer-column app-footer-brand-column">
+              <div className="app-footer-brand-row">
                 <Logo size={24} />
-                <span style={{ fontWeight: 800, color: '#FFFFFF', fontSize: '1.1rem', letterSpacing: '-0.02em' }}>
-                  Edu<span style={{ color: 'var(--primary-hover)' }}>Sphere</span>
+                <span className="app-footer-brand-text">
+                  Edu<span>Sphere</span>
                 </span>
               </div>
-              <p style={{
-                fontSize: '0.86rem',
-                lineHeight: 1.65,
-                color: 'var(--slate-400)',
-                marginBottom: 20,
-              }}>
+
+              <p className="app-footer-microcopy">
                 The unified national learning infrastructure bridging schools, universities, vocational training colleges, and independent scholars with verified digital credentials and low-latency virtual classrooms.
               </p>
-              <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                border: '1px solid var(--navy-800)',
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.78rem',
-                color: 'var(--slate-300)',
-              }}>
+
+              <div className="app-footer-badge">
                 <ShieldCheck size={14} color="#38BDF8" />
                 <span>National Accreditation Standard v2.4</span>
               </div>
             </div>
 
-            {/* Column 2: Academic Ecosystem */}
-            <div>
-              <h4 style={{
-                fontSize: '0.84rem',
-                fontWeight: 700,
-                color: '#FFFFFF',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                marginBottom: 16,
-              }}>
-                Academic Ecosystem
-              </h4>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <li>
-                  <button
-                    onClick={() => setCurrentPage('landing')}
-                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
-                  >
-                    Primary Education (Grades 1-8)
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => setCurrentPage('landing')}
-                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
-                  >
-                    High School & Secondary (Grades 9-12)
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => setCurrentPage('landing')}
-                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
-                  >
-                    Technical & Vocational TVET
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => setCurrentPage('landing')}
-                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
-                  >
-                    University Degree Programs
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => setCurrentPage('institution-register')}
-                    style={{ background: 'none', border: 'none', color: 'var(--slate-400)', cursor: 'pointer', fontSize: '0.86rem', padding: 0, textAlign: 'left' }}
-                  >
-                    Institutional Accreditation Portal
-                  </button>
-                </li>
+            <div className="app-footer-column">
+              <h4 className="app-footer-heading">Academic Ecosystem</h4>
+              <ul className="app-footer-list">
+                <li><button type="button" className="app-footer-link" onClick={() => setCurrentPage('landing')}>Primary Education</button></li>
+                <li><button type="button" className="app-footer-link" onClick={() => setCurrentPage('landing')}>Secondary & High School</button></li>
+                <li><button type="button" className="app-footer-link" onClick={() => setCurrentPage('landing')}>TVET & Skills</button></li>
+                <li><button type="button" className="app-footer-link" onClick={() => setCurrentPage('landing')}>University Programs</button></li>
+                <li><button type="button" className="app-footer-link" onClick={() => setCurrentPage('institution-register')}>Institutional Accreditation</button></li>
               </ul>
             </div>
 
-            {/* Column 3: Governance & Security */}
-            <div>
-              <h4 style={{
-                fontSize: '0.84rem',
-                fontWeight: 700,
-                color: '#FFFFFF',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                marginBottom: 16,
-              }}>
-                Governance & Security
-              </h4>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
-                  <Check size={14} color="#10B981" />
-                  <span>Tenant Isolation Architecture</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
-                  <Check size={14} color="#10B981" />
-                  <span>Cryptographic SHA-256 Ledger</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
-                  <Check size={14} color="#10B981" />
-                  <span>Proctored Anti-Cheating Telemetry</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
-                  <Check size={14} color="#10B981" />
-                  <span>Real-time LiveKit Cloud WebRTC</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.86rem', color: 'var(--slate-400)' }}>
-                  <Check size={14} color="#10B981" />
-                  <span>Strict Role-Based Access Control</span>
-                </li>
+            <div className="app-footer-column">
+              <h4 className="app-footer-heading">Platform Standards</h4>
+              <ul className="app-footer-list app-footer-checklist">
+                <li><Check size={14} color="#10B981" /><span>Tenant Isolation Architecture</span></li>
+                <li><Check size={14} color="#10B981" /><span>Cryptographic SHA-256 Ledger</span></li>
+                <li><Check size={14} color="#10B981" /><span>Proctored Integrity Telemetry</span></li>
+                <li><Check size={14} color="#10B981" /><span>Real-time LiveKit WebRTC</span></li>
+                <li><Check size={14} color="#10B981" /><span>Role-Based Access Control</span></li>
               </ul>
             </div>
 
-            {/* Column 4: Verification & Operations */}
-            <div>
-              <h4 style={{
-                fontSize: '0.84rem',
-                fontWeight: 700,
-                color: '#FFFFFF',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                marginBottom: 16,
-              }}>
-                Trust & Assistance
-              </h4>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="app-footer-column">
+              <h4 className="app-footer-heading">Trust & Assistance</h4>
+              <ul className="app-footer-list">
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => openVerification('')}
-                    className="app-footer-link"
-                    style={{
-                      backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                      border: '1px solid rgba(56, 189, 248, 0.25)',
-                      padding: '6px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      color: '#38BDF8',
-                      fontWeight: 600,
-                    }}
-                  >
+                  <button type="button" className="app-footer-link app-footer-link-primary" onClick={() => openVerification('')}>
                     <ShieldCheck size={14} />
                     <span>{t.verifyCertificate}</span>
                   </button>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => setIsAboutOpen(true)}
-                    className="app-footer-link"
-                  >
+                  <button type="button" className="app-footer-link" onClick={() => setIsAboutOpen(true)}>
                     <Info size={14} />
                     <span>About EduSphere</span>
                   </button>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => setIsHelpOpen(true)}
-                    className="app-footer-link"
-                  >
+                  <button type="button" className="app-footer-link" onClick={() => setIsHelpOpen(true)}>
                     <HelpCircle size={14} />
-                    <span>Help Desk & Academic FAQ</span>
+                    <span>Help Desk & FAQ</span>
                   </button>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => setIsPrivacyOpen(true)}
-                    className="app-footer-link"
-                  >
+                  <button type="button" className="app-footer-link" onClick={() => setIsPrivacyOpen(true)}>
                     <FileText size={14} />
                     <span>{t.footerPrivacy}</span>
                   </button>
                 </li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={() => setIsTermsOpen(true)}
-                    className="app-footer-link"
-                  >
+                  <button type="button" className="app-footer-link" onClick={() => setIsTermsOpen(true)}>
                     <FileText size={14} />
                     <span>{t.footerTerms}</span>
                   </button>
@@ -315,17 +163,8 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Bottom Copyright and Return to Top */}
-          <div style={{
-            borderTop: '1px solid var(--navy-800)',
-            paddingTop: 24,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 16,
-          }}>
-            <div style={{ fontSize: '0.84rem', color: 'var(--slate-500)' }}>
+          <div className="app-footer-bottom">
+            <div className="app-footer-copy">
               © {currentYear} EduSphere Unified E-Learning Platform. Built for sovereign multi-tenant education.
             </div>
 

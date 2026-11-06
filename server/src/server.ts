@@ -22,6 +22,40 @@ import { emailService } from './services/emailService';
 
 const app = express();
 
+const authRequestWindowMs = 15 * 60 * 1000;
+const authRequestBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function authRateLimiter(maxRequests = 20) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const existing = authRequestBuckets.get(ip);
+
+    if (!existing || existing.resetAt <= now) {
+      authRequestBuckets.set(ip, { count: 1, resetAt: now + authRequestWindowMs });
+      next();
+      return;
+    }
+
+    existing.count += 1;
+    if (existing.count > maxRequests) {
+      res.status(429).json({ message: 'Too many authentication requests. Please retry shortly.' });
+      return;
+    }
+
+    next();
+  };
+}
+
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
 // Multi-origin CORS Configuration with strict Cloudflare Pages project binding
 const allowedOrigins = config.corsOrigin
   ? config.corsOrigin.split(',').map(s => s.trim()).filter(Boolean)
@@ -74,11 +108,13 @@ app.use(cors(corsOptions));
 
 // Express JSON with raw body capture for cryptographic webhook signatures
 app.use(express.json({
+  limit: '1mb',
   verify: (req: any, _res, buf) => {
     req.rawBody = buf;
   }
 }));
 
+app.use('/api/auth', authRateLimiter(20));
 app.use(tenantMiddleware);
 
 // Lightweight health probe for Cloud Load Balancers and Render Health Checks

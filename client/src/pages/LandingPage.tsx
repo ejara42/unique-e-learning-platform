@@ -20,7 +20,7 @@ import {
   ExternalLink,
   ChevronRight
 } from 'lucide-react';
-import { Button } from '../components/ui';
+import { Button, ErrorState, LoadingState } from '../components/ui';
 
 export const LandingPage: React.FC = () => {
   const { openCourse, setCurrentPage, openVerification, t } = useApp();
@@ -32,13 +32,32 @@ export const LandingPage: React.FC = () => {
   const [selectedTier, setSelectedTier] = useState<string>('All');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingPage, setIsLoadingPage] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadCatalog = async () => {
+    setIsLoadingPage(true);
+    setLoadError(null);
+
+    try {
+      const [coursesResult, tenantsResult] = await Promise.all([
+        api.getCourses(),
+        api.getTenants(),
+      ]);
+
+      setCourses(coursesResult.courses || []);
+      setTenants(tenantsResult.tenants || []);
+    } catch (error: any) {
+      setCourses([]);
+      setTenants([]);
+      setLoadError(error?.message || 'Unable to load the course catalog right now.');
+    } finally {
+      setIsLoadingPage(false);
+    }
+  };
 
   useEffect(() => {
-    // Parallel fetch for active courses and accredited institutions
-    Promise.all([
-      api.getCourses().then(res => setCourses(res.courses)).catch(() => setCourses([])),
-      api.getTenants().then(res => setTenants(res.tenants)).catch(() => setTenants([]))
-    ]);
+    loadCatalog();
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -518,8 +537,16 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Courses Grid or Empty State */}
-        {filteredCourses.length === 0 ? (
+        {isLoadingPage ? (
+          <LoadingState message="Loading the course catalog…" rows={3} />
+        ) : loadError ? (
+          <ErrorState
+            title="Catalog unavailable"
+            message={loadError}
+            onRetry={loadCatalog}
+            retryLabel="Reload catalog"
+          />
+        ) : filteredCourses.length === 0 ? (
           <div style={{
             textAlign: 'center',
             padding: '60px 24px',

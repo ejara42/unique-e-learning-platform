@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { Sidebar } from '../components/Sidebar';
 import { IEnrollment } from '../types';
-import { EmptyState, Button } from '../components/ui';
+import { EmptyState, Button, LoadingState, ErrorState } from '../components/ui';
 import { BookOpen, CheckCircle, Play, Award, Compass, Search } from 'lucide-react';
 
 export const MyCoursesPage: React.FC = () => {
@@ -11,9 +11,26 @@ export const MyCoursesPage: React.FC = () => {
   const [enrollments, setEnrollments] = useState<IEnrollment[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'in-progress'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadEnrollments = async () => {
+    setIsLoading(true);
+    setLoadError(null);
+
+    try {
+      const response = await api.getMyCourses();
+      setEnrollments(response.enrollments || []);
+    } catch (error: any) {
+      setEnrollments([]);
+      setLoadError(error?.message || 'Unable to load your course enrollments right now.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    api.getMyCourses().then(res => setEnrollments(res.enrollments || [])).catch(() => setEnrollments([]));
+    loadEnrollments();
   }, []);
 
   const completedList = enrollments.filter(e => e.status === 'COMPLETED' || e.progressPercentage === 100);
@@ -145,32 +162,26 @@ export const MyCoursesPage: React.FC = () => {
 
         {/* Course Cards List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {filteredList.length === 0 ? (
-            <div style={{
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '48px 24px',
-              textAlign: 'center',
-            }}>
-              <BookOpen size={36} color="var(--slate-400)" style={{ margin: '0 auto 12px' }} />
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
-                {searchQuery ? 'No matching courses found' : 'No courses in this view'}
-              </h3>
-              <p style={{ color: 'var(--slate-500)', fontSize: '0.86rem', maxWidth: 400, margin: '0 auto 16px' }}>
-                {searchQuery 
-                  ? `No enrolled courses match "${searchQuery}". Try a different keyword.` 
-                  : 'Browse our catalog to enroll in foundational or accredited courses.'}
-              </p>
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => setCurrentPage('landing')}
-                icon={<Compass size={15} />}
-              >
-                Browse Course Catalog
-              </Button>
-            </div>
+          {isLoading ? (
+            <LoadingState message="Loading your learning path…" rows={2} />
+          ) : loadError ? (
+            <ErrorState
+              title="Unable to load your courses"
+              message={loadError}
+              onRetry={loadEnrollments}
+              retryLabel="Refresh courses"
+            />
+          ) : filteredList.length === 0 ? (
+            <EmptyState
+              icon={<BookOpen size={32} color="var(--primary)" />}
+              title={searchQuery ? 'No matching courses found' : 'No courses in this view'}
+              description={searchQuery
+                ? `No enrolled courses match "${searchQuery}". Try a different keyword.`
+                : 'Browse our catalog to enroll in foundational or accredited courses.'}
+              actionText="Browse Course Catalog"
+              onAction={() => setCurrentPage('landing')}
+              actionIcon={<Compass size={15} />}
+            />
           ) : (
             filteredList.map(enr => {
               const course = enr.course;

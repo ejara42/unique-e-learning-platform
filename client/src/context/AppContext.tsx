@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { IUser, UserRole } from '../types';
 import { api } from '../api';
 import { LanguageCode, translations, TranslationDict } from '../i18n';
@@ -63,14 +64,70 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const pageToPath = (page: AppPage, context: { selectedCourseId: string | null; selectedLessonId: string | null; selectedAssessmentId: string | null; verificationCode: string | null }): string => {
+  switch (page) {
+    case 'landing':
+      return '/';
+    case 'login':
+      return '/login';
+    case 'register':
+      return '/register';
+    case 'learner-dashboard':
+      return '/dashboard';
+    case 'course-detail':
+      return context.selectedCourseId ? `/courses/${context.selectedCourseId}` : '/courses';
+    case 'my-courses':
+      return '/my-courses';
+    case 'teacher-studio':
+      return '/teacher-studio';
+    case 'institution-register':
+      return '/institution/register';
+    case 'admin-dashboard':
+      return '/admin';
+    case 'live-classroom':
+      return '/live-classroom';
+    case 'lesson-player':
+      return context.selectedLessonId ? `/lessons/${context.selectedLessonId}` : '/lessons';
+    case 'exam-player':
+      return context.selectedAssessmentId ? `/exams/${context.selectedAssessmentId}` : '/exams';
+    case 'certificate-verify':
+      return context.verificationCode ? `/verify-certificate?code=${encodeURIComponent(context.verificationCode)}` : '/verify-certificate';
+    default:
+      return '/';
+  }
+};
+
+const pathToPage = (pathname: string): AppPage => {
+  if (pathname === '/login') return 'login';
+  if (pathname === '/register') return 'register';
+  if (pathname === '/dashboard') return 'learner-dashboard';
+  if (pathname.startsWith('/courses/')) return 'course-detail';
+  if (pathname === '/my-courses') return 'my-courses';
+  if (pathname === '/teacher-studio') return 'teacher-studio';
+  if (pathname === '/institution/register') return 'institution-register';
+  if (pathname === '/admin') return 'admin-dashboard';
+  if (pathname === '/live-classroom') return 'live-classroom';
+  if (pathname.startsWith('/lessons/')) return 'lesson-player';
+  if (pathname.startsWith('/exams/')) return 'exam-player';
+  if (pathname === '/verify-certificate' || pathname.startsWith('/verify-certificate')) return 'certificate-verify';
+  return 'landing';
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentPage, setCurrentPage] = useState<AppPage>('landing');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [currentPage, setCurrentPageState] = useState<AppPage>(() => pathToPage(location.pathname));
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState<string>('');
   const [activeLiveSessionId, setActiveLiveSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nextPage = pathToPage(location.pathname);
+    setCurrentPageState(prev => (prev !== nextPage ? nextPage : prev));
+  }, [location.pathname]);
 
   // Multi-Lingual & Accessibility State
   const [language, setLanguageState] = useState<LanguageCode>('en');
@@ -86,7 +143,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     return 1.0;
   });
-  const [highContrast, setHighContrast] = useState<boolean>(false);
+  const [highContrast, setHighContrast] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('edusphere_high_contrast');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // Directly adjust root html font-size so EVERY element using rem units instantly resizes in real-time
   useEffect(() => {
@@ -102,10 +166,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // High contrast mode toggle on html root element
   useEffect(() => {
-    if (highContrast) {
-      document.documentElement.classList.add('high-contrast-mode');
-    } else {
-      document.documentElement.classList.remove('high-contrast-mode');
+    document.documentElement.classList.toggle('high-contrast-mode', highContrast);
+    try {
+      localStorage.setItem('edusphere_high_contrast', String(highContrast));
+    } catch {
+      // ignore
     }
   }, [highContrast]);
 
@@ -215,6 +280,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const setCurrentPage = (page: AppPage) => {
+    setCurrentPageState(page);
+    const targetPath = pageToPath(page, {
+      selectedCourseId,
+      selectedLessonId,
+      selectedAssessmentId,
+      verificationCode,
+    });
+
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
+  };
+
   const logoutUser = () => {
     api.logout();
     setCurrentUser(null);
@@ -224,12 +303,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const openCourse = (courseId: string) => {
     setSelectedCourseId(courseId);
     setSelectedLessonId(null);
-    setCurrentPage('course-detail');
+    setCurrentPageState('course-detail');
+    const targetPath = `/courses/${courseId}`;
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
   };
 
   const openLesson = (lessonId: string) => {
     setSelectedLessonId(lessonId);
-    setCurrentPage('lesson-player');
+    setCurrentPageState('lesson-player');
+    const targetPath = `/lessons/${lessonId}`;
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
   };
 
   const startExam = (assessmentId: string) => {
@@ -238,7 +325,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentPage('login');
       return;
     }
-    setCurrentPage('exam-player');
+    setCurrentPageState('exam-player');
+    const targetPath = `/exams/${assessmentId}`;
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
+    }
   };
 
   const openLiveClass = (sessionId: string) => {
@@ -247,12 +338,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCurrentPage('login');
       return;
     }
-    setCurrentPage('live-classroom');
+    setCurrentPageState('live-classroom');
+    if (location.pathname !== '/live-classroom') {
+      navigate('/live-classroom');
+    }
   };
 
   const openVerification = (certCode: string) => {
     setVerificationCode(certCode);
-    setCurrentPage('certificate-verify');
+    setCurrentPageState('certificate-verify');
+    const targetPath = `/verify-certificate?code=${encodeURIComponent(certCode)}`;
+    if (location.pathname !== '/verify-certificate' || new URLSearchParams(location.search).get('code') !== certCode) {
+      navigate(targetPath);
+    }
   };
 
   const t = translations[language] || translations.en;

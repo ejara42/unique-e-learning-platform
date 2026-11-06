@@ -1,4 +1,18 @@
-import { IUser, ICourse, ITenant, IEnrollment, IAssessment, ICertificate, ILiveSession, IAuditLog, UserRole } from '../types';
+﻿import { IUser, ICourse, ITenant, IEnrollment, IAssessment, ICertificate, ILiveSession, IAuditLog, UserRole } from '../types';
+
+export class ApiError extends Error {
+  status?: number;
+  code?: string;
+  retryable: boolean;
+
+  constructor(message: string, status?: number, code?: string, retryable = false) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
 
 // Robust API Base URL resolution:
 // In local development, Vite proxies '/api' to 'http://localhost:5000'
@@ -15,6 +29,10 @@ function getAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function getRequestTimeoutMs() {
+  return 20000;
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const headers = {
     'Content-Type': 'application/json',
@@ -23,7 +41,6 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   };
 
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  // Prevent accidental '/api/api/...' duplication if endpoint already contains '/api'
   const cleanEndpoint = normalizedEndpoint.startsWith('/api/')
     ? normalizedEndpoint.slice(4)
     : normalizedEndpoint === '/api'
@@ -34,24 +51,61 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ? endpoint
     : `${API_BASE}${cleanEndpoint}`;
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), getRequestTimeoutMs());
 
-  let data: any;
-  const contentType = res.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    data = await res.json();
-  } else {
-    const text = await res.text();
-    data = { message: text || `HTTP ${res.status}: ${res.statusText}` };
-  }
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
 
-  if (!res.ok) {
-    throw new Error(data.message || `API request failed with status ${res.status}`);
+    let data: any;
+    const contentType = res.headers.get('content-type');
+    try {
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { message: text || `HTTP ${res.status}: ${res.statusText}` };
+      }
+    } catch {
+      throw new ApiError('The server returned an invalid JSON response.', res.status, 'INVALID_JSON', res.status >= 500 || res.status === 408);
+    }
+
+    if (res.status === 401) {
+      localStorage.removeItem('edusphere_token');
+      throw new ApiError(data?.message || 'Your session has expired. Please sign in again.', 401, 'UNAUTHORIZED', false);
+    }
+
+    if (res.status === 403) {
+      throw new ApiError(data?.message || 'You are not authorized to access this resource.', 403, 'FORBIDDEN', false);
+    }
+
+    if (!res.ok) {
+      const message = data?.message || data?.error || `API request failed with status ${res.status}`;
+      throw new ApiError(message, res.status, data?.code || 'HTTP_ERROR', res.status >= 500 || res.status === 429 || res.status === 408);
+    }
+
+    return data as T;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError('The request timed out. Please try again.', 408, 'TIMEOUT', false);
+    }
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    if (error instanceof Error) {
+      throw new ApiError(error.message || 'A network error occurred while contacting the server.', 0, 'NETWORK_ERROR', true);
+    }
+
+    throw new ApiError('A network error occurred while contacting the server.', 0, 'NETWORK_ERROR', true);
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return data as T;
 }
 
 export const api = {

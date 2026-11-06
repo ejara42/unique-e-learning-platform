@@ -43,11 +43,22 @@ export class PaymentService {
   private processedEventsMemory: Map<string, MemoryEventRecord> = new Map();
 
   constructor() {
-    const apiKey = process.env.STRIPE_SECRET_KEY || 'sk_test_edusphere_dummy_secret_key_2026';
-    this.stripe = new Stripe(apiKey, {
+    const apiKey = process.env.STRIPE_SECRET_KEY?.trim();
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+
+    if (process.env.NODE_ENV === 'production') {
+      if (!apiKey) {
+        throw new Error('[FATAL] STRIPE_SECRET_KEY must be configured in production mode.');
+      }
+      if (!webhookSecret) {
+        throw new Error('[FATAL] STRIPE_WEBHOOK_SECRET must be configured in production mode.');
+      }
+    }
+
+    this.stripe = new Stripe(apiKey || 'sk_test_edusphere_dummy_secret_key_2026', {
       apiVersion: '2025-01-27.acacia' as any,
     });
-    this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || 'whsec_edusphere_test_secret_2026';
+    this.webhookSecret = webhookSecret || 'whsec_edusphere_test_secret_2026';
   }
 
   /**

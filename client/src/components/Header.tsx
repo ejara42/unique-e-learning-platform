@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Logo } from './Logo';
 import { MinistryLogo } from './MinistryLogo';
@@ -44,6 +44,56 @@ export const Header: React.FC = () => {
 
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement | null>(null);
+  const mobileMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!langMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setLangMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLangMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [langMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [mobileMenuOpen]);
 
   const languages: Array<{ code: LanguageCode; label: string; native: string }> = [
     { code: 'en', label: 'English', native: 'English' },
@@ -80,6 +130,19 @@ export const Header: React.FC = () => {
       borderBottom: '1px solid rgba(226, 232, 240, 0.85)',
       boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
     }}>
+      <a
+        href="#main-content"
+        className="skip-link"
+        onClick={() => {
+          const mainElement = document.getElementById('main-content');
+          if (mainElement) {
+            mainElement.tabIndex = -1;
+            mainElement.focus();
+          }
+        }}
+      >
+        Skip to content
+      </a>
       {/* Top Tier: Official Ministry Endorsement & Accessibility Bar */}
       <div style={{
         backgroundColor: '#0F172A',
@@ -140,6 +203,7 @@ export const Header: React.FC = () => {
                   type="button"
                   onClick={decreaseFont}
                   disabled={fontScale <= 0.8}
+                  aria-label="Decrease text size"
                   title="Smaller text size (A-)"
                   style={{
                     background: fontScale < 1.0 ? '#2563EB' : 'transparent',
@@ -159,6 +223,7 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   onClick={resetFont}
+                  aria-label="Reset text size to default"
                   title="Default text size 100% (A)"
                   style={{
                     background: fontScale === 1.0 ? '#2563EB' : 'transparent',
@@ -179,6 +244,7 @@ export const Header: React.FC = () => {
                   type="button"
                   onClick={zoomFont}
                   disabled={fontScale >= 1.4}
+                  aria-label="Increase text size"
                   title="Larger text size (A+)"
                   style={{
                     background: fontScale > 1.0 ? '#2563EB' : 'transparent',
@@ -214,6 +280,8 @@ export const Header: React.FC = () => {
             <button
               type="button"
               onClick={toggleHighContrast}
+              aria-label={highContrast ? 'Disable high contrast mode' : 'Enable high contrast mode'}
+              aria-pressed={highContrast}
               title="Toggle High Contrast Display"
               style={{
                 display: 'flex',
@@ -236,9 +304,12 @@ export const Header: React.FC = () => {
             <span style={{ color: '#475569' }}>|</span>
 
             {/* Multi-Lingual Language Dropdown */}
-            <div style={{ position: 'relative' }}>
+            <div ref={langMenuRef} style={{ position: 'relative' }}>
               <button
                 type="button"
+                aria-haspopup="menu"
+                aria-expanded={langMenuOpen}
+                aria-label={`Select language. Current language is ${currentLangObj.label}`}
                 onClick={() => setLangMenuOpen(!langMenuOpen)}
                 style={{
                   display: 'flex',
@@ -260,7 +331,7 @@ export const Header: React.FC = () => {
               </button>
 
               {langMenuOpen && (
-                <div style={{
+                <div role="menu" aria-label="Language selection" style={{
                   position: 'absolute',
                   top: '100%',
                   right: isRTL ? 'auto' : 0,
@@ -278,6 +349,9 @@ export const Header: React.FC = () => {
                     <button
                       key={l.code}
                       type="button"
+                      role="menuitemradio"
+                      aria-checked={language === l.code}
+                      aria-label={`Switch language to ${l.label}`}
                       onClick={() => {
                         setLanguage(l.code);
                         setLangMenuOpen(false);
@@ -320,25 +394,31 @@ export const Header: React.FC = () => {
         gap: 20,
       }}>
         {/* Brand Logo & Title */}
-        <div
+        <button
+          type="button"
+          aria-label="Go to the home page"
+          onClick={() => setCurrentPage('landing')}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 12,
             textDecoration: 'none',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            textAlign: 'left',
           }}
         >
           <Logo size={44} />
           <div>
             <div
-              onClick={() => setCurrentPage('landing')}
               style={{
                 color: '#0F172A',
                 fontWeight: 800,
                 fontSize: '1.45rem',
                 letterSpacing: '-0.025em',
                 lineHeight: 1.1,
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
               }}
@@ -355,13 +435,14 @@ export const Header: React.FC = () => {
               Unified Multi-Tenant Platform
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Desktop Navigation Links & Action Buttons */}
         <div className="desktop-nav" style={{ alignItems: 'center', gap: 28 }}>
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.92rem' }}>
+          <nav aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.92rem' }}>
             <button
               type="button"
+              aria-current={currentPage === 'landing' ? 'page' : undefined}
               onClick={() => setCurrentPage('landing')}
               style={navItemClass(currentPage === 'landing')}
             >
@@ -371,6 +452,7 @@ export const Header: React.FC = () => {
 
             <button
               type="button"
+              aria-current={currentPage === 'landing' ? 'page' : undefined}
               onClick={() => setCurrentPage('landing')}
               style={navItemClass(false)}
             >
@@ -380,6 +462,7 @@ export const Header: React.FC = () => {
 
             <button
               type="button"
+              aria-current={currentPage === 'institution-register' ? 'page' : undefined}
               onClick={() => setCurrentPage('institution-register')}
               style={navItemClass(currentPage === 'institution-register')}
             >
@@ -389,6 +472,7 @@ export const Header: React.FC = () => {
 
             <button
               type="button"
+              aria-current={currentPage === 'certificate-verify' ? 'page' : undefined}
               onClick={() => openVerification('')}
               style={{
                 display: 'inline-flex',
@@ -517,7 +601,9 @@ export const Header: React.FC = () => {
         <button
           className="mobile-nav-toggle btn-ghost"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle navigation menu"
+          aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-navigation-menu"
           style={{ padding: 8, border: 'none', background: 'transparent', cursor: 'pointer' }}
         >
           {mobileMenuOpen ? <X size={26} color="#0F172A" /> : <Menu size={26} color="#0F172A" />}
@@ -526,7 +612,7 @@ export const Header: React.FC = () => {
 
       {/* Mobile Drawer Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="mobile-drawer">
+        <div ref={mobileMenuRef} id="mobile-navigation-menu" className="mobile-drawer" role="navigation" aria-label="Mobile navigation menu">
           <button
             type="button"
             onClick={() => { setCurrentPage('landing'); setMobileMenuOpen(false); }}
@@ -634,6 +720,7 @@ export const Header: React.FC = () => {
                   type="button"
                   onClick={decreaseFont}
                   disabled={fontScale <= 0.8}
+                  aria-label="Decrease text size"
                   style={{
                     background: fontScale < 1.0 ? 'var(--primary)' : 'transparent',
                     color: fontScale < 1.0 ? '#FFFFFF' : '#0F172A',
@@ -649,6 +736,7 @@ export const Header: React.FC = () => {
                 <button
                   type="button"
                   onClick={resetFont}
+                  aria-label="Reset text size to default"
                   style={{
                     background: fontScale === 1.0 ? 'var(--primary)' : 'transparent',
                     color: fontScale === 1.0 ? '#FFFFFF' : '#0F172A',
@@ -665,6 +753,7 @@ export const Header: React.FC = () => {
                   type="button"
                   onClick={zoomFont}
                   disabled={fontScale >= 1.4}
+                  aria-label="Increase text size"
                   style={{
                     background: fontScale > 1.0 ? 'var(--primary)' : 'transparent',
                     color: fontScale > 1.0 ? '#FFFFFF' : '#0F172A',

@@ -211,6 +211,26 @@ html.high-contrast-mode body {
   --border-strong: #475569;
 }
 
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  z-index: 9999;
+  background: var(--primary);
+  color: #FFFFFF;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-decoration: none;
+  transition: top var(--transition-fast);
+}
+
+.skip-link:focus,
+.skip-link:active {
+  top: 12px;
+}
+
 @media (prefers-reduced-motion: reduce) {
 
   *,

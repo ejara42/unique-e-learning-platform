@@ -60,6 +60,34 @@ const storageService_1 = require("./services/storageService");
 const emailService_1 = require("./services/emailService");
 const app = (0, express_1.default)();
 exports.app = app;
+const authRequestWindowMs = 15 * 60 * 1000;
+const authRequestBuckets = new Map();
+function authRateLimiter(maxRequests = 20) {
+    return (req, res, next) => {
+        const ip = req.ip || req.socket.remoteAddress || 'unknown';
+        const now = Date.now();
+        const existing = authRequestBuckets.get(ip);
+        if (!existing || existing.resetAt <= now) {
+            authRequestBuckets.set(ip, { count: 1, resetAt: now + authRequestWindowMs });
+            next();
+            return;
+        }
+        existing.count += 1;
+        if (existing.count > maxRequests) {
+            res.status(429).json({ message: 'Too many authentication requests. Please retry shortly.' });
+            return;
+        }
+        next();
+    };
+}
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+});
 // Multi-origin CORS Configuration with strict Cloudflare Pages project binding
 const allowedOrigins = config_1.config.corsOrigin
     ? config_1.config.corsOrigin.split(',').map(s => s.trim()).filter(Boolean)
@@ -104,10 +132,12 @@ const corsOptions = {
 app.use((0, cors_1.default)(corsOptions));
 // Express JSON with raw body capture for cryptographic webhook signatures
 app.use(express_1.default.json({
+    limit: '1mb',
     verify: (req, _res, buf) => {
         req.rawBody = buf;
     }
 }));
+app.use('/api/auth', authRateLimiter(20));
 app.use(tenant_1.tenantMiddleware);
 // Lightweight health probe for Cloud Load Balancers and Render Health Checks
 app.get('/healthz', (_req, res) => {

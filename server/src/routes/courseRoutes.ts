@@ -13,7 +13,12 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const { category, search, level, tenantId } = req.query;
     const context = getTenantContext();
-    const effectiveTenant = context.tenantId || (tenantId as string) || null;
+    const requestedTenantId = typeof tenantId === 'string' ? tenantId : null;
+
+    let effectiveTenant: string | null = context.tenantId || null;
+    if (effectiveTenant === null && requestedTenantId) {
+      effectiveTenant = requestedTenantId;
+    }
 
     const courses = await repo.getCourses({
       category: category as string,
@@ -58,6 +63,11 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     if (!course) {
       res.status(404).json({ message: 'Course not found or access restricted to specific institution.' });
+      return;
+    }
+
+    if (course.visibility === 'INSTITUTION_RESTRICTED' && course.tenantId && context.tenantId && context.tenantId !== course.tenantId) {
+      res.status(403).json({ message: 'Forbidden: This course is restricted to members of the offering institution.' });
       return;
     }
 

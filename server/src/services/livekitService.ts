@@ -25,9 +25,25 @@ export class LiveKitService {
   public wsUrl: string;
 
   constructor() {
-    this.apiKey = process.env.LIVEKIT_API_KEY || 'devkey_edusphere_webrtc_2026';
-    this.apiSecret = process.env.LIVEKIT_API_SECRET || 'devsecret_9823471092834710293847';
-    this.wsUrl = process.env.LIVEKIT_URL || 'wss://livekit.edusphere.io';
+    const apiKey = process.env.LIVEKIT_API_KEY?.trim();
+    const apiSecret = process.env.LIVEKIT_API_SECRET?.trim();
+    const wsUrl = process.env.LIVEKIT_URL?.trim();
+
+    if (process.env.NODE_ENV === 'production') {
+      if (!apiKey) {
+        throw new Error('[FATAL] LIVEKIT_API_KEY must be configured in production mode.');
+      }
+      if (!apiSecret) {
+        throw new Error('[FATAL] LIVEKIT_API_SECRET must be configured in production mode.');
+      }
+      if (!wsUrl) {
+        throw new Error('[FATAL] LIVEKIT_URL must be configured in production mode.');
+      }
+    }
+
+    this.apiKey = apiKey || 'devkey_edusphere_webrtc_2026';
+    this.apiSecret = apiSecret || 'devsecret_9823471092834710293847';
+    this.wsUrl = wsUrl || 'wss://livekit.edusphere.io';
   }
 
   /**

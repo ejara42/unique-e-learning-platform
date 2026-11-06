@@ -3,7 +3,41 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const paymentService_1 = require("../services/paymentService");
 const auth_1 = require("../middleware/auth");
+const config_1 = require("../config");
 const router = (0, express_1.Router)();
+function isSafeRedirectUrl(value, fallback) {
+    if (!value)
+        return fallback;
+    const trimmed = value.trim();
+    if (!trimmed)
+        return fallback;
+    try {
+        const url = new URL(trimmed);
+        const allowedOrigins = (config_1.config.corsOrigin || '')
+            .split(',')
+            .map(origin => origin.trim())
+            .filter(Boolean);
+        if (config_1.config.isProduction) {
+            const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+            const isAllowedOrigin = allowedOrigins.some(origin => {
+                const allowed = new URL(origin);
+                return allowed.origin === url.origin;
+            });
+            if (isLocalhost || isAllowedOrigin) {
+                return trimmed;
+            }
+            return fallback;
+        }
+        const isAllowedDevOrigin = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'].includes(url.origin);
+        if (isAllowedDevOrigin || url.protocol === 'https:' || url.protocol === 'http:') {
+            return trimmed;
+        }
+        return fallback;
+    }
+    catch {
+        return fallback;
+    }
+}
 // POST /api/payments/create-checkout-session
 router.post('/create-checkout-session', auth_1.requireAuth, async (req, res) => {
     try {
@@ -16,12 +50,14 @@ router.post('/create-checkout-session', auth_1.requireAuth, async (req, res) => 
             res.status(401).json({ message: 'Authenticated user profile is missing required identity claims.' });
             return;
         }
+        const safeSuccessUrl = isSafeRedirectUrl(successUrl, 'http://localhost:5173/payment-success');
+        const safeCancelUrl = isSafeRedirectUrl(cancelUrl, 'http://localhost:5173/payment-cancel');
         const session = await paymentService_1.paymentService.createCheckoutSession({
             courseId,
             learnerId: req.user.id,
             learnerEmail: req.user.email,
-            successUrl: successUrl || 'http://localhost:5173/payment-success',
-            cancelUrl: cancelUrl || 'http://localhost:5173/payment-cancel',
+            successUrl: safeSuccessUrl,
+            cancelUrl: safeCancelUrl,
         });
         res.json({
             message: 'Stripe checkout session initialized (Test Mode)',

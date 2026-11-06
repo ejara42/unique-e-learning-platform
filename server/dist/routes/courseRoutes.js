@@ -12,7 +12,11 @@ router.get('/', async (req, res) => {
     try {
         const { category, search, level, tenantId } = req.query;
         const context = (0, tenant_1.getTenantContext)();
-        const effectiveTenant = context.tenantId || tenantId || null;
+        const requestedTenantId = typeof tenantId === 'string' ? tenantId : null;
+        let effectiveTenant = context.tenantId || null;
+        if (effectiveTenant === null && requestedTenantId) {
+            effectiveTenant = requestedTenantId;
+        }
         const courses = await dbRepository_1.repo.getCourses({
             category: category,
             search: search,
@@ -50,6 +54,10 @@ router.get('/:id', async (req, res) => {
         const course = await dbRepository_1.repo.getCourseById(req.params.id, context.tenantId);
         if (!course) {
             res.status(404).json({ message: 'Course not found or access restricted to specific institution.' });
+            return;
+        }
+        if (course.visibility === 'INSTITUTION_RESTRICTED' && course.tenantId && context.tenantId && context.tenantId !== course.tenantId) {
+            res.status(403).json({ message: 'Forbidden: This course is restricted to members of the offering institution.' });
             return;
         }
         const assessment = await dbRepository_1.repo.getAssessmentByCourseId(course.id);

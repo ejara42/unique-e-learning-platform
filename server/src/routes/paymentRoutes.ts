@@ -1,8 +1,46 @@
 import { Router, Request, Response } from 'express';
 import { paymentService } from '../services/paymentService';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { config } from '../config';
 
 const router = Router();
+
+function isSafeRedirectUrl(value: string | undefined, fallback: string): string {
+  if (!value) return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+
+  try {
+    const url = new URL(trimmed);
+    const allowedOrigins = (config.corsOrigin || '')
+      .split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean);
+
+    if (config.isProduction) {
+      const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+      const isAllowedOrigin = allowedOrigins.some(origin => {
+        const allowed = new URL(origin);
+        return allowed.origin === url.origin;
+      });
+
+      if (isLocalhost || isAllowedOrigin) {
+        return trimmed;
+      }
+
+      return fallback;
+    }
+
+    const isAllowedDevOrigin = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'].includes(url.origin);
+    if (isAllowedDevOrigin || url.protocol === 'https:' || url.protocol === 'http:') {
+      return trimmed;
+    }
+
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 // POST /api/payments/create-checkout-session
 router.post('/create-checkout-session', requireAuth, async (req: AuthRequest, res: Response) => {
@@ -19,12 +57,15 @@ router.post('/create-checkout-session', requireAuth, async (req: AuthRequest, re
       return;
     }
 
+    const safeSuccessUrl = isSafeRedirectUrl(successUrl, 'http://localhost:5173/payment-success');
+    const safeCancelUrl = isSafeRedirectUrl(cancelUrl, 'http://localhost:5173/payment-cancel');
+
     const session = await paymentService.createCheckoutSession({
       courseId,
       learnerId: req.user.id,
       learnerEmail: req.user.email,
-      successUrl: successUrl || 'http://localhost:5173/payment-success',
-      cancelUrl: cancelUrl || 'http://localhost:5173/payment-cancel',
+      successUrl: safeSuccessUrl,
+      cancelUrl: safeCancelUrl,
     });
 
     res.json({

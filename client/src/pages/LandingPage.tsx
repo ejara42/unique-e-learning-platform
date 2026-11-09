@@ -28,7 +28,6 @@ export const LandingPage: React.FC = () => {
   const [courses, setCourses] = useState<ICourse[]>([]);
   const [tenants, setTenants] = useState<ITenant[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [verifyCodeInput, setVerifyCodeInput] = useState('');
   const [activeAudience, setActiveAudience] = useState<string>('All');
   const [selectedTier, setSelectedTier] = useState<string>('All');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -67,12 +66,6 @@ export const LandingPage: React.FC = () => {
     api.getCourses({ search: searchTerm })
       .then(res => setCourses(res.courses))
       .finally(() => setIsSearching(false));
-  };
-
-  const handleDirectVerification = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!verifyCodeInput.trim()) return;
-    openVerification(verifyCodeInput.trim().toUpperCase());
   };
 
   const audienceCategories = [
@@ -622,82 +615,6 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Public Credential Verification Gateway (No fake stats, real utility) */}
-      <section style={{
-        backgroundColor: 'var(--navy-950)',
-        color: '#FFFFFF',
-        padding: '56px 24px',
-        borderTop: '1px solid var(--navy-800)',
-      }}>
-        <div style={{
-          maxWidth: 900,
-          margin: '0 auto',
-          textAlign: 'center',
-        }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: 'rgba(56, 189, 248, 0.1)',
-            border: '1px solid rgba(56, 189, 248, 0.25)',
-            color: '#38BDF8',
-            padding: '6px 14px',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            marginBottom: 16,
-          }}>
-            <Lock size={14} />
-            <span>Public Tamper-Evident Ledger</span>
-          </div>
-
-          <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.025em', marginBottom: 12 }}>
-            Instant Academic Diploma Verification
-          </h2>
-          <p style={{ color: 'var(--slate-400)', fontSize: '0.94rem', maxWidth: 620, margin: '0 auto 28px', lineHeight: 1.6 }}>
-            Employers, ministries, and universities can verify authentic completion diplomas issued by accredited EduSphere institutions without login credentials.
-          </p>
-
-          <form onSubmit={handleDirectVerification} style={{
-            display: 'flex',
-            gap: 12,
-            maxWidth: 540,
-            margin: '0 auto',
-            flexWrap: 'wrap',
-          }}>
-            <input 
-              type="text" 
-              placeholder="Enter credential code (e.g. EDU-XXXX-XXXX-XXXX)" 
-              value={verifyCodeInput}
-              onChange={e => setVerifyCodeInput(e.target.value)}
-              className="input-field"
-              style={{
-                flex: 1,
-                minWidth: 260,
-                height: 48,
-                backgroundColor: 'var(--navy-900)',
-                borderColor: 'var(--navy-700)',
-                color: '#FFFFFF',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.9rem',
-              }}
-            />
-            <Button 
-              type="submit" 
-              variant="primary"
-              size="md"
-              style={{ height: 48, padding: '0 24px', borderRadius: 'var(--radius-md)' }}
-            >
-              Verify Credential
-            </Button>
-          </form>
-
-          <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)', marginTop: 16 }}>
-            Cryptographically signed with SHA-256 hash stamp • Zero private personal data exposed
           </div>
         </div>
       </section>

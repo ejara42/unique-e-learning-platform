@@ -5,4 +5,7 @@ export * from './EmptyState';
 export * from './Modal';
 export * from './Toast';
 export * from './DataState';
+export * from './Skeleton';
+export * from './ErrorBoundary';
+
 

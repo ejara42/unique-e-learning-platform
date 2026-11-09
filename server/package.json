@@ -18,7 +18,8 @@
     "reset:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/resetAdminPassword.ts",
     "verify:dr": "node ./node_modules/tsx/dist/cli.mjs src/scripts/verifyBackupRestore.ts",
     "worker": "node ./node_modules/tsx/dist/cli.mjs src/worker/transcodeWorker.ts",
-    "worker:prod": "node dist/worker/transcodeWorker.js"
+    "worker:prod": "node dist/worker/transcodeWorker.js",
+    "smoke:test": "node ./node_modules/tsx/dist/cli.mjs scripts/productionSmokeTest.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

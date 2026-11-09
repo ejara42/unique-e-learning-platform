@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const dbRepository_1 = require("../data/dbRepository");
+const models_1 = require("../models");
 const tenant_1 = require("../middleware/tenant");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
@@ -94,6 +95,9 @@ router.patch('/admissions/:id/status', auth_1.requireAuth, (0, auth_1.requireRol
         }
         admission.status = status;
         admission.remarks = remarks;
+        if (dbRepository_1.repo.isMongoActive()) {
+            await models_1.AdmissionModel.findOneAndUpdate({ id: admission.id }, { $set: { status, remarks } });
+        }
         await dbRepository_1.repo.createAuditLog({
             id: `log-${Date.now()}`,
             tenantId: admission.institutionId,

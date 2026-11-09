@@ -705,7 +705,9 @@ async function runAdversarialSecuritySuite() {
   await runTest('Transcoding Degradation: Reports DEGRADED when Redis is required in production but missing', async () => {
     const originalProd = config.isProduction;
     const originalHost = process.env.REDIS_HOST;
+    const originalUrl = process.env.REDIS_URL;
     delete process.env.REDIS_HOST;
+    delete process.env.REDIS_URL;
 
     try {
       (config as any).isProduction = true;
@@ -716,13 +718,16 @@ async function runAdversarialSecuritySuite() {
     } finally {
       (config as any).isProduction = originalProd;
       if (originalHost) process.env.REDIS_HOST = originalHost;
+      if (originalUrl) process.env.REDIS_URL = originalUrl;
     }
   });
 
   await runTest('Transcoding Queue: Enqueuing job in production mode fails closed when Redis is offline', async () => {
     const originalProd = config.isProduction;
     const originalHost = process.env.REDIS_HOST;
+    const originalUrl = process.env.REDIS_URL;
     delete process.env.REDIS_HOST;
+    delete process.env.REDIS_URL;
 
     try {
       (config as any).isProduction = true;
@@ -738,6 +743,7 @@ async function runAdversarialSecuritySuite() {
     } finally {
       (config as any).isProduction = originalProd;
       if (originalHost) process.env.REDIS_HOST = originalHost;
+      if (originalUrl) process.env.REDIS_URL = originalUrl;
     }
   });
 

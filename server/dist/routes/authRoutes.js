@@ -233,11 +233,16 @@ router.post('/forgot-password', async (req, res) => {
         const normalizedEmail = email.toLowerCase().trim();
         const user = await dbRepository_1.repo.getUserByEmail(normalizedEmail);
         if (user) {
-            // Generate cryptographically secure single-use token (32 bytes)
-            const { rawToken } = emailService_1.emailService.generateToken();
-            await emailService_1.emailService.createSecurityToken(user.id, rawToken, 'PASSWORD_RESET', 60 * 60 * 1000); // 1 hour TTL
-            // Dispatch transactional email (logs in dev, calls Resend API in prod)
-            await emailService_1.emailService.sendPasswordResetEmail(user.email, user.fullName, rawToken);
+            try {
+                // Generate cryptographically secure single-use token (32 bytes)
+                const { rawToken } = emailService_1.emailService.generateToken();
+                await emailService_1.emailService.createSecurityToken(user.id, rawToken, 'PASSWORD_RESET', 60 * 60 * 1000); // 1 hour TTL
+                // Dispatch transactional email (logs in dev, calls Resend API in prod)
+                await emailService_1.emailService.sendPasswordResetEmail(user.email, user.fullName, rawToken);
+            }
+            catch (sendErr) {
+                console.error('[Auth] forgot-password email dispatch failed:', sendErr?.message || sendErr);
+            }
         }
         // Always respond with 200 OK to prevent user enumeration
         res.status(200).json({
@@ -282,8 +287,13 @@ router.post('/reset-password', async (req, res) => {
             await models_1.UserModel.findOneAndUpdate({ id: user.id }, { $set: { passwordHash } });
         }
         user.passwordHash = passwordHash;
-        // Dispatch security alert
-        await emailService_1.emailService.sendSecurityAlert(user.email, user.fullName, 'Your EduSphere password was successfully reset.');
+        // Dispatch security alert without blocking the password reset flow.
+        try {
+            await emailService_1.emailService.sendSecurityAlert(user.email, user.fullName, 'Your EduSphere password was successfully reset.');
+        }
+        catch (alertErr) {
+            console.error('[Auth] password reset security alert failed:', alertErr?.message || alertErr);
+        }
         res.status(200).json({
             message: 'Password successfully reset. You may now log in with your new credentials.',
         });

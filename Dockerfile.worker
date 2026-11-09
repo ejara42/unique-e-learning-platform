@@ -33,6 +33,10 @@ WORKDIR /app/server
 ENV NODE_ENV=production
 ENV ALLOW_SIMULATED_TRANSCODE=false
 
+# Set non-root user permissions
+RUN chown -R node:node /app
+USER node
+
 # Start standalone transcode background worker
 CMD ["node", "dist/worker/transcodeWorker.js"]
 

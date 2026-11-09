@@ -720,7 +720,6 @@ export const LiveSessionSchema = new Schema<ILiveSessionDocument>({
 }, { timestamps: true });
 
 LiveSessionSchema.index({ courseId: 1, status: 1 });
-LiveSessionSchema.index({ instructorId: 1 });
 
 export const LiveSessionModel = mongoose.models.LiveSession || mongoose.model<ILiveSessionDocument>('LiveSession', LiveSessionSchema);
 

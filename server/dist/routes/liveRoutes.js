@@ -146,9 +146,9 @@ router.post('/:id/recording', auth_1.requireAuth, (0, auth_1.requireRole)('INSTR
             return;
         }
         const isStarting = action === 'START';
-        if (isStarting) {
-            session.recordingUrl = `https://recordings.edusphere.io/${session.id}/master.m3u8`;
-        }
+        const recordingUrl = isStarting ? `https://recordings.edusphere.io/${session.id}/master.m3u8` : undefined;
+        const updatedSession = await dbRepository_1.repo.updateLiveSession(session.id, { recordingUrl }) || session;
+        session.recordingUrl = updatedSession.recordingUrl;
         await dbRepository_1.repo.createAuditLog({
             id: `log-${(0, uuid_1.v4)().slice(0, 8)}`,
             tenantId: null,

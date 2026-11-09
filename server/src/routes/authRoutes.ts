@@ -259,12 +259,16 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     const user = await repo.getUserByEmail(normalizedEmail);
 
     if (user) {
-      // Generate cryptographically secure single-use token (32 bytes)
-      const { rawToken } = emailService.generateToken();
-      await emailService.createSecurityToken(user.id, rawToken, 'PASSWORD_RESET', 60 * 60 * 1000); // 1 hour TTL
+      try {
+        // Generate cryptographically secure single-use token (32 bytes)
+        const { rawToken } = emailService.generateToken();
+        await emailService.createSecurityToken(user.id, rawToken, 'PASSWORD_RESET', 60 * 60 * 1000); // 1 hour TTL
 
-      // Dispatch transactional email (logs in dev, calls Resend API in prod)
-      await emailService.sendPasswordResetEmail(user.email, user.fullName, rawToken);
+        // Dispatch transactional email (logs in dev, calls Resend API in prod)
+        await emailService.sendPasswordResetEmail(user.email, user.fullName, rawToken);
+      } catch (sendErr: any) {
+        console.error('[Auth] forgot-password email dispatch failed:', sendErr?.message || sendErr);
+      }
     }
 
     // Always respond with 200 OK to prevent user enumeration
@@ -317,12 +321,16 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     }
     user.passwordHash = passwordHash;
 
-    // Dispatch security alert
-    await emailService.sendSecurityAlert(
-      user.email,
-      user.fullName,
-      'Your EduSphere password was successfully reset.'
-    );
+    // Dispatch security alert without blocking the password reset flow.
+    try {
+      await emailService.sendSecurityAlert(
+        user.email,
+        user.fullName,
+        'Your EduSphere password was successfully reset.'
+      );
+    } catch (alertErr: any) {
+      console.error('[Auth] password reset security alert failed:', alertErr?.message || alertErr);
+    }
 
     res.status(200).json({
       message: 'Password successfully reset. You may now log in with your new credentials.',

@@ -225,13 +225,22 @@ router.post('/:id/reviews', auth_1.requireAuth, async (req, res) => {
             return;
         }
         // Verify student is actually enrolled in the course
-        const isEnrolled = await models_1.EnrollmentModel.findOne({ courseId, userId });
+        let isEnrolled = null;
+        if (dbRepository_1.repo.isMongoActive()) {
+            isEnrolled = await models_1.EnrollmentModel.findOne({ courseId, learnerId: userId });
+        }
+        else {
+            const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(userId || '');
+            isEnrolled = enrollments.find(e => e.courseId === courseId);
+        }
         if (!isEnrolled && req.user?.activeRole !== 'PLATFORM_ADMIN') {
             res.status(403).json({ message: 'Only enrolled scholars can submit course reviews' });
             return;
         }
         // Prevent duplicate reviews from the same scholar
-        const existing = await models_1.CourseReviewModel.findOne({ courseId, userId });
+        const existing = dbRepository_1.repo.isMongoActive()
+            ? await models_1.CourseReviewModel.findOne({ courseId, userId })
+            : null;
         if (existing) {
             res.status(409).json({ message: 'You have already submitted a review for this curriculum' });
             return;
@@ -269,7 +278,7 @@ router.get('/:id/announcements', async (req, res) => {
     }
 });
 // POST /api/courses/:id/announcements - Publish faculty course announcement (LRN-07)
-router.post('/:id/announcements', auth_1.requireAuth, async (req, res) => {
+router.post('/:id/announcements', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
     try {
         const courseId = req.params.id;
         const authorId = req.user?.id || '';
@@ -277,6 +286,20 @@ router.post('/:id/announcements', auth_1.requireAuth, async (req, res) => {
         const { title, content } = req.body;
         if (!title?.trim() || !content?.trim()) {
             res.status(400).json({ message: 'Announcement title and content are required' });
+            return;
+        }
+        const course = await dbRepository_1.repo.getCourseById(courseId);
+        if (!course) {
+            res.status(404).json({ message: 'Course not found' });
+            return;
+        }
+        // Authorization: Instructors can only post to their own courses, Institution Admin to their institution's courses
+        if (req.user?.activeRole === 'INSTRUCTOR' && course.instructorId !== req.user.id && req.user.globalRole !== 'PLATFORM_SUPERADMIN') {
+            res.status(403).json({ message: 'Forbidden: You can only publish announcements for courses you instruct.' });
+            return;
+        }
+        if (req.user?.activeRole === 'INSTITUTION_ADMIN' && course.tenantId !== req.user.institutionId && req.user.globalRole !== 'PLATFORM_SUPERADMIN') {
+            res.status(403).json({ message: 'Forbidden: You cannot post announcements for another institution.' });
             return;
         }
         const announcement = await models_1.CourseAnnouncementModel.create({

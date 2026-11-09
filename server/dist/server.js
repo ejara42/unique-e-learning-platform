@@ -43,6 +43,7 @@ const config_1 = require("./config");
 const tenant_1 = require("./middleware/tenant");
 const mongoConnection_1 = require("./data/mongoConnection");
 const errors_1 = require("./errors");
+const auth_1 = require("./middleware/auth");
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const tenantRoutes_1 = __importDefault(require("./routes/tenantRoutes"));
 const courseRoutes_1 = __importDefault(require("./routes/courseRoutes"));
@@ -62,6 +63,16 @@ const app = (0, express_1.default)();
 exports.app = app;
 const authRequestWindowMs = 15 * 60 * 1000;
 const authRequestBuckets = new Map();
+// Periodic TTL cleanup to prevent unbounded memory growth
+const authCleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [key, value] of authRequestBuckets.entries()) {
+        if (value.resetAt <= now) {
+            authRequestBuckets.delete(key);
+        }
+    }
+}, authRequestWindowMs);
+authCleanupInterval.unref();
 function authRateLimiter(maxRequests = 20) {
     return (req, res, next) => {
         const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -189,14 +200,14 @@ app.use('/api/interoperability', interoperabilityRoutes_1.default);
 app.use('/api/storage', storageRoutes_1.default);
 app.use('/api/support', supportRoutes_1.default);
 // Transcoding & HLS Streaming endpoints
-app.post('/api/transcode/enqueue', async (req, res) => {
+app.post('/api/transcode/enqueue', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
     try {
         const { courseId, lessonId, sourceUrl } = req.body;
         if (!courseId || !lessonId || !sourceUrl) {
             res.status(400).json({ message: 'courseId, lessonId, and sourceUrl are required' });
             return;
         }
-        const job = await transcodingService_1.transcodingService.enqueueTranscodeJob(courseId, lessonId, sourceUrl);
+        const job = await transcodingService_1.transcodingService.enqueueTranscodeJob(courseId, lessonId, sourceUrl, req.user?.institutionId || null);
         res.status(202).json({ message: 'Transcoding job queued into BullMQ runner', job });
     }
     catch (err) {
@@ -227,9 +238,10 @@ app.use((err, _req, res, _next) => {
     }
     const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
     console.error('[EduSphere Server Error]', err);
+    const isInternal = statusCode >= 500;
     res.status(statusCode).json({
-        message: err?.message || 'Internal Server Error',
-        error: err?.name || 'ServerError',
+        message: isInternal && config_1.config.isProduction ? 'Internal Server Error' : (err?.message || 'Internal Server Error'),
+        error: isInternal && config_1.config.isProduction ? 'ServerError' : (err?.name || 'ServerError'),
     });
 });
 // Start Server and initialize MongoDB connection

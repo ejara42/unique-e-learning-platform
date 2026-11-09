@@ -43,7 +43,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
 
     // Role Barrier 1: Assuming PLATFORM_ADMIN privileges requires globalRole === 'PLATFORM_SUPERADMIN'
     if (req.user.activeRole === 'PLATFORM_ADMIN') {
-      if (req.user.globalRole && req.user.globalRole !== 'PLATFORM_SUPERADMIN') {
+      if (req.user.globalRole !== 'PLATFORM_SUPERADMIN') {
         res.status(403).json({
           message: 'Forbidden: PLATFORM_ADMIN role assertion requires verified PLATFORM_SUPERADMIN global authority.',
         });

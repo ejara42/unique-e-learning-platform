@@ -197,6 +197,9 @@ export class TransactionalEmailService {
       return { id: `mock-email-${crypto.randomBytes(8).toString('hex')}`, success: true };
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     try {
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -211,6 +214,7 @@ export class TransactionalEmailService {
           html,
           text: text || html.replace(/<[^>]+>/g, ' ').trim(),
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -223,8 +227,13 @@ export class TransactionalEmailService {
       console.log(`[Email Dispatched] To: ${to} | Subject: "${subject}" | Provider ID: ${data.id}`);
       return { id: data.id, success: true };
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        throw new Error('Resend API request timed out after 8000ms');
+      }
       console.error(`[Email Error] Failed to deliver email to ${to}:`, err.message);
       throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { repo } from '../data/dbRepository';
+import { AdmissionModel } from '../models';
 import { getTenantContext } from '../middleware/tenant';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 
@@ -106,6 +107,13 @@ router.patch('/admissions/:id/status', requireAuth, requireRole('INSTITUTION_ADM
 
     admission.status = status;
     admission.remarks = remarks;
+
+    if (repo.isMongoActive()) {
+      await AdmissionModel.findOneAndUpdate(
+        { id: admission.id },
+        { $set: { status, remarks } }
+      );
+    }
 
     await repo.createAuditLog({
       id: `log-${Date.now()}`,

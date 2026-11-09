@@ -160,9 +160,9 @@ router.post('/:id/recording', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTIO
     }
 
     const isStarting = action === 'START';
-    if (isStarting) {
-      session.recordingUrl = `https://recordings.edusphere.io/${session.id}/master.m3u8`;
-    }
+    const recordingUrl = isStarting ? `https://recordings.edusphere.io/${session.id}/master.m3u8` : undefined;
+    const updatedSession = await repo.updateLiveSession(session.id, { recordingUrl }) || session;
+    session.recordingUrl = updatedSession.recordingUrl;
 
     await repo.createAuditLog({
       id: `log-${uuidv4().slice(0, 8)}`,

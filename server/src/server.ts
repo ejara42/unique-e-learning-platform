@@ -4,6 +4,7 @@ import { config } from './config';
 import { tenantMiddleware } from './middleware/tenant';
 import { connectMongoDB, disconnectMongoDB, connectionState } from './data/mongoConnection';
 import { DatabaseUnavailableError } from './errors';
+import { requireAuth, requireRole, AuthRequest } from './middleware/auth';
 import authRoutes from './routes/authRoutes';
 import tenantRoutes from './routes/tenantRoutes';
 import courseRoutes from './routes/courseRoutes';
@@ -24,6 +25,17 @@ const app = express();
 
 const authRequestWindowMs = 15 * 60 * 1000;
 const authRequestBuckets = new Map<string, { count: number; resetAt: number }>();
+
+// Periodic TTL cleanup to prevent unbounded memory growth
+const authCleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of authRequestBuckets.entries()) {
+    if (value.resetAt <= now) {
+      authRequestBuckets.delete(key);
+    }
+  }
+}, authRequestWindowMs);
+authCleanupInterval.unref();
 
 function authRateLimiter(maxRequests = 20) {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -173,7 +185,7 @@ app.use('/api/storage', storageRoutes);
 app.use('/api/support', supportRoutes);
 
 // Transcoding & HLS Streaming endpoints
-app.post('/api/transcode/enqueue', async (req, res) => {
+app.post('/api/transcode/enqueue', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req: AuthRequest, res) => {
   try {
     const { courseId, lessonId, sourceUrl } = req.body;
     if (!courseId || !lessonId || !sourceUrl) {
@@ -183,7 +195,8 @@ app.post('/api/transcode/enqueue', async (req, res) => {
     const job = await transcodingService.enqueueTranscodeJob(
       courseId,
       lessonId,
-      sourceUrl
+      sourceUrl,
+      req.user?.institutionId || null
     );
     res.status(202).json({ message: 'Transcoding job queued into BullMQ runner', job });
   } catch (err: any) {
@@ -218,9 +231,10 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
   const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
   console.error('[EduSphere Server Error]', err);
+  const isInternal = statusCode >= 500;
   res.status(statusCode).json({
-    message: err?.message || 'Internal Server Error',
-    error: err?.name || 'ServerError',
+    message: isInternal && config.isProduction ? 'Internal Server Error' : (err?.message || 'Internal Server Error'),
+    error: isInternal && config.isProduction ? 'ServerError' : (err?.name || 'ServerError'),
   });
 });
 

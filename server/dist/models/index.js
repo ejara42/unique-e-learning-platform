@@ -404,7 +404,6 @@ exports.LiveSessionSchema = new mongoose_1.Schema({
     attendanceCount: { type: Number, default: 0 },
 }, { timestamps: true });
 exports.LiveSessionSchema.index({ courseId: 1, status: 1 });
-exports.LiveSessionSchema.index({ instructorId: 1 });
 exports.LiveSessionModel = mongoose_1.default.models.LiveSession || mongoose_1.default.model('LiveSession', exports.LiveSessionSchema);
 exports.CourseReviewSchema = new mongoose_1.Schema({
     id: { type: String, required: true, unique: true, index: true },

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { ICourse } from '../types';
@@ -24,7 +25,9 @@ import {
 import { Button, Badge, ToastViewport, useToast } from '../components/ui';
 
 export const CourseDetailPage: React.FC = () => {
-  const { selectedCourseId, setCurrentPage, startExam, openLesson, currentUser } = useApp();
+  const { courseId: routeCourseId } = useParams<{ courseId?: string }>();
+  const { selectedCourseId: contextCourseId, setCurrentPage, startExam, openLesson, currentUser } = useApp();
+  const effectiveCourseId = routeCourseId || contextCourseId;
   const { toast, showToast, dismissToast } = useToast();
   const [course, setCourse] = useState<ICourse | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'curriculum' | 'instructor' | 'reviews'>('overview');
@@ -41,7 +44,7 @@ export const CourseDetailPage: React.FC = () => {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
-    if (!selectedCourseId) {
+    if (!effectiveCourseId) {
       setCourse(null);
       setLoadError('No course selected.');
       setIsEnrolled(false);
@@ -52,15 +55,17 @@ export const CourseDetailPage: React.FC = () => {
     let isMounted = true;
 
     const loadCourse = async () => {
-      setCourse(null);
+      if (!course || course.id !== effectiveCourseId) {
+        setCourse(null);
+      }
       setLoadError(null);
       setEnrollMsg('');
 
       try {
         const [courseRes, myCoursesRes, reviewsRes] = await Promise.all([
-          api.getCourse(selectedCourseId),
+          api.getCourse(effectiveCourseId),
           currentUser ? api.getMyCourses() : Promise.resolve({ enrollments: [] as any[] }),
-          api.getCourseReviews(selectedCourseId).catch(() => ({ reviews: [] }))
+          api.getCourseReviews(effectiveCourseId).catch(() => ({ reviews: [] }))
         ]);
 
         if (!isMounted) return;
@@ -70,7 +75,7 @@ export const CourseDetailPage: React.FC = () => {
         setReviews(reviewsRes.reviews || []);
 
         if (currentUser) {
-          const found = myCoursesRes.enrollments?.some((e: any) => e.courseId === selectedCourseId);
+          const found = myCoursesRes.enrollments?.some((e: any) => e.courseId === effectiveCourseId);
           setIsEnrolled(Boolean(found));
         } else {
           setIsEnrolled(false);
@@ -87,7 +92,7 @@ export const CourseDetailPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [selectedCourseId, currentUser]);
+  }, [effectiveCourseId, currentUser]);
 
   useEffect(() => {
     if (!course?.modules?.length) {

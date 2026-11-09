@@ -214,7 +214,7 @@ export const CertificateVerifyPage: React.FC = () => {
                   letterSpacing: '-0.02em',
                   marginBottom: 12,
                 }}>
-                  {certData.learnerName}
+                  {certData.learnerName || (certData as any).studentName}
                 </h2>
 
                 <p style={{ fontSize: '0.88rem', color: 'var(--slate-600)', maxWidth: 500, margin: '0 auto 20px', lineHeight: 1.55 }}>

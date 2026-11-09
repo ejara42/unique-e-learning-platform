@@ -1,5 +1,6 @@
 import React from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -65,6 +66,7 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Toaster richColors position="top-right" closeButton />
       {!isDistractionFree && !isAuthPage && <Header />}
 
       <div id="main-content" tabIndex={-1} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>

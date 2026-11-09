@@ -51,6 +51,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,10 +106,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setFieldErrors({});
     setIsLoading(true);
     try {
       await loginUser(signInEmail, signInPassword);
     } catch (err: any) {
+      if (err.details && Array.isArray(err.details)) {
+        const map: Record<string, string> = {};
+        err.details.forEach((d: any) => { if (d.field) map[d.field] = d.message; });
+        setFieldErrors(map);
+      }
       setErrorMsg(err.message || 'Authentication failed. Please verify your credentials.');
     } finally {
       setIsLoading(false);
@@ -122,10 +129,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
       return;
     }
     setErrorMsg('');
+    setFieldErrors({});
     setIsLoading(true);
     try {
       await registerUser(fullName, signUpEmail, signUpPassword, selectedRole, institutionName);
     } catch (err: any) {
+      if (err.details && Array.isArray(err.details)) {
+        const map: Record<string, string> = {};
+        err.details.forEach((d: any) => { if (d.field) map[d.field] = d.message; });
+        setFieldErrors(map);
+      }
       setErrorMsg(err.message || 'Registration failed.');
     } finally {
       setIsLoading(false);
@@ -588,6 +601,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   required
                 />
               </div>
+              {fieldErrors['email'] && (
+                <div role="alert" style={{ color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, marginTop: 4 }}>
+                  {fieldErrors['email']}
+                </div>
+              )}
             </div>
 
             <div>
@@ -606,6 +624,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   required
                 />
               </div>
+              {fieldErrors['password'] && (
+                <div role="alert" style={{ color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, marginTop: 4 }}>
+                  {fieldErrors['password']}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.88rem' }}>
@@ -681,6 +704,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   required
                 />
               </div>
+              {(fieldErrors['fullName'] || fieldErrors['name']) && (
+                <div role="alert" style={{ color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, marginTop: 4 }}>
+                  {fieldErrors['fullName'] || fieldErrors['name']}
+                </div>
+              )}
             </div>
 
             <div>
@@ -699,6 +727,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   required
                 />
               </div>
+              {fieldErrors['email'] && (
+                <div role="alert" style={{ color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, marginTop: 4 }}>
+                  {fieldErrors['email']}
+                </div>
+              )}
             </div>
 
             <div>
@@ -717,6 +750,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   required
                 />
               </div>
+              {fieldErrors['password'] && (
+                <div role="alert" style={{ color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, marginTop: 4 }}>
+                  {fieldErrors['password']}
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>

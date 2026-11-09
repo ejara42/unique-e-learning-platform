@@ -223,7 +223,33 @@ export const LearnerDashboard: React.FC = () => {
                 )}
               </div>
 
-              {enrollments.length === 0 ? (
+              {isLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {[1, 2].map(i => (
+                    <div
+                      key={i}
+                      data-testid="enrollment-skeleton"
+                      style={{
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 16,
+                        backgroundColor: '#FFFFFF',
+                      }}
+                      className="animate-pulse"
+                    >
+                      <div style={{ width: 64, height: 64, borderRadius: 'var(--radius-md)', backgroundColor: '#E2E8F0' }} />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ width: '30%', height: 14, backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+                        <div style={{ width: '60%', height: 18, backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+                        <div style={{ width: '40%', height: 12, backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : enrollments.length === 0 ? (
                 <div style={{
                   padding: '40px 20px',
                   textAlign: 'center',

@@ -1,16 +1,24 @@
-﻿import { IUser, ICourse, ITenant, IEnrollment, IAssessment, ICertificate, ILiveSession, IAuditLog, UserRole } from '../types';
+import { IUser, ICourse, ITenant, IEnrollment, IAssessment, ICertificate, ILiveSession, IAuditLog, UserRole } from '../types';
 
 export class ApiError extends Error {
   status?: number;
   code?: string;
   retryable: boolean;
+  details?: Array<{ field: string; message: string }>;
 
-  constructor(message: string, status?: number, code?: string, retryable = false) {
+  constructor(
+    message: string,
+    status?: number,
+    code?: string,
+    retryable = false,
+    details?: Array<{ field: string; message: string }>
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.retryable = retryable;
+    this.details = details;
   }
 }
 
@@ -85,7 +93,14 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
     if (!res.ok) {
       const message = data?.message || data?.error || `API request failed with status ${res.status}`;
-      throw new ApiError(message, res.status, data?.code || 'HTTP_ERROR', res.status >= 500 || res.status === 429 || res.status === 408);
+      const code = data?.code || (data?.error === 'VALIDATION_ERROR' ? 'VALIDATION_ERROR' : 'HTTP_ERROR');
+      throw new ApiError(
+        message,
+        res.status,
+        code,
+        res.status >= 500 || res.status === 429 || res.status === 408,
+        data?.details
+      );
     }
 
     return data as T;

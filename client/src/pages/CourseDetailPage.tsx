@@ -838,7 +838,6 @@ export const CourseDetailPage: React.FC = () => {
                 borderRadius: 'var(--radius-md)',
                 overflow: 'hidden',
                 marginBottom: 16,
-                position: 'relative',
                 border: '1px solid var(--border-color)',
                 backgroundColor: 'var(--slate-100)',
               }}>
@@ -847,15 +846,6 @@ export const CourseDetailPage: React.FC = () => {
                   alt={course.title}
                   style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block' }}
                 />
-                <div style={{
-                  position: 'absolute',
-                  top: 10,
-                  left: 10,
-                }}>
-                  <span style={{ backgroundColor: 'rgba(15, 23, 42, 0.85)', color: '#FFFFFF', padding: '3px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.72rem', fontWeight: 700 }}>
-                    {course.level}
-                  </span>
-                </div>
               </div>
 
               <div style={{ marginBottom: 14 }}>

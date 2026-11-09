@@ -387,7 +387,7 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                 className="group cursor-pointer glass-card rounded-2xl overflow-hidden flex flex-col justify-between h-full hover:shadow-elevated"
               >
                 <div>
-                  {/* Thumbnail Stage with Badges */}
+                  {/* Thumbnail Stage (Clean image with zero overlays) */}
                   <div className="relative aspect-[16/10] overflow-hidden bg-slate-100 dark:bg-slate-800">
                     <img
                       src={course.thumbnailUrl}
@@ -395,58 +395,57 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                       loading="lazy"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
-
-                    {/* Top Badges */}
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-slate-900/85 backdrop-blur-md text-white border border-white/10">
-                        {course.level}
-                      </span>
-                      {course.price === 0 ? (
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/90 text-white backdrop-blur-md shadow-sm">
-                          Free Syllabus
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-white/95 dark:bg-slate-900/90 text-slate-900 dark:text-white backdrop-blur-md shadow-sm">
-                          ${course.price}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Bottom Metadata inside thumbnail */}
-                    {course.institutionName && (
-                      <div className="absolute bottom-2.5 left-3 right-3 flex items-center gap-1.5 text-white/90 text-xs font-semibold truncate">
-                        <Building2 className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
-                        <span className="truncate">{course.institutionName}</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Body Content */}
-                  <div className="p-5">
-                    {/* Category & Rating Bar */}
-                    <div className="flex items-center justify-between gap-2 mb-2.5">
-                      <span className="text-[11px] font-bold tracking-wider uppercase text-indigo-600 dark:text-indigo-400">
-                        {course.category}
-                      </span>
-                      <div className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span>{(course.rating || 5.0).toFixed(1)}</span>
-                        <span className="text-slate-400 font-normal">
-                          ({course.ratingCount || 1})
-                        </span>
+                  <div className="p-5 flex-1 flex flex-col justify-between">
+                    <div>
+                      {/* Category, Level & Rating Bar */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] font-bold tracking-wider uppercase text-indigo-600 dark:text-indigo-400">
+                            {course.category}
+                          </span>
+                          {course.level && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                              {course.level}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span>{(course.rating || 5.0).toFixed(1)}</span>
+                          <span className="text-slate-400 font-normal">
+                            ({course.ratingCount || 1})
+                          </span>
+                        </div>
                       </div>
+
+                      {/* Course Title */}
+                      <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-snug group-hover:text-indigo-600 transition-colors line-clamp-2 mb-2">
+                        {course.title}
+                      </h3>
+
+                      {/* Tagline / Abstract */}
+                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-3">
+                        {course.tagline}
+                      </p>
                     </div>
 
-                    {/* Course Title */}
-                    <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-snug group-hover:text-indigo-600 transition-colors line-clamp-2 mb-2">
-                      {course.title}
-                    </h3>
-
-                    {/* Tagline / Abstract */}
-                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-4">
-                      {course.tagline}
-                    </p>
+                    {/* Institution & Tuition Row */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                      {course.institutionName ? (
+                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium truncate">
+                          <Building2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          <span className="truncate">{course.institutionName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">Accredited Syllabus</span>
+                      )}
+                      <span className="font-bold text-slate-900 dark:text-white shrink-0 ml-2">
+                        {course.price === 0 ? 'Free' : `$${course.price}`}
+                      </span>
+                    </div>
                   </div>
                 </div>
 

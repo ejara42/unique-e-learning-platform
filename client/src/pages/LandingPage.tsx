@@ -314,44 +314,12 @@ export const LandingPage: React.FC = () => {
                 boxShadow: 'var(--shadow-md)',
                 backgroundColor: 'var(--slate-100)',
               }}>
-                <div style={{ position: 'relative', width: '100%', aspectRatio: '16/10' }}>
+                <div style={{ width: '100%', aspectRatio: '16/10', overflow: 'hidden' }}>
                   <img 
                     src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=1000&q=80" 
                     alt="University students collaborating in academic session" 
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    padding: '16px 20px',
-                    background: 'linear-gradient(to top, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.4) 60%, transparent 100%)',
-                    color: '#FFFFFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}>
-                    <div>
-                      <div style={{ fontSize: '0.76rem', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
-                        National Higher Education Network
-                      </div>
-                      <div style={{ fontWeight: 700, fontSize: '0.98rem' }}>
-                        Addis Ababa University & Regional Partner Campuses
-                      </div>
-                    </div>
-                    <div style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                      backdropFilter: 'blur(4px)',
-                      padding: '4px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      color: '#E2E8F0',
-                    }}>
-                      Verified Active
-                    </div>
-                  </div>
                 </div>
 
                 {/* Sub-strip with live platform indicators */}

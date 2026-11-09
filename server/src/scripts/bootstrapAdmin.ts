@@ -1,4 +1,3 @@
-import readline from 'readline';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,96 +9,6 @@ export interface BootstrapOptions {
   password?: string;
   fullName?: string;
   preserveConnection?: boolean;
-}
-
-export function askPrompt(question: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
-}
-
-export function askSecret(promptText: string): Promise<string> {
-  return new Promise((resolve) => {
-    if (!process.stdin.isTTY) {
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      });
-      rl.question(promptText, (answer) => {
-        rl.close();
-        resolve(answer.trim());
-      });
-      return;
-    }
-
-    process.stdout.write(promptText);
-    let secret = '';
-
-    const wasRaw = process.stdin.isRaw;
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    process.stdin.setEncoding('utf8');
-
-    const onData = (chunk: string) => {
-      for (const char of chunk) {
-        if (char === '\n' || char === '\r' || char === '\u0004') {
-          process.stdin.setRawMode(wasRaw || false);
-          process.stdin.pause();
-          process.stdin.removeListener('data', onData);
-          process.stdout.write('\n');
-          resolve(secret.trim());
-          return;
-        } else if (char === '\u0003') {
-          process.stdin.setRawMode(wasRaw || false);
-          process.stdin.pause();
-          process.stdin.removeListener('data', onData);
-          process.stdout.write('\n');
-          process.exit(130);
-        } else if (char === '\b' || char === '\x7f') {
-          if (secret.length > 0) {
-            secret = secret.slice(0, -1);
-            process.stdout.write('\b \b');
-          }
-        } else {
-          secret += char;
-          process.stdout.write('*');
-        }
-      }
-    };
-
-    process.stdin.on('data', onData);
-  });
-}
-
-export function parseArgs(): BootstrapOptions {
-  const args = process.argv.slice(2);
-  const options: BootstrapOptions = {};
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--email' && args[i + 1]) {
-      options.email = args[i + 1];
-      i++;
-    } else if (args[i] === '--name' && args[i + 1]) {
-      options.fullName = args[i + 1];
-      i++;
-    } else if (args[i] === '--password') {
-      console.error(
-        '\n❌ Security Violation: Passing passwords via command-line arguments (--password) is prohibited.\n' +
-        '   Command line arguments are captured in OS process tables (ps, Task Manager) and shell history.\n' +
-        '   Please enter your password securely via the interactive masked prompt or supply INITIAL_ADMIN_PASSWORD in your environment.\n'
-      );
-      process.exit(1);
-    }
-  }
-
-  return options;
 }
 
 export function validatePasswordPolicy(password: string): { valid: boolean; reason?: string } {
@@ -172,12 +81,10 @@ export async function bootstrapPlatformAdmin(opts?: BootstrapOptions): Promise<{
 
   try {
     // 5. Safety Gate: Ensure no superadmin already exists
-    const existingAdmin = (await UserModel.findOne({
-      $or: [{ globalRole: 'PLATFORM_SUPERADMIN' }, { activeRole: 'PLATFORM_ADMIN' }]
-    }).lean()) as any;
+    const existingAdmin = (await UserModel.findOne({}).lean()) as any;
 
     if (existingAdmin) {
-      const abortMsg = `Aborted: Platform SuperAdmin already exists (${existingAdmin.email}). The bootstrap routine can only initialize the first root administrator.`;
+      const abortMsg = `Aborted: The database already contains a user (${existingAdmin.email}). Bootstrap requires an empty user collection.`;
       console.warn(`⚠️  ${abortMsg}`);
       if (!opts?.preserveConnection) {
         await disconnectMongoDB();
@@ -251,42 +158,14 @@ export async function bootstrapPlatformAdmin(opts?: BootstrapOptions): Promise<{
   }
 }
 
-// CLI Execution entrypoint with interactive prompting
+// CLI-only bootstrap. Credentials must be supplied through the process environment.
 if (require.main === module) {
   (async () => {
     try {
-      const cliArgs = parseArgs();
-
-      let email = cliArgs.email || process.env.INITIAL_ADMIN_EMAIL;
-      let fullName = cliArgs.fullName || process.env.INITIAL_ADMIN_NAME;
-      let password = process.env.INITIAL_ADMIN_PASSWORD;
-
-      // If interactive TTY session and missing email, prompt for it
-      if (!email && process.stdin.isTTY) {
-        console.log('--- Enter SuperAdmin Credentials ---');
-        email = await askPrompt('Administrator Email: ');
-      }
-
-      if (!fullName && process.stdin.isTTY) {
-        const inputName = await askPrompt('Full Name [Platform Administrator]: ');
-        fullName = inputName || 'Platform Administrator';
-      }
-
-      // If missing password and interactive TTY, prompt securely with mask
-      if (!password && process.stdin.isTTY) {
-        const pass1 = await askSecret('Administrator Password (masked): ');
-        const pass2 = await askSecret('Confirm Password: ');
-        if (pass1 !== pass2) {
-          console.error('\n❌ Error: Passwords do not match.');
-          process.exit(1);
-        }
-        password = pass1;
-      }
-
       const res = await bootstrapPlatformAdmin({
-        email,
-        fullName,
-        password,
+        email: process.env.INITIAL_ADMIN_EMAIL,
+        fullName: process.env.INITIAL_ADMIN_NAME,
+        password: process.env.INITIAL_ADMIN_PASSWORD,
       });
 
       process.exit(res.success ? 0 : 1);

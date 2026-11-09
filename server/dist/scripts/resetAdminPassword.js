@@ -4,11 +4,59 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resetAdminCredentials = resetAdminCredentials;
+const readline_1 = __importDefault(require("readline"));
 const mongoConnection_1 = require("../data/mongoConnection");
 const models_1 = require("../models");
 const bootstrapAdmin_1 = require("./bootstrapAdmin");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const uuid_1 = require("uuid");
+function askPrompt(question) {
+    const prompt = readline_1.default.createInterface({ input: process.stdin, output: process.stdout });
+    return new Promise(resolve => prompt.question(question, answer => {
+        prompt.close();
+        resolve(answer.trim());
+    }));
+}
+function askSecret(question) {
+    if (!process.stdin.isTTY || !process.stdin.setRawMode) {
+        return askPrompt(question);
+    }
+    return new Promise(resolve => {
+        process.stdout.write(question);
+        let secret = '';
+        const previousRawMode = process.stdin.isRaw;
+        process.stdin.setRawMode(true);
+        process.stdin.resume();
+        process.stdin.setEncoding('utf8');
+        const onData = (chunk) => {
+            for (const char of chunk) {
+                if (char === '\n' || char === '\r') {
+                    process.stdin.setRawMode(previousRawMode || false);
+                    process.stdin.pause();
+                    process.stdin.removeListener('data', onData);
+                    process.stdout.write('\n');
+                    resolve(secret);
+                    return;
+                }
+                if (char === '\u0003') {
+                    process.stdin.setRawMode(previousRawMode || false);
+                    process.stdin.pause();
+                    process.stdin.removeListener('data', onData);
+                    process.exit(130);
+                }
+                if (char === '\b' || char === '\x7f') {
+                    secret = secret.slice(0, -1);
+                    process.stdout.write('\b \b');
+                }
+                else {
+                    secret += char;
+                    process.stdout.write('*');
+                }
+            }
+        };
+        process.stdin.on('data', onData);
+    });
+}
 async function resetAdminCredentials() {
     console.log('\n===============================================================');
     console.log('🔑 EDUSPHERE: PLATFORM SUPERADMIN CREDENTIAL RESET');
@@ -32,9 +80,9 @@ async function resetAdminCredentials() {
     console.log(` - Full Name: ${admin.fullName}`);
     console.log(` - Current Registered Email: ${admin.email}\n`);
     // Prompt for email (allows fixing typos)
-    const inputEmail = await (0, bootstrapAdmin_1.askPrompt)(`Enter correct email [${admin.email}]: `);
+    const inputEmail = await askPrompt(`Enter correct email [${admin.email}]: `);
     const newEmail = (inputEmail || admin.email).trim().toLowerCase();
-    const inputName = await (0, bootstrapAdmin_1.askPrompt)(`Enter full name [${admin.fullName}]: `);
+    const inputName = await askPrompt(`Enter full name [${admin.fullName}]: `);
     const newFullName = (inputName || admin.fullName).trim();
     // Email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,8 +92,8 @@ async function resetAdminCredentials() {
         process.exit(1);
     }
     // Prompt for new password
-    const pass1 = await (0, bootstrapAdmin_1.askSecret)('Enter new secure password (min 12 chars, upper/lower/digit/symbol): ');
-    const pass2 = await (0, bootstrapAdmin_1.askSecret)('Confirm new password: ');
+    const pass1 = await askSecret('Enter new secure password (min 12 chars, upper/lower/digit/symbol): ');
+    const pass2 = await askSecret('Confirm new password: ');
     if (pass1 !== pass2) {
         console.error('\n❌ Error: Passwords do not match.');
         await (0, mongoConnection_1.disconnectMongoDB)();

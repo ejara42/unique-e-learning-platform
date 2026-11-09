@@ -26,6 +26,14 @@ interface AuthPageProps {
   initialMode?: 'signin' | 'signup';
 }
 
+const isStrongPassword = (value: string) =>
+  value.length >= 12 &&
+  value.length <= 128 &&
+  /[a-z]/.test(value) &&
+  /[A-Z]/.test(value) &&
+  /[0-9]/.test(value) &&
+  /[^A-Za-z0-9]/.test(value);
+
 export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) => {
   const { loginUser, registerUser, setCurrentPage, t, isRTL } = useApp();
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>(initialMode);
@@ -55,7 +63,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail || !forgotEmail.includes('@')) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail.trim())) {
       setErrorMsg('Please enter a valid email address');
       return;
     }
@@ -63,7 +71,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
     setSuccessMsg('');
     setIsLoading(true);
     try {
-      const res = await api.forgotPassword(forgotEmail);
+      const res = await api.forgotPassword(forgotEmail.trim().toLowerCase());
       setSuccessMsg(res.message || 'If an account exists, recovery instructions have been dispatched.');
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to dispatch password reset request.');
@@ -78,8 +86,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
       setErrorMsg('Please enter the security token from your email.');
       return;
     }
-    if (newPassword.length < 8) {
-      setErrorMsg('Password must be at least 8 characters long.');
+    if (!isStrongPassword(newPassword)) {
+      setErrorMsg('Use at least 12 characters with uppercase and lowercase letters, a number, and a symbol.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -124,15 +132,26 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !signUpEmail.trim() || !signUpPassword.trim()) {
-      setErrorMsg('Please enter your full name, email, and password');
+    if (fullName.trim().length < 2) {
+      setFieldErrors({ fullName: 'Name must be at least 2 characters in length' });
+      setErrorMsg('Please correct the highlighted fields.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signUpEmail.trim())) {
+      setFieldErrors({ email: 'A valid email address is required' });
+      setErrorMsg('Please correct the highlighted fields.');
+      return;
+    }
+    if (!isStrongPassword(signUpPassword)) {
+      setFieldErrors({ password: 'Use at least 12 characters with uppercase and lowercase letters, a number, and a symbol.' });
+      setErrorMsg('Please correct the highlighted fields.');
       return;
     }
     setErrorMsg('');
     setFieldErrors({});
     setIsLoading(true);
     try {
-      await registerUser(fullName, signUpEmail, signUpPassword, selectedRole, institutionName);
+      await registerUser(fullName.trim(), signUpEmail.trim().toLowerCase(), signUpPassword, selectedRole, institutionName);
     } catch (err: any) {
       if (err.details && Array.isArray(err.details)) {
         const map: Record<string, string> = {};
@@ -527,7 +546,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
-                New Password * (minimum 8 characters)
+                New Password * (minimum 12 characters; include upper/lowercase, a number, and a symbol)
               </label>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
@@ -538,7 +557,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   placeholder="Enter new password"
                   className="input-field"
                   style={{ paddingLeft: 42, height: 46 }}
-                  minLength={8}
+                  minLength={12}
+                  maxLength={128}
                   required
                 />
               </div>
@@ -557,7 +577,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   placeholder="Re-type new password"
                   className="input-field"
                   style={{ paddingLeft: 42, height: 46 }}
-                  minLength={8}
+                  minLength={12}
+                  maxLength={128}
                   required
                 />
               </div>
@@ -598,6 +619,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   placeholder={t.emailPlaceholder}
                   className="input-field"
                   style={{ paddingLeft: 42, height: 46 }}
+                  maxLength={255}
                   required
                 />
               </div>
@@ -701,6 +723,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   placeholder={t.fullNamePlaceholder}
                   className="input-field"
                   style={{ paddingLeft: 42, height: 46 }}
+                  minLength={2}
+                  maxLength={100}
                   required
                 />
               </div>
@@ -724,6 +748,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   placeholder={t.emailPlaceholder}
                   className="input-field"
                   style={{ paddingLeft: 42, height: 46 }}
+                  maxLength={255}
                   required
                 />
               </div>
@@ -747,6 +772,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   placeholder={t.passwordPlaceholder}
                   className="input-field"
                   style={{ paddingLeft: 42, height: 46 }}
+                  minLength={12}
+                  maxLength={128}
                   required
                 />
               </div>
@@ -769,7 +796,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   style={{ height: 46 }}
                 >
                   <option value="STUDENT">{t.roleStudent}</option>
-                  <option value="INSTRUCTOR">{t.roleTeacher}</option>
                   <option value="INDEPENDENT_LEARNER">{t.roleIndependent}</option>
                 </select>
               </div>

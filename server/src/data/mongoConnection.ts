@@ -1,18 +1,5 @@
 import mongoose from 'mongoose';
 import { config } from '../config';
-import { db } from './db';
-import {
-  TenantModel,
-  UserModel,
-  CourseModel,
-  EnrollmentModel,
-  AssessmentModel,
-  SubmissionModel,
-  CertificateModel,
-  AdmissionModel,
-  AuditLogModel,
-  LiveSessionModel
-} from '../models';
 
 export interface MongoConnectionState {
   isConnected: boolean;
@@ -74,12 +61,6 @@ export async function connectMongoDB(customUri?: string): Promise<boolean> {
 
     console.log(`[EduSphere DB] Connected to MongoDB: ${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`);
 
-    // Production Isolation: Never automatically seed mock/demo data into production databases!
-    // In local development/testing, demo fixtures can be loaded via SEED_DEMO_DATA=true.
-    if (!config.isProduction && process.env.SEED_DEMO_DATA === 'true') {
-      await seedInitialMongoData();
-    }
-
     return true;
   } catch (err: any) {
     connectionState.isConnected = false;
@@ -91,7 +72,7 @@ export async function connectMongoDB(customUri?: string): Promise<boolean> {
       throw new Error(`Production MongoDB connection failure: ${err.message}`);
     }
 
-    console.warn(`[EduSphere DB] MongoDB unavailable (${err.message}). Active dual-mode fallback to persistent in-memory repository.`);
+    console.error(`[EduSphere DB] MongoDB unavailable (${err.message}). Database-backed operations will fail closed.`);
     return false;
   }
 }
@@ -101,76 +82,5 @@ export async function disconnectMongoDB(): Promise<void> {
     await mongoose.disconnect();
     connectionState.isConnected = false;
     console.log('[EduSphere DB] Disconnected from MongoDB');
-  }
-}
-
-/**
- * Idempotent seeder: Seeds database only if collections are empty.
- * Never overwrites or deletes existing records!
- */
-export async function seedInitialMongoData(): Promise<void> {
-  if (!connectionState.isConnected) return;
-
-  try {
-    // 1. Tenants
-    const tenantCount = await TenantModel.countDocuments();
-    if (tenantCount === 0 && db.tenants.length > 0) {
-      await TenantModel.insertMany(db.tenants);
-      console.log(`[EduSphere Seeder] Seeded ${db.tenants.length} tenants into MongoDB`);
-    }
-
-    // 2. Users
-    const userCount = await UserModel.countDocuments();
-    if (userCount === 0 && db.users.length > 0) {
-      await UserModel.insertMany(db.users);
-      console.log(`[EduSphere Seeder] Seeded ${db.users.length} users into MongoDB`);
-    }
-
-    // 3. Courses (idempotent upsert so all educational tiers: Primary, School, College, University are seeded)
-    for (const course of db.courses) {
-      await CourseModel.updateOne(
-        { id: course.id },
-        { $set: course },
-        { upsert: true }
-      );
-    }
-    console.log(`[EduSphere Seeder] Synced ${db.courses.length} courses across all education tiers into MongoDB`);
-
-    // 4. Enrollments
-    const enrollmentCount = await EnrollmentModel.countDocuments();
-    if (enrollmentCount === 0 && db.enrollments.length > 0) {
-      await EnrollmentModel.insertMany(db.enrollments);
-      console.log(`[EduSphere Seeder] Seeded ${db.enrollments.length} enrollments into MongoDB`);
-    }
-
-    // 5. Assessments
-    const assessmentCount = await AssessmentModel.countDocuments();
-    if (assessmentCount === 0 && db.assessments.length > 0) {
-      await AssessmentModel.insertMany(db.assessments);
-      console.log(`[EduSphere Seeder] Seeded ${db.assessments.length} assessments into MongoDB`);
-    }
-
-    // 6. Certificates
-    const certCount = await CertificateModel.countDocuments();
-    if (certCount === 0 && db.certificates.length > 0) {
-      await CertificateModel.insertMany(db.certificates);
-      console.log(`[EduSphere Seeder] Seeded ${db.certificates.length} certificates into MongoDB`);
-    }
-
-    // 7. Audit Logs
-    const auditCount = await AuditLogModel.countDocuments();
-    if (auditCount === 0 && db.auditLogs.length > 0) {
-      await AuditLogModel.insertMany(db.auditLogs);
-      console.log(`[EduSphere Seeder] Seeded ${db.auditLogs.length} audit logs into MongoDB`);
-    }
-
-    // 8. Live Sessions
-    const liveCount = await LiveSessionModel.countDocuments();
-    if (liveCount === 0 && db.liveSessions.length > 0) {
-      await LiveSessionModel.insertMany(db.liveSessions);
-      console.log(`[EduSphere Seeder] Seeded ${db.liveSessions.length} live sessions into MongoDB`);
-    }
-  } catch (err: any) {
-    console.error('[EduSphere Seeder Error]', err.message);
   }
 }

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { UserRole, GlobalRole } from '../types';
+import { repo } from '../data/dbRepository';
 
 export interface AuthenticatedUser {
   id: string;
@@ -11,13 +12,14 @@ export interface AuthenticatedUser {
   globalRole?: GlobalRole;
   authorizedRoles?: UserRole[];
   institutionId?: string | null;
+  tokenVersion?: number;
 }
 
 export interface AuthRequest extends Request {
   user?: AuthenticatedUser;
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ message: 'Unauthorized: Missing or invalid token' });
@@ -25,12 +27,58 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
   }
 
   const token = authHeader.split(' ')[1];
+  let decoded: AuthenticatedUser;
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as AuthenticatedUser;
+    decoded = jwt.verify(token, config.jwtSecret) as AuthenticatedUser;
+  } catch {
+    res.status(401).json({ message: 'Unauthorized: Token expired or invalid' });
+    return;
+  }
+
+  try {
+    const tokenVersion = await repo.getUserTokenVersion(decoded.id);
+    if (tokenVersion === null || (decoded.tokenVersion ?? 0) !== tokenVersion) {
+      res.status(401).json({ message: 'Unauthorized: Session is no longer valid' });
+      return;
+    }
     req.user = decoded;
     next();
   } catch (err) {
+    console.error('[Auth] failed to verify persisted session version:', err);
+    res.status(503).json({ message: 'Authentication service is temporarily unavailable' });
+  }
+}
+
+export async function optionalAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    next();
+    return;
+  }
+  if (!authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ message: 'Unauthorized: Invalid token format' });
+    return;
+  }
+
+  let decoded: AuthenticatedUser;
+  try {
+    decoded = jwt.verify(authHeader.slice(7), config.jwtSecret) as AuthenticatedUser;
+  } catch {
     res.status(401).json({ message: 'Unauthorized: Token expired or invalid' });
+    return;
+  }
+
+  try {
+    const tokenVersion = await repo.getUserTokenVersion(decoded.id);
+    if (tokenVersion === null || (decoded.tokenVersion ?? 0) !== tokenVersion) {
+      res.status(401).json({ message: 'Unauthorized: Session is no longer valid' });
+      return;
+    }
+    req.user = decoded;
+    next();
+  } catch (err) {
+    console.error('[Auth] failed to verify persisted optional session version:', err);
+    res.status(503).json({ message: 'Authentication service is temporarily unavailable' });
   }
 }
 

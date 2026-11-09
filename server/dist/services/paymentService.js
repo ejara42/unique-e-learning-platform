@@ -8,11 +8,10 @@ const stripe_1 = __importDefault(require("stripe"));
 const uuid_1 = require("uuid");
 const dbRepository_1 = require("../data/dbRepository");
 const models_1 = require("../models");
+const mongoConnection_1 = require("../data/mongoConnection");
 class PaymentService {
     stripe;
     webhookSecret;
-    sessions = new Map();
-    processedEventsMemory = new Map();
     constructor() {
         const apiKey = process.env.STRIPE_SECRET_KEY?.trim();
         const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
@@ -24,14 +23,14 @@ class PaymentService {
                 throw new Error('[FATAL] STRIPE_WEBHOOK_SECRET must be configured in production mode.');
             }
         }
-        this.stripe = new stripe_1.default(apiKey || 'sk_test_edusphere_dummy_secret_key_2026', {
+        this.stripe = new stripe_1.default(apiKey || 'sk_test_edusphere_local_tests_only', {
             apiVersion: '2025-01-27.acacia',
         });
-        this.webhookSecret = webhookSecret || 'whsec_edusphere_test_secret_2026';
+        this.webhookSecret = webhookSecret || 'whsec_local_tests_only';
     }
     /**
      * Creates a Stripe Checkout Session with dynamic split payouts (15% platform / 85% instructor)
-     * Strictly in Stripe test mode.
+     * Uses a real Stripe Checkout Session. Test/live behavior is determined by Stripe credentials.
      */
     async createCheckoutSession(options) {
         const { courseId, learnerId, learnerEmail, successUrl, cancelUrl } = options;
@@ -39,26 +38,56 @@ class PaymentService {
         if (!course) {
             throw new Error('Course not found');
         }
-        const priceAmount = (course.price || 49) * 100; // in cents
+        if (!course.isPublished)
+            throw new Error('Course is not available for purchase');
+        if (!Number.isFinite(course.price) || course.price <= 0) {
+            throw new Error('Only paid courses can be checked out');
+        }
+        const apiKey = process.env.STRIPE_SECRET_KEY?.trim();
+        if (!apiKey || apiKey === 'sk_test_edusphere_local_tests_only') {
+            throw new Error('A real STRIPE_SECRET_KEY must be configured before checkout.');
+        }
+        const priceAmount = Math.round(course.price * 100);
         const commissionPct = process.env.STRIPE_COMMISSION_PCT
             ? Math.min(Math.max(parseFloat(process.env.STRIPE_COMMISSION_PCT) / 100, 0.01), 0.50)
             : 0.15; // Default 15% platform commission
         const platformFee = Math.round(priceAmount * commissionPct); // platform commission
         const instructorPayout = priceAmount - platformFee; // instructor payout
-        const sessionId = `cs_test_${(0, uuid_1.v4)().replace(/-/g, '')}`;
-        const session = {
-            sessionId,
-            paymentUrl: `https://checkout.stripe.com/pay/${sessionId}?success_url=${encodeURIComponent(successUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`,
+        const stripeSession = await this.stripe.checkout.sessions.create({
+            mode: 'payment',
+            customer_email: learnerEmail,
+            client_reference_id: learnerId,
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            line_items: [{
+                    quantity: 1,
+                    price_data: {
+                        currency: 'usd',
+                        unit_amount: priceAmount,
+                        product_data: {
+                            name: course.title,
+                            description: course.description.slice(0, 500),
+                        },
+                    },
+                }],
+            metadata: {
+                courseId: course.id,
+                learnerId,
+            },
+        });
+        if (!stripeSession.url)
+            throw new Error('Stripe did not return a Checkout URL.');
+        return {
+            sessionId: stripeSession.id,
+            paymentUrl: stripeSession.url,
             amount: priceAmount,
             currency: 'usd',
             platformFee,
             instructorPayout,
             status: 'PENDING',
-            courseId,
+            courseId: course.id,
             learnerId,
         };
-        this.sessions.set(sessionId, session);
-        return session;
     }
     /**
      * Cryptographically verifies incoming Stripe Webhook using the official Stripe SDK
@@ -97,90 +126,63 @@ class PaymentService {
      */
     async beginEventProcessing(event) {
         const eventId = event.id;
-        // Check in-memory gate (with crash/staleness recovery)
-        const memEntry = this.processedEventsMemory.get(eventId);
-        if (memEntry) {
-            if (memEntry.status === 'COMPLETED') {
-                return { shouldProcess: false, status: 'ALREADY_COMPLETED', reason: 'Event already successfully processed.' };
-            }
-            if (memEntry.status === 'PROCESSING') {
-                const ageMs = Date.now() - memEntry.timestamp;
-                if (ageMs < 60000) {
-                    return { shouldProcess: false, status: 'IN_FLIGHT', reason: 'Event currently in processing by concurrent worker.' };
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB is required to maintain the Stripe webhook idempotency ledger.');
+        try {
+            const existing = await models_1.ProcessedWebhookEventModel.findOne({ eventId });
+            if (existing) {
+                if (existing.status === 'COMPLETED') {
+                    return { shouldProcess: false, status: 'ALREADY_COMPLETED', reason: 'Event already recorded as COMPLETED in ledger.' };
                 }
-                // Stale processing in memory (simulated process crash) - allow recovery
-                memEntry.status = 'PROCESSING';
-                memEntry.timestamp = Date.now();
-                return { shouldProcess: true, status: 'RETRY_ALLOWED', reason: 'Recovering from stale in-flight processing on retry.' };
-            }
-            if (memEntry.status === 'FAILED') {
-                memEntry.status = 'PROCESSING';
-                memEntry.timestamp = Date.now();
-                return { shouldProcess: true, status: 'RETRY_ALLOWED', reason: 'Recovering from prior failure on retry.' };
-            }
-        }
-        if (dbRepository_1.repo.isMongoActive()) {
-            try {
-                const existing = await models_1.ProcessedWebhookEventModel.findOne({ eventId });
-                if (existing) {
-                    if (existing.status === 'COMPLETED') {
-                        this.processedEventsMemory.set(eventId, { status: 'COMPLETED', timestamp: Date.now() });
-                        return { shouldProcess: false, status: 'ALREADY_COMPLETED', reason: 'Event already recorded as COMPLETED in ledger.' };
+                if (existing.status === 'PROCESSING') {
+                    // Check staleness (if older than 60s, prior process likely crashed; allow recovery)
+                    const ageMs = Date.now() - new Date(existing.receivedAt).getTime();
+                    if (ageMs < 60000) {
+                        return { shouldProcess: false, status: 'IN_FLIGHT', reason: 'Concurrent delivery is already in flight.' };
                     }
-                    if (existing.status === 'PROCESSING') {
-                        // Check staleness (if older than 60s, prior process likely crashed; allow recovery)
-                        const ageMs = Date.now() - new Date(existing.receivedAt).getTime();
-                        if (ageMs < 60000) {
-                            return { shouldProcess: false, status: 'IN_FLIGHT', reason: 'Concurrent delivery is already in flight.' };
-                        }
-                    }
-                    // Status is FAILED or stale PROCESSING: Allow retry and update to PROCESSING
-                    existing.status = 'PROCESSING';
-                    existing.receivedAt = new Date().toISOString();
-                    await existing.save();
-                    this.processedEventsMemory.set(eventId, { status: 'PROCESSING', timestamp: Date.now() });
-                    return { shouldProcess: true, status: 'RETRY_ALLOWED', reason: 'Recovering from prior failure or crash on retry.' };
                 }
-                // New Event insertion
-                await models_1.ProcessedWebhookEventModel.create({
-                    eventId,
-                    eventType: event.type,
-                    status: 'PROCESSING',
-                    receivedAt: new Date().toISOString(),
-                    payloadSummary: {
-                        id: event.id,
-                        type: event.type,
-                        created: event.created,
-                    },
-                });
+                // Status is FAILED or stale PROCESSING: Allow retry and update to PROCESSING
+                existing.status = 'PROCESSING';
+                existing.receivedAt = new Date().toISOString();
+                await existing.save();
+                return { shouldProcess: true, status: 'RETRY_ALLOWED', reason: 'Recovering from prior failure or crash on retry.' };
             }
-            catch (err) {
-                if (err.code === 11000) {
-                    return { shouldProcess: false, status: 'IN_FLIGHT', reason: 'Concurrent event creation conflict handled safely.' };
-                }
-                throw err;
-            }
+            // New Event insertion
+            await models_1.ProcessedWebhookEventModel.create({
+                eventId,
+                eventType: event.type,
+                status: 'PROCESSING',
+                receivedAt: new Date().toISOString(),
+                payloadSummary: {
+                    id: event.id,
+                    type: event.type,
+                    created: event.created,
+                },
+            });
         }
-        this.processedEventsMemory.set(eventId, { status: 'PROCESSING', timestamp: Date.now() });
+        catch (err) {
+            if (err.code === 11000) {
+                return { shouldProcess: false, status: 'IN_FLIGHT', reason: 'Concurrent event creation conflict handled safely.' };
+            }
+            throw err;
+        }
         return { shouldProcess: true, status: 'NEW' };
     }
     /**
      * Finalize event as COMPLETED in the ledger
      */
     async markEventCompleted(eventId) {
-        this.processedEventsMemory.set(eventId, { status: 'COMPLETED', timestamp: Date.now() });
-        if (dbRepository_1.repo.isMongoActive()) {
-            await models_1.ProcessedWebhookEventModel.findOneAndUpdate({ eventId }, { status: 'COMPLETED', processedAt: new Date().toISOString() }).catch(() => { });
-        }
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB is required to maintain the Stripe webhook idempotency ledger.');
+        await models_1.ProcessedWebhookEventModel.findOneAndUpdate({ eventId }, { status: 'COMPLETED', processedAt: new Date().toISOString() });
     }
     /**
      * Mark event as FAILED so Stripe retries can safely re-attempt
      */
     async markEventFailed(eventId, errorMessage) {
-        this.processedEventsMemory.set(eventId, { status: 'FAILED', timestamp: Date.now(), errorMessage });
-        if (dbRepository_1.repo.isMongoActive()) {
-            await models_1.ProcessedWebhookEventModel.findOneAndUpdate({ eventId }, { status: 'FAILED', errorMessage }).catch(() => { });
-        }
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB is required to maintain the Stripe webhook idempotency ledger.');
+        await models_1.ProcessedWebhookEventModel.findOneAndUpdate({ eventId }, { status: 'FAILED', errorMessage });
     }
     // Backwards compatibility helper for existing suite
     async registerEventIfNew(event) {
@@ -202,28 +204,25 @@ class PaymentService {
         let platformFee;
         let instructorPayout;
         if (typeof sessionOrId === 'string') {
-            sessionId = sessionOrId;
-            const memSession = this.sessions.get(sessionId);
-            if (!memSession) {
-                throw new Error(`Checkout session ${sessionId} not found`);
-            }
-            memSession.status = 'COMPLETED';
-            courseId = memSession.courseId;
-            learnerId = memSession.learnerId;
-            amount = memSession.amount;
-            platformFee = memSession.platformFee;
-            instructorPayout = memSession.instructorPayout;
+            throw new Error(`Checkout session object is required to process Stripe session ${sessionOrId}`);
         }
         else {
             sessionId = sessionOrId.id;
             courseId = sessionOrId.metadata?.courseId || sessionOrId.client_reference_id;
-            learnerId = sessionOrId.metadata?.learnerId || sessionOrId.customer;
-            amount = sessionOrId.amount_total || 4900;
+            learnerId = sessionOrId.metadata?.learnerId || sessionOrId.client_reference_id;
+            amount = sessionOrId.amount_total;
             platformFee = Math.round(amount * 0.15);
             instructorPayout = amount - platformFee;
+            if (sessionOrId.payment_status !== 'paid' || !Number.isSafeInteger(amount) || amount <= 0) {
+                throw new Error(`Checkout session ${sessionId} is not a paid session with a valid amount.`);
+            }
         }
         if (!courseId || !learnerId) {
             throw new Error(`Session ${sessionId} missing required courseId or learnerId`);
+        }
+        const course = await dbRepository_1.repo.getCourseById(courseId);
+        if (!course || !course.isPublished || Math.round(course.price * 100) !== amount) {
+            throw new Error(`Checkout session ${sessionId} does not match an available course and its current price.`);
         }
         // Idempotency: Verify if enrollment already exists
         const existing = await dbRepository_1.repo.getEnrollmentsByLearner(learnerId);
@@ -256,7 +255,7 @@ class PaymentService {
             id: `log-${(0, uuid_1.v4)().slice(0, 8)}`,
             tenantId: null,
             actorId: learnerId,
-            actorName: 'Paid Student',
+            actorName: learnerId,
             actorRole: 'STUDENT',
             action: 'STRIPE_PAYMENT_ENROLLED',
             resourceType: 'PAYMENT',

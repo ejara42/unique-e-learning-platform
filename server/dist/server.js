@@ -62,6 +62,9 @@ const livekitService_1 = require("./services/livekitService");
 const storageService_1 = require("./services/storageService");
 const emailService_1 = require("./services/emailService");
 const mongoSanitize_1 = require("./middleware/mongoSanitize");
+const dbRepository_1 = require("./data/dbRepository");
+const validate_1 = require("./middleware/validate");
+const schemas_1 = require("./validation/schemas");
 const app = (0, express_1.default)();
 exports.app = app;
 const authRequestWindowMs = 15 * 60 * 1000;
@@ -162,7 +165,7 @@ app.get('/healthz', (_req, res) => {
 // Health check with Database, Multi-Tenant, LiveKit & Transcoding telemetry
 app.get('/api/health', async (req, res) => {
     const livekitTelemetry = await livekitService_1.livekitService.getTelemetry();
-    const transcodingTelemetry = transcodingService_1.transcodingService.getTelemetry();
+    const transcodingTelemetry = await transcodingService_1.transcodingService.getTelemetry();
     const transcodingReadiness = transcodingService_1.transcodingService.getReadiness();
     const isDbHealthy = !config_1.config.isProduction || mongoConnection_1.connectionState.isConnected;
     const isTranscodingHealthy = !config_1.config.isProduction || transcodingReadiness.isReady;
@@ -207,11 +210,21 @@ app.use('/api/support', supportRoutes_1.default);
 app.use('/api/media', mediaRoutes_1.default);
 app.use('/api/search', searchRoutes_1.default);
 // Transcoding & HLS Streaming endpoints
-app.post('/api/transcode/enqueue', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
+app.post('/api/transcode/enqueue', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), (0, validate_1.validateBody)(schemas_1.transcodeRequestSchema), async (req, res) => {
     try {
         const { courseId, lessonId, sourceUrl } = req.body;
-        if (!courseId || !lessonId || !sourceUrl) {
-            res.status(400).json({ message: 'courseId, lessonId, and sourceUrl are required' });
+        const course = await dbRepository_1.repo.getCourseById(courseId);
+        if (!course || !course.modules.some(module => module.lessons.some(lesson => lesson.id === lessonId))) {
+            res.status(404).json({ message: 'Course lesson was not found' });
+            return;
+        }
+        const user = req.user;
+        const isPlatformAdmin = user?.activeRole === 'PLATFORM_ADMIN' && user.globalRole === 'PLATFORM_SUPERADMIN';
+        const canManage = isPlatformAdmin ||
+            (user?.activeRole === 'INSTRUCTOR' && course.instructorId === user.id) ||
+            (user?.activeRole === 'INSTITUTION_ADMIN' && Boolean(user.institutionId && course.tenantId === user.institutionId));
+        if (!canManage) {
+            res.status(403).json({ message: 'Course ownership or offering-institution administration is required.' });
             return;
         }
         const job = await transcodingService_1.transcodingService.enqueueTranscodeJob(courseId, lessonId, sourceUrl, req.user?.institutionId || null);
@@ -221,16 +234,26 @@ app.post('/api/transcode/enqueue', auth_1.requireAuth, (0, auth_1.requireRole)('
         res.status(500).json({ message: 'Failed to enqueue transcoding job', error: err.message });
     }
 });
-app.get('/api/transcode/:jobId', (req, res) => {
-    const job = transcodingService_1.transcodingService.getJobStatus(req.params.jobId);
+app.get('/api/transcode/:jobId', (0, validate_1.validateParams)(schemas_1.transcodeJobParamsSchema), (0, validate_1.validateQuery)(schemas_1.emptyQuerySchema), async (req, res) => {
+    const jobId = req.params.jobId;
+    if (typeof jobId !== 'string') {
+        res.status(400).json({ message: 'Invalid transcode job ID' });
+        return;
+    }
+    const job = await transcodingService_1.transcodingService.getJobStatus(jobId);
     if (!job) {
         res.status(404).json({ message: 'Transcode job not found' });
         return;
     }
     res.json({ job });
 });
-app.get('/api/transcode/hls/:courseId/:lessonId/master.m3u8', (req, res) => {
-    const manifest = transcodingService_1.transcodingService.generateHlsMasterManifest(req.params.courseId, req.params.lessonId);
+app.get('/api/transcode/hls/:courseId/:lessonId/master.m3u8', (0, validate_1.validateParams)(schemas_1.transcodeLessonParamsSchema), (0, validate_1.validateQuery)(schemas_1.emptyQuerySchema), (req, res) => {
+    const { courseId, lessonId } = req.params;
+    if (typeof courseId !== 'string' || typeof lessonId !== 'string') {
+        res.status(400).json({ message: 'Invalid course or lesson ID' });
+        return;
+    }
+    const manifest = transcodingService_1.transcodingService.generateHlsMasterManifest(courseId, lessonId);
     res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
     res.send(manifest);
 });

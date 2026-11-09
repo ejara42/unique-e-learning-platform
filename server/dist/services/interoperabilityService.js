@@ -8,12 +8,9 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const uuid_1 = require("uuid");
 const dbRepository_1 = require("../data/dbRepository");
 const models_1 = require("../models");
+const mongoConnection_1 = require("../data/mongoConnection");
 class InteroperabilityService {
-    ltiStateStore = new Map();
-    consumedNonces = new Set();
     trustedLmsPlatforms = new Map();
-    scormSessionStore = new Map();
-    scormTerminatedSessions = new Set();
     STATE_TTL_MS = 15 * 60 * 1000; // 15 minutes
     // Valid SCORM 1.2 & SCORM 2004 CMI Elements
     validCmiElements = new Set([
@@ -50,22 +47,11 @@ class InteroperabilityService {
         'not attempted',
     ]);
     constructor() {
-        // Register default trusted LMS platforms
-        this.registerTrustedPlatform({
-            issuer: 'https://canvas.instructure.com',
-            clientId: 'edusphere_lti_client',
-            publicKeyOrSecret: process.env.LTI_CANVAS_PUBLIC_KEY || 'edusphere-trusted-lms-canvas-key-2026',
-        });
-        this.registerTrustedPlatform({
-            issuer: 'https://blackboard.edusphere.io',
-            clientId: 'edusphere_lti_client',
-            publicKeyOrSecret: process.env.LTI_BLACKBOARD_PUBLIC_KEY || 'edusphere-trusted-lms-bb-key-2026',
-        });
-        if (process.env.LTI_ISSUER) {
+        if (process.env.LTI_ISSUER && process.env.LTI_CLIENT_ID && process.env.LTI_PUBLIC_KEY) {
             this.registerTrustedPlatform({
                 issuer: process.env.LTI_ISSUER,
-                clientId: process.env.LTI_CLIENT_ID || 'edusphere_lti_client',
-                publicKeyOrSecret: process.env.LTI_KEY || 'edusphere-trusted-lms-env-key-2026',
+                clientId: process.env.LTI_CLIENT_ID,
+                publicKeyOrSecret: process.env.LTI_PUBLIC_KEY,
             });
         }
     }
@@ -78,19 +64,16 @@ class InteroperabilityService {
     /**
      * LTI 1.3 OIDC Initiation: Stores state and nonce to prevent CSRF and replay attacks
      */
-    initiateLtiLogin(iss, loginHint, targetLinkUri) {
+    async initiateLtiLogin(iss, loginHint, targetLinkUri) {
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB persistence is required for LTI state and replay protection.');
+        const platform = this.trustedLmsPlatforms.get(iss);
+        if (!platform)
+            throw new Error(`Untrusted LTI 1.3 issuer: '${iss}'. LMS platform is not registered.`);
         const state = `state_${(0, uuid_1.v4)().slice(0, 16)}`;
         const nonce = `nonce_${(0, uuid_1.v4)().slice(0, 16)}`;
-        this.ltiStateStore.set(state, {
-            state,
-            nonce,
-            iss,
-            createdAt: Date.now(),
-        });
-        if (dbRepository_1.repo.isMongoActive()) {
-            models_1.LtiStateModel.create({ state, nonce, iss }).catch(() => { });
-        }
-        const authRedirectUrl = `${iss}/api/lti/authorize?response_type=id_token&scope=openid&client_id=edusphere_lti_client&redirect_uri=${encodeURIComponent(targetLinkUri)}&login_hint=${encodeURIComponent(loginHint)}&state=${state}&nonce=${nonce}&prompt=none&response_mode=form_post`;
+        await models_1.LtiStateModel.create({ state, nonce, iss });
+        const authRedirectUrl = `${iss}/api/lti/authorize?response_type=id_token&scope=openid&client_id=${encodeURIComponent(platform.clientId)}&redirect_uri=${encodeURIComponent(targetLinkUri)}&login_hint=${encodeURIComponent(loginHint)}&state=${state}&nonce=${nonce}&prompt=none&response_mode=form_post`;
         return { authRedirectUrl, state, nonce };
     }
     /**
@@ -105,23 +88,14 @@ class InteroperabilityService {
         if (!state) {
             throw new Error('Missing required state parameter in LTI 1.3 launch. Possible CSRF attack.');
         }
-        let storedState = this.ltiStateStore.get(state);
-        if (!storedState && dbRepository_1.repo.isMongoActive()) {
-            const doc = await models_1.LtiStateModel.findOne({ state });
-            if (doc) {
-                storedState = {
-                    state: doc.state,
-                    nonce: doc.nonce,
-                    iss: doc.iss,
-                    createdAt: new Date(doc.createdAt).getTime(),
-                };
-            }
-        }
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB persistence is required for LTI state and replay protection.');
+        const storedState = (await models_1.LtiStateModel.findOne({ state }).lean());
         if (!storedState) {
             throw new Error('Invalid or unrecognized LTI 1.3 state parameter. Session may not have originated from this platform.');
         }
         if (Date.now() - storedState.createdAt > this.STATE_TTL_MS) {
-            this.ltiStateStore.delete(state);
+            await models_1.LtiStateModel.deleteOne({ state });
             throw new Error('LTI 1.3 state parameter has expired.');
         }
         // 2. Decode unverified header/payload to resolve Header, Issuer and Audience
@@ -133,6 +107,9 @@ class InteroperabilityService {
         const payload = unverified.payload;
         const tokenIssuer = payload.iss;
         const tokenAudience = Array.isArray(payload.aud) ? payload.aud[0] : payload.aud;
+        if (storedState.iss !== tokenIssuer) {
+            throw new Error('LTI 1.3 state issuer does not match the token issuer.');
+        }
         // Strict algorithm enforcement per LTI 1.3 / IMS Security Framework Profile
         // Rejects 'none' and symmetric algorithms like HS256 to prevent HMAC vs RSA confusion
         const allowedAlgorithms = ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512'];
@@ -145,7 +122,9 @@ class InteroperabilityService {
             throw new Error(`Untrusted LTI 1.3 issuer: '${tokenIssuer}'. LMS platform is not registered.`);
         }
         // 4. Audience / Client ID Validation
-        const expectedClientId = platform ? platform.clientId : (process.env.LTI_CLIENT_ID || 'edusphere_lti_client');
+        const expectedClientId = platform?.clientId;
+        if (!expectedClientId)
+            throw new Error(`No LTI client ID configured for issuer: ${tokenIssuer}`);
         if (tokenAudience !== expectedClientId) {
             throw new Error(`LTI 1.3 audience mismatch. Expected client_id '${expectedClientId}', received '${tokenAudience}'.`);
         }
@@ -180,23 +159,20 @@ class InteroperabilityService {
         if (!decoded.nonce || decoded.nonce !== storedState.nonce) {
             throw new Error('LTI 1.3 nonce mismatch. Token replay or unauthorized launch.');
         }
-        // 7. Replay Protection: Consume state and record nonce (in-memory & cluster-wide atomic lock)
-        if (this.consumedNonces.has(decoded.nonce)) {
+        // 7. Replay Protection: Consume state and record nonce in the durable ledger.
+        if (await models_1.LtiConsumedNonceModel.exists({ nonce: decoded.nonce })) {
             throw new Error('LTI 1.3 token has already been consumed (replay attack detected).');
         }
-        if (dbRepository_1.repo.isMongoActive()) {
-            try {
-                await models_1.LtiConsumedNonceModel.create({ nonce: decoded.nonce, consumedAt: new Date() });
-            }
-            catch (err) {
-                if (err.code === 11000) {
-                    throw new Error('LTI 1.3 token has already been consumed (replay attack detected across cluster).');
-                }
-            }
-            await models_1.LtiStateModel.deleteOne({ state }).catch(() => { });
+        try {
+            await models_1.LtiConsumedNonceModel.create({ nonce: decoded.nonce, consumedAt: new Date() });
         }
-        this.consumedNonces.add(decoded.nonce);
-        this.ltiStateStore.delete(state);
+        catch (err) {
+            if (err.code === 11000) {
+                throw new Error('LTI 1.3 token has already been consumed (replay attack detected across cluster).');
+            }
+            throw err;
+        }
+        await models_1.LtiStateModel.deleteOne({ state });
         // 8. Validate essential IMS LTI 1.3 Advantage Claims
         const messageType = decoded['https://purl.imsglobal.org/spec/lti/claim/message_type'];
         const ltiVersion = decoded['https://purl.imsglobal.org/spec/lti/claim/version'];
@@ -229,10 +205,9 @@ class InteroperabilityService {
     /**
      * SCORM 1.2 / 2004 Runtime API: Session Initialization
      */
-    initializeScormSession(sessionId, learnerId, courseId) {
-        if (this.scormTerminatedSessions.has(sessionId)) {
-            throw new Error('SCORM session has already terminated and cannot be reinitialized.');
-        }
+    async initializeScormSession(sessionId, learnerId, courseId) {
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB persistence is required for SCORM sessions.');
         const initialData = {
             'cmi.core.student_id': learnerId,
             'cmi.core.course_id': courseId,
@@ -245,27 +220,38 @@ class InteroperabilityService {
             'cmi.learner_id': learnerId,
             'cmi.completion_status': 'incomplete',
         };
-        this.scormSessionStore.set(sessionId, initialData);
-        if (dbRepository_1.repo.isMongoActive()) {
-            models_1.ScormSessionModel.findOneAndUpdate({ sessionId }, { sessionId, learnerId, courseId, cmiData: initialData, isCompleted: false }, { upsert: true, new: true }).catch(err => {
-                console.warn(`[SCORM] Mongo session save warning: ${err.message}`);
-            });
+        const existing = await models_1.ScormSessionModel.findOne({ sessionId });
+        if (existing) {
+            if (existing.learnerId !== learnerId || existing.courseId !== courseId) {
+                throw new Error('Forbidden: SCORM session belongs to another learner or course.');
+            }
+            if (existing.isTerminated)
+                throw new Error('SCORM session has already terminated and cannot be reinitialized.');
+            const sessionData = existing.cmiData instanceof Map ? Object.fromEntries(existing.cmiData) : existing.cmiData;
+            return { status: 'true', sessionData };
         }
+        await models_1.ScormSessionModel.create({
+            sessionId,
+            learnerId,
+            courseId,
+            cmiData: initialData,
+            isCompleted: false,
+            isTerminated: false,
+        });
         return { status: 'true', sessionData: initialData };
     }
     /**
      * SCORM 1.2 / 2004: Get Value (with session ownership validation)
      */
-    getScormValue(sessionId, element, requestingLearnerId) {
-        if (this.scormTerminatedSessions.has(sessionId)) {
-            return ''; // SCORM Error 101: Session terminated
-        }
-        const session = this.scormSessionStore.get(sessionId);
-        if (!session) {
-            return ''; // SCORM Error 301: Not initialized
-        }
+    async getScormValue(sessionId, element, requestingLearnerId) {
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB persistence is required for SCORM sessions.');
+        const doc = await models_1.ScormSessionModel.findOne({ sessionId }).lean();
+        if (!doc || doc.isTerminated)
+            return '';
+        const session = doc.cmiData instanceof Map ? Object.fromEntries(doc.cmiData) : doc.cmiData;
         // Session Ownership Verification
-        if (requestingLearnerId && session['cmi.core.student_id'] !== requestingLearnerId) {
+        if (requestingLearnerId && doc.learnerId !== requestingLearnerId) {
             throw new Error('Forbidden: SCORM session belongs to another learner.');
         }
         return session[element] || '';
@@ -273,19 +259,18 @@ class InteroperabilityService {
     /**
      * SCORM 1.2 / 2004: Set Value (with data model & session ownership validation)
      */
-    setScormValue(sessionId, element, value, requestingLearnerId) {
-        if (this.scormTerminatedSessions.has(sessionId)) {
-            return false; // Error: Session terminated
-        }
+    async setScormValue(sessionId, element, value, requestingLearnerId) {
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB persistence is required for SCORM sessions.');
         if (!this.validCmiElements.has(element)) {
             return false; // Error 401: Invalid CMI element
         }
-        const session = this.scormSessionStore.get(sessionId);
-        if (!session) {
-            return false; // Error 301: Not initialized
-        }
+        const doc = await models_1.ScormSessionModel.findOne({ sessionId });
+        if (!doc || doc.isTerminated)
+            return false;
+        const session = doc.cmiData instanceof Map ? Object.fromEntries(doc.cmiData) : { ...doc.cmiData };
         // Session Ownership Verification
-        if (requestingLearnerId && session['cmi.core.student_id'] !== requestingLearnerId) {
+        if (requestingLearnerId && doc.learnerId !== requestingLearnerId) {
             throw new Error('Forbidden: Cannot modify SCORM session belonging to another learner.');
         }
         // Validate lesson_status / completion_status values
@@ -298,6 +283,9 @@ class InteroperabilityService {
             // Mirror to SCORM 2004 alias
             if (element === 'cmi.core.lesson_status')
                 session['cmi.completion_status'] = normalizedStatus;
+            doc.cmiData = session;
+            doc.isCompleted = normalizedStatus === 'completed' || normalizedStatus === 'passed';
+            await doc.save();
             return true;
         }
         // Validate score.raw (numeric 0-100)
@@ -308,16 +296,21 @@ class InteroperabilityService {
             }
         }
         session[element] = String(value);
+        doc.cmiData = session;
+        await doc.save();
         return true;
     }
     /**
      * SCORM Commit: Persists current progress
      */
     async commitScormSession(sessionId, requestingLearnerId) {
-        const session = this.scormSessionStore.get(sessionId);
-        if (!session)
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB persistence is required for SCORM sessions.');
+        const doc = await models_1.ScormSessionModel.findOne({ sessionId });
+        if (!doc || doc.isTerminated)
             return false;
-        if (requestingLearnerId && session['cmi.core.student_id'] !== requestingLearnerId) {
+        const session = doc.cmiData instanceof Map ? Object.fromEntries(doc.cmiData) : doc.cmiData;
+        if (requestingLearnerId && doc.learnerId !== requestingLearnerId) {
             throw new Error('Forbidden: Cannot commit SCORM session belonging to another learner.');
         }
         const learnerId = session['cmi.core.student_id'];
@@ -327,34 +320,32 @@ class InteroperabilityService {
         if (isCompleted) {
             await dbRepository_1.repo.updateProgress(courseId, learnerId, 'scorm-lesson-pkg');
         }
-        if (dbRepository_1.repo.isMongoActive()) {
-            try {
-                await models_1.ScormSessionModel.findOneAndUpdate({ sessionId }, { cmiData: session, isCompleted }, { upsert: true });
-            }
-            catch (err) {
-                console.warn(`[SCORM] Mongo commit error: ${err.message}`);
-            }
-        }
+        await models_1.ScormSessionModel.findOneAndUpdate({ sessionId, isTerminated: false }, { cmiData: session, isCompleted });
         return true;
     }
     /**
      * SCORM 1.2 LMSFinish / SCORM 2004 Terminate
      */
     async terminateScormSession(sessionId, requestingLearnerId) {
-        const session = this.scormSessionStore.get(sessionId);
-        if (!session)
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB persistence is required for SCORM sessions.');
+        const session = await models_1.ScormSessionModel.findOne({ sessionId });
+        if (!session || session.isTerminated)
             return false;
-        if (requestingLearnerId && session['cmi.core.student_id'] !== requestingLearnerId) {
+        if (requestingLearnerId && session.learnerId !== requestingLearnerId) {
             throw new Error('Forbidden: Cannot terminate SCORM session belonging to another learner.');
         }
         // Execute final commit before termination
         await this.commitScormSession(sessionId, requestingLearnerId);
         // Mark as terminated; prevents subsequent read/writes
-        this.scormTerminatedSessions.add(sessionId);
-        return true;
+        const result = await models_1.ScormSessionModel.updateOne({ sessionId, isTerminated: false }, { isTerminated: true });
+        return result.modifiedCount === 1;
     }
-    isSessionTerminated(sessionId) {
-        return this.scormTerminatedSessions.has(sessionId);
+    async isSessionTerminated(sessionId) {
+        if (!mongoConnection_1.connectionState.isConnected)
+            throw new Error('MongoDB persistence is required for SCORM sessions.');
+        const session = await models_1.ScormSessionModel.findOne({ sessionId }).select('isTerminated').lean();
+        return session?.isTerminated ?? false;
     }
 }
 exports.InteroperabilityService = InteroperabilityService;

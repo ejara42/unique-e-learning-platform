@@ -137,7 +137,7 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     emailLabel: 'Email Address / Academic ID',
     emailPlaceholder: 'e.g. yourname@domain.edu',
     passwordLabel: 'Secure Password',
-    passwordPlaceholder: 'Minimum 8 characters with numbers & symbols',
+    passwordPlaceholder: 'At least 12 characters with upper/lowercase, number & symbol',
     roleLabel: 'Select Your Academic Role',
     institutionLabel: 'Your School / University / Organization',
     institutionPlaceholder: 'e.g. Regional University, Learning Center...',

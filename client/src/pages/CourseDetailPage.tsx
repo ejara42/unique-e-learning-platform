@@ -656,33 +656,17 @@ export const CourseDetailPage: React.FC = () => {
                   boxShadow: 'var(--shadow-xs)',
                 }}>
                   <div style={{ display: 'flex', gap: 20, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
-                    <img
-                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=240&q=80"
-                      alt={course.instructorName}
-                      style={{
-                        width: 72,
-                        height: 72,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: '1px solid var(--border-color)',
-                      }}
-                    />
                     <div>
                       <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', margin: 0 }}>
                         {course.instructorName}
                       </h3>
-                      <p style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.88rem', margin: '2px 0 4px' }}>
-                        Accredited Faculty Instructor
-                      </p>
-                      <p style={{ color: 'var(--slate-500)', fontSize: '0.82rem', margin: 0 }}>
-                        {course.institutionName || 'Institutional Academic Network'}
-                      </p>
+                      {course.institutionName && (
+                        <p style={{ color: 'var(--slate-500)', fontSize: '0.82rem', margin: '4px 0 0' }}>
+                          {course.institutionName}
+                        </p>
+                      )}
                     </div>
                   </div>
-
-                  <p style={{ color: 'var(--slate-700)', lineHeight: 1.65, fontSize: '0.92rem', margin: 0 }}>
-                    {course.instructorName} is an accredited university faculty member and curriculum director specializing in modern software architecture, high-performance distributed systems, and scalable web platforms. With extensive academic tenure, they oversee structured curricula and verifiable assessments.
-                  </p>
                 </div>
               )}
 

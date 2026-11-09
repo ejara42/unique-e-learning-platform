@@ -1,10 +1,23 @@
 import { Router, Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { interoperabilityService } from '../services/interoperabilityService';
+import { repo } from '../data/dbRepository';
+import { requireAuth, AuthRequest } from '../middleware/auth';
+import { validateBody, validateParams, validateQuery } from '../middleware/validate';
+import {
+  emptyBodySchema,
+  ltiLaunchSchema,
+  ltiLoginSchema,
+  scormGetQuerySchema,
+  scormInitializeSchema,
+  scormSessionParamsSchema,
+  scormSetSchema,
+} from '../validation/schemas';
 
 const router = Router();
 
 // POST /api/interoperability/lti/login - OIDC Initiation
-router.post('/login', (req: Request, res: Response) => {
+router.post('/login', validateBody(ltiLoginSchema), async (req: Request, res: Response) => {
   try {
     const { iss, login_hint, target_link_uri } = req.body;
     if (!iss) {
@@ -12,7 +25,7 @@ router.post('/login', (req: Request, res: Response) => {
       return;
     }
 
-    const { authRedirectUrl, state, nonce } = interoperabilityService.initiateLtiLogin(
+    const { authRedirectUrl, state, nonce } = await interoperabilityService.initiateLtiLogin(
       iss,
       login_hint || 'guest_hint',
       target_link_uri || 'http://localhost:5000/api/interoperability/launch'
@@ -30,7 +43,7 @@ router.post('/login', (req: Request, res: Response) => {
 });
 
 // POST /api/interoperability/lti/launch - LTI 1.3 Advantage Launch Verification (with CSRF State Validation)
-router.post('/launch', async (req: Request, res: Response) => {
+router.post('/launch', validateBody(ltiLaunchSchema), async (req: Request, res: Response) => {
   try {
     const { id_token, state } = req.body;
     if (!id_token) {
@@ -70,56 +83,66 @@ router.get('/jwks', (_req: Request, res: Response) => {
 // ==============================================================================
 
 // POST /api/interoperability/scorm/initialize
-router.post('/scorm/initialize', (req: Request, res: Response) => {
+router.post('/scorm/initialize', requireAuth, validateBody(scormInitializeSchema), async (req: AuthRequest, res: Response) => {
   try {
-    const { sessionId, learnerId, courseId } = req.body;
-    if (!learnerId || !courseId) {
-      res.status(400).json({ success: false, message: 'learnerId and courseId are required' });
+    const { sessionId, courseId } = req.body;
+    if (!req.user?.id) {
+      res.status(401).json({ success: false, message: 'Authenticated learner identity required' });
       return;
     }
-    const session = interoperabilityService.initializeScormSession(
-      sessionId || `scorm-${Date.now()}`,
-      learnerId,
-      courseId
-    );
-    res.json({ success: true, ...session });
+    const enrollments = await repo.getEnrollmentsByLearner(req.user.id);
+    if (!enrollments.some(enrollment => enrollment.courseId === courseId && enrollment.status === 'ENROLLED')) {
+      res.status(403).json({ success: false, message: 'Active course enrollment is required for SCORM access.' });
+      return;
+    }
+    const scormSessionId = sessionId || `scorm-${uuidv4()}`;
+    const session = await interoperabilityService.initializeScormSession(scormSessionId, req.user.id, courseId);
+    res.json({ success: true, sessionId: scormSessionId, ...session });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // GET /api/interoperability/scorm/:sessionId/get?element=cmi.core.lesson_status
-router.get('/scorm/:sessionId/get', (req: Request, res: Response) => {
+router.get('/scorm/:sessionId/get', requireAuth, validateParams(scormSessionParamsSchema), validateQuery(scormGetQuerySchema), async (req: AuthRequest, res: Response) => {
   const { element } = req.query;
   if (!element || typeof element !== 'string') {
     res.status(400).json({ success: false, errorCode: '401', message: 'element query parameter is required' });
     return;
   }
 
-  const value = interoperabilityService.getScormValue(req.params.sessionId as string, element);
-  res.json({ success: true, value });
+  try {
+    const value = await interoperabilityService.getScormValue(req.params.sessionId as string, element, req.user?.id);
+    res.json({ success: true, value });
+  } catch (err: any) {
+    res.status(err.message.startsWith('Forbidden:') ? 403 : 503).json({ success: false, message: err.message });
+  }
 });
 
 // POST /api/interoperability/scorm/:sessionId/set
-router.post('/scorm/:sessionId/set', (req: Request, res: Response) => {
+router.post('/scorm/:sessionId/set', requireAuth, validateParams(scormSessionParamsSchema), validateBody(scormSetSchema), async (req: AuthRequest, res: Response) => {
   const { element, value } = req.body;
   if (!element || value === undefined) {
     res.status(400).json({ success: false, errorCode: '401', message: 'element and value are required in body' });
     return;
   }
 
-  const success = interoperabilityService.setScormValue(req.params.sessionId as string, element, String(value));
-  if (!success) {
-    res.status(400).json({ success: false, errorCode: '405', message: 'Invalid CMI element or value out of range' });
-    return;
+  try {
+    const success = await interoperabilityService.setScormValue(req.params.sessionId as string, element, String(value), req.user?.id);
+    if (!success) {
+      res.status(400).json({ success: false, errorCode: '405', message: 'Invalid CMI element or value out of range' });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(err.message.startsWith('Forbidden:') ? 403 : 503).json({ success: false, message: err.message });
   }
-  res.json({ success: true });
 });
 
 // POST /api/interoperability/scorm/:sessionId/commit
-router.post('/scorm/:sessionId/commit', async (req: Request, res: Response) => {
+router.post('/scorm/:sessionId/commit', requireAuth, validateParams(scormSessionParamsSchema), validateBody(emptyBodySchema), async (req: AuthRequest, res: Response) => {
   try {
-    const success = await interoperabilityService.commitScormSession(req.params.sessionId as string);
+    const success = await interoperabilityService.commitScormSession(req.params.sessionId as string, req.user?.id);
     res.json({ success });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -127,9 +150,9 @@ router.post('/scorm/:sessionId/commit', async (req: Request, res: Response) => {
 });
 
 // POST /api/interoperability/scorm/:sessionId/finish (LMSFinish / Terminate)
-router.post('/scorm/:sessionId/finish', async (req: Request, res: Response) => {
+router.post('/scorm/:sessionId/finish', requireAuth, validateParams(scormSessionParamsSchema), validateBody(emptyBodySchema), async (req: AuthRequest, res: Response) => {
   try {
-    const success = await interoperabilityService.terminateScormSession(req.params.sessionId as string);
+    const success = await interoperabilityService.terminateScormSession(req.params.sessionId as string, req.user?.id);
     res.json({ success });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

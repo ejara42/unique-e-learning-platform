@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { searchService } from '../search/searchService';
 import { getTenantContext } from '../middleware/tenant';
+import { validateQuery } from '../middleware/validate';
+import { searchCoursesQuerySchema } from '../validation/schemas';
 
 const router = Router();
 
 // GET /api/search/courses - Decoupled Typo-Tolerant, Faceted Search
-router.get('/courses', async (req: Request, res: Response) => {
+router.get('/courses', validateQuery(searchCoursesQuerySchema), async (req: Request, res: Response) => {
   try {
     const {
       q,
@@ -16,11 +18,10 @@ router.get('/courses', async (req: Request, res: Response) => {
       minRating,
       page,
       limit,
-      tenantId,
     } = req.query;
 
     const context = getTenantContext();
-    const effectiveTenant = context.tenantId || (typeof tenantId === 'string' ? tenantId : null);
+    const effectiveTenant = context.tenantId || null;
 
     const results = await searchService.searchCourses({
       query: (q as string) || '',

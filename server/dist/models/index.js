@@ -107,6 +107,7 @@ exports.UserSchema = new mongoose_1.Schema({
         default: ['STUDENT']
     },
     institutionId: { type: String, default: null, index: true },
+    tokenVersion: { type: Number, default: 0, min: 0 },
     security: {
         isEmailVerified: { type: Boolean, default: true },
         twoFactorEnabled: { type: Boolean, default: false }
@@ -292,6 +293,7 @@ exports.ScormSessionSchema = new mongoose_1.Schema({
     courseId: { type: String, required: true, index: true },
     cmiData: { type: Map, of: String, default: {} },
     isCompleted: { type: Boolean, default: false },
+    isTerminated: { type: Boolean, default: false },
 }, { timestamps: true });
 exports.LtiStateSchema = new mongoose_1.Schema({
     state: { type: String, required: true, unique: true, index: true },

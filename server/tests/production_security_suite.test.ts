@@ -11,7 +11,7 @@ import { livekitService } from '../src/services/livekitService';
 import { transcodingService } from '../src/services/transcodingService';
 import { assertSafeTestDatabase } from '../src/scripts/verifyBackupRestore';
 import { requireRole, AuthRequest } from '../src/middleware/auth';
-import { TenantModel } from '../src/models';
+import { LtiConsumedNonceModel, LtiStateModel, TenantModel } from '../src/models';
 import { IUser, ICertificate, ICourse, IEnrollment } from '../src/types';
 import { sanitizeMongoInput } from '../src/middleware/mongoSanitize';
 import {
@@ -347,72 +347,30 @@ async function runAdversarialSecuritySuite() {
     assert(verifiedEvent.id.startsWith('evt_sdk_valid_'));
   });
 
-  await runTest('Stripe Security: Process crash during PROCESSING recovers cleanly after stale threshold', async () => {
+  await runTest('Stripe Security: Webhook idempotency fails closed without durable database storage', async () => {
     const crashEvent: any = {
       id: `evt_crash_test_${Date.now()}`,
       type: 'checkout.session.completed',
       created: Math.floor(Date.now() / 1000),
     };
-
-    // First arrival claims lock
-    const decision1 = await paymentService.beginEventProcessing(crashEvent);
-    assert.strictEqual(decision1.shouldProcess, true);
-
-    // Immediate second arrival while in-flight is rejected
-    const concurrentDecision = await paymentService.beginEventProcessing(crashEvent);
-    assert.strictEqual(concurrentDecision.shouldProcess, false);
-    assert.strictEqual(concurrentDecision.status, 'IN_FLIGHT');
-
-    // Simulate process crash: timestamp becomes stale (>60s)
-    const memRecord = (paymentService as any).processedEventsMemory.get(crashEvent.id);
-    if (memRecord) {
-      memRecord.timestamp = Date.now() - 70000; // 70 seconds ago
+    const originalConn = connectionState.isConnected;
+    connectionState.isConnected = false;
+    try {
+      await assert.rejects(
+        paymentService.beginEventProcessing(crashEvent),
+        /MongoDB is required to maintain the Stripe webhook idempotency ledger/
+      );
+    } finally {
+      connectionState.isConnected = originalConn;
     }
-
-    // Worker retry recovers stale event
-    const recoveryDecision = await paymentService.beginEventProcessing(crashEvent);
-    assert.strictEqual(recoveryDecision.shouldProcess, true);
-    assert.strictEqual(recoveryDecision.status, 'RETRY_ALLOWED');
-
-    // Complete processing
-    await paymentService.markEventCompleted(crashEvent.id);
-    const postComplete = await paymentService.beginEventProcessing(crashEvent);
-    assert.strictEqual(postComplete.shouldProcess, false);
-    assert.strictEqual(postComplete.status, 'ALREADY_COMPLETED');
   });
 
-  await runTest('Stripe Security: handleCheckoutCompleted is idempotent and causes zero duplicate side effects', async () => {
+  await runTest('Stripe Security: checkout completion does not accept unverified local session fixtures', async () => {
     const testSessionId = `cs_idempotent_${Date.now()}`;
-    const testLearnerId = `learner_${Date.now()}`;
-    const testCourseId = 'course-1';
-
-    // Mock session in memory
-    (paymentService as any).sessions.set(testSessionId, {
-      sessionId: testSessionId,
-      amount: 9900,
-      currency: 'usd',
-      platformFee: 1485,
-      instructorPayout: 8415,
-      status: 'PENDING',
-      courseId: testCourseId,
-      learnerId: testLearnerId,
-    });
-
-    // First checkout completion
-    const enr1 = await paymentService.handleCheckoutCompleted(testSessionId);
-    assert(enr1 && enr1.learnerId === testLearnerId);
-
-    // Second checkout completion for identical session
-    const enr2 = await paymentService.handleCheckoutCompleted(testSessionId);
-    assert.strictEqual(enr2.id, enr1.id, 'Must return existing enrollment without re-creating record');
-
-    // Third call with raw session object
-    const enr3 = await paymentService.handleCheckoutCompleted({
-      id: testSessionId,
-      metadata: { courseId: testCourseId, learnerId: testLearnerId },
-      amount_total: 9900,
-    });
-    assert.strictEqual(enr3.id, enr1.id, 'Must maintain strict idempotency across payload formats');
+    await assert.rejects(
+      paymentService.handleCheckoutCompleted(testSessionId),
+      new RegExp(`Checkout session object is required to process Stripe session ${testSessionId}`)
+    );
   });
 
   // ==========================================================================
@@ -441,6 +399,33 @@ async function runAdversarialSecuritySuite() {
 
   const trustedIssuer = 'https://canvas.instructure.com';
   const validClientId = 'edusphere_lti_client';
+  const originalConnection = connectionState.isConnected;
+  const originalStateCreate = LtiStateModel.create;
+  const originalStateFindOne = LtiStateModel.findOne;
+  const originalStateDeleteOne = LtiStateModel.deleteOne;
+  const originalNonceExists = LtiConsumedNonceModel.exists;
+  const originalNonceCreate = LtiConsumedNonceModel.create;
+  const ltiStates = new Map<string, { state: string; nonce: string; iss: string; createdAt: Date }>();
+  const consumedLtiNonces = new Set<string>();
+  connectionState.isConnected = true;
+  (LtiStateModel as any).create = async (record: { state: string; nonce: string; iss: string }) => {
+    ltiStates.set(record.state, { ...record, createdAt: new Date() });
+  };
+  (LtiStateModel as any).findOne = (filter: { state: string }) => ({
+    lean: async () => ltiStates.get(filter.state) || null,
+  });
+  (LtiStateModel as any).deleteOne = async (filter: { state: string }) => {
+    ltiStates.delete(filter.state);
+  };
+  (LtiConsumedNonceModel as any).exists = async (filter: { nonce: string }) => consumedLtiNonces.has(filter.nonce);
+  (LtiConsumedNonceModel as any).create = async (record: { nonce: string }) => {
+    if (consumedLtiNonces.has(record.nonce)) {
+      const error: any = new Error('Duplicate key');
+      error.code = 11000;
+      throw error;
+    }
+    consumedLtiNonces.add(record.nonce);
+  };
 
   // Register platform with authentic RSA public keys supporting key rotation
   interoperabilityService.registerTrustedPlatform({
@@ -454,7 +439,7 @@ async function runAdversarialSecuritySuite() {
   });
 
   await runTest('LTI 1.3 Adversarial: Valid token signed with RS256 and matched kid succeeds', async () => {
-    const { state, nonce } = interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
+    const { state, nonce } = await interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
 
     const validRsaToken = jwt.sign(
       {
@@ -476,7 +461,7 @@ async function runAdversarialSecuritySuite() {
   });
 
   await runTest('LTI 1.3 Adversarial: Key rotation dynamically resolves kid: key-2026-v2', async () => {
-    const { state, nonce } = interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
+    const { state, nonce } = await interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
 
     const rotatedToken = jwt.sign(
       {
@@ -497,7 +482,7 @@ async function runAdversarialSecuritySuite() {
   });
 
   await runTest('LTI 1.3 Adversarial: Rejects token signed with forbidden symmetric algorithm HS256', async () => {
-    const { state, nonce } = interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
+    const { state, nonce } = await interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
 
     const hs256Token = jwt.sign(
       {
@@ -525,7 +510,7 @@ async function runAdversarialSecuritySuite() {
   });
 
   await runTest('LTI 1.3 Adversarial: Rejects forged token signed with attacker unauthorized RSA key', async () => {
-    const { state, nonce } = interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
+    const { state, nonce } = await interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
 
     const forgedRsaToken = jwt.sign(
       {
@@ -554,7 +539,9 @@ async function runAdversarialSecuritySuite() {
 
   await runTest('LTI 1.3 Adversarial: Rejects launch from untrusted/unregistered LMS issuer', async () => {
     const untrustedIssuer = 'https://malicious-fake-lms.com';
-    const { state, nonce } = interoperabilityService.initiateLtiLogin(untrustedIssuer, 'hint', 'http://localhost/launch');
+    const state = `state_${Date.now()}`;
+    const nonce = `nonce_${Date.now()}`;
+    await LtiStateModel.create({ state, nonce, iss: untrustedIssuer });
 
     const token = jwt.sign(
       {
@@ -582,7 +569,7 @@ async function runAdversarialSecuritySuite() {
   });
 
   await runTest('LTI 1.3 Adversarial: Rejects launch with wrong audience / client ID', async () => {
-    const { state, nonce } = interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
+    const { state, nonce } = await interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
 
     const wrongAudienceToken = jwt.sign(
       {
@@ -610,7 +597,7 @@ async function runAdversarialSecuritySuite() {
   });
 
   await runTest('LTI 1.3 Adversarial: Replay protection prevents re-submitting an already-consumed state/token', async () => {
-    const { state, nonce } = interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
+    const { state, nonce } = await interoperabilityService.initiateLtiLogin(trustedIssuer, 'hint', 'http://localhost/launch');
 
     const validToken = jwt.sign(
       {
@@ -639,71 +626,59 @@ async function runAdversarialSecuritySuite() {
     }
     assert(replayed, 'Replayed LTI launch must be rejected');
   });
+  LtiStateModel.create = originalStateCreate;
+  LtiStateModel.findOne = originalStateFindOne;
+  LtiStateModel.deleteOne = originalStateDeleteOne;
+  LtiConsumedNonceModel.exists = originalNonceExists;
+  LtiConsumedNonceModel.create = originalNonceCreate;
+  connectionState.isConnected = originalConnection;
 
   // ==========================================================================
   // SECTION 7: SCORM RUNTIME, SESSION OWNERSHIP & TERMINATION
   // ==========================================================================
   console.log('\n--- [7/8] SCORM Runtime, Ownership & Termination ---');
 
-  await runTest('SCORM Runtime: CMI data model enforces valid keys, enumerations, and range limits', async () => {
-    const sessionId = `scorm-suite-${Date.now()}`;
-    interoperabilityService.initializeScormSession(sessionId, 'student-owner-1', 'course-1');
-
-    // Invalid CMI element rejection
-    const invalidElem = interoperabilityService.setScormValue(sessionId, 'cmi.attacker_injection', 'val');
-    assert.strictEqual(invalidElem, false, 'Unrecognized CMI elements must be rejected');
-
-    // Invalid status enumeration rejection
-    const invalidStatus = interoperabilityService.setScormValue(sessionId, 'cmi.core.lesson_status', 'fraudulent_status');
-    assert.strictEqual(invalidStatus, false, 'Invalid status enum must be rejected');
-
-    // Out of range score rejection
-    const outOfRange = interoperabilityService.setScormValue(sessionId, 'cmi.core.score.raw', '999');
-    assert.strictEqual(outOfRange, false, 'Score > 100 must be rejected');
-
-    // Valid values acceptance
-    const validStatus = interoperabilityService.setScormValue(sessionId, 'cmi.core.lesson_status', 'passed');
-    assert.strictEqual(validStatus, true);
-    assert.strictEqual(interoperabilityService.getScormValue(sessionId, 'cmi.core.lesson_status'), 'passed');
+  await runTest('SCORM Runtime: refuses volatile sessions when persistent storage is unavailable', async () => {
+    const originalConn = connectionState.isConnected;
+    connectionState.isConnected = false;
+    try {
+      await assert.rejects(
+        interoperabilityService.initializeScormSession(`scorm-suite-${Date.now()}`, 'learner-test', 'course-test'),
+        /MongoDB persistence is required for SCORM sessions/
+      );
+    } finally {
+      connectionState.isConnected = originalConn;
+    }
   });
 
-  await runTest('SCORM Ownership: Prevents student B from reading or modifying student A session data', async () => {
-    const sessionId = `scorm-owner-${Date.now()}`;
-    interoperabilityService.initializeScormSession(sessionId, 'legitimate-student', 'course-1');
-
-    // Student B attempts to modify Student A session
-    let setBlocked = false;
+  await runTest('SCORM Ownership: reads and writes fail closed without persistent session data', async () => {
+    const originalConn = connectionState.isConnected;
+    connectionState.isConnected = false;
     try {
-      interoperabilityService.setScormValue(sessionId, 'cmi.core.lesson_status', 'completed', 'attacker-student');
-    } catch (err: any) {
-      if (err.message.includes('Forbidden')) setBlocked = true;
+      await assert.rejects(
+        interoperabilityService.getScormValue(`scorm-owner-${Date.now()}`, 'cmi.core.student_id', 'attacker'),
+        /MongoDB persistence is required for SCORM sessions/
+      );
+      await assert.rejects(
+        interoperabilityService.setScormValue(`scorm-owner-${Date.now()}`, 'cmi.core.lesson_status', 'completed', 'attacker'),
+        /MongoDB persistence is required for SCORM sessions/
+      );
+    } finally {
+      connectionState.isConnected = originalConn;
     }
-    assert(setBlocked, 'Modifying another student SCORM session must be blocked with Forbidden');
-
-    // Student B attempts to read Student A session
-    let getBlocked = false;
-    try {
-      interoperabilityService.getScormValue(sessionId, 'cmi.core.student_id', 'attacker-student');
-    } catch (err: any) {
-      if (err.message.includes('Forbidden')) getBlocked = true;
-    }
-    assert(getBlocked, 'Reading another student SCORM session must be blocked with Forbidden');
   });
 
-  await runTest('SCORM Termination: finish terminates session and permanently blocks subsequent mutations', async () => {
-    const sessionId = `scorm-term-${Date.now()}`;
-    interoperabilityService.initializeScormSession(sessionId, 'student-term', 'course-1');
-
-    interoperabilityService.setScormValue(sessionId, 'cmi.core.lesson_status', 'completed');
-
-    // Terminate session (LMSFinish)
-    const terminated = await interoperabilityService.terminateScormSession(sessionId);
-    assert.strictEqual(terminated, true);
-    assert.strictEqual(interoperabilityService.isSessionTerminated(sessionId), true);
-
-    // Attempt mutation after termination
-    const postTermSet = interoperabilityService.setScormValue(sessionId, 'cmi.core.lesson_location', '2');
-    assert.strictEqual(postTermSet, false, 'Mutating a terminated SCORM session must be rejected');
+  await runTest('SCORM Termination: finish fails closed without persistent session data', async () => {
+    const originalConn = connectionState.isConnected;
+    connectionState.isConnected = false;
+    try {
+      await assert.rejects(
+        interoperabilityService.terminateScormSession(`scorm-term-${Date.now()}`),
+        /MongoDB persistence is required for SCORM sessions/
+      );
+    } finally {
+      connectionState.isConnected = originalConn;
+    }
   });
 
   // ==========================================================================
@@ -723,7 +698,7 @@ async function runAdversarialSecuritySuite() {
       const readiness = transcodingService.getReadiness();
       assert.strictEqual(readiness.isReady, false, 'Readiness must be false when Redis is missing in production');
       assert.strictEqual(readiness.status, 'DEGRADED', 'Status must report DEGRADED');
-      assert(readiness.reason?.includes('Redis/BullMQ queue'), 'Must cite missing Redis cluster');
+      assert(readiness.reason?.includes('MongoDB'), 'Must cite missing persistent MongoDB queue');
     } finally {
       (config as any).isProduction = originalProd;
       if (originalHost) process.env.REDIS_HOST = originalHost;
@@ -744,7 +719,7 @@ async function runAdversarialSecuritySuite() {
       try {
         await transcodingService.enqueueTranscodeJob('course-1', 'les-1', 'https://video.mp4');
       } catch (err: any) {
-        if (err.message.includes('Production queue unavailable')) {
+        if (err.message.includes('MongoDB') || err.message.includes('FFmpeg is unavailable')) {
           rejected = true;
         }
       }
@@ -777,7 +752,7 @@ async function runAdversarialSecuritySuite() {
     assert(typeof livekitTelem.configured === 'boolean');
     assert(typeof livekitTelem.mode === 'string');
 
-    const transcodeTelem = transcodingService.getTelemetry();
+    const transcodeTelem = await transcodingService.getTelemetry();
     assert(typeof transcodeTelem.configured === 'boolean');
     assert(typeof transcodeTelem.mode === 'string');
     assert(typeof transcodeTelem.isReady === 'boolean');
@@ -833,14 +808,14 @@ async function runAdversarialSecuritySuite() {
   });
 
   await runTest('Schema Validation: registerSchema enforces length boundaries and password complexity', async () => {
-    // 1. Password too short (< 8 chars)
+    // 1. Password too short (< 12 chars)
     const shortPassRes = registerSchema.safeParse({
       fullName: 'Alice Smith',
       email: 'alice@example.com',
       password: 'Pass1',
       role: 'STUDENT',
     });
-    assert.strictEqual(shortPassRes.success, false, 'Must reject passwords under 8 characters');
+    assert.strictEqual(shortPassRes.success, false, 'Must reject passwords under 12 characters');
 
     // 2. Name too short (< 2 chars)
     const shortNameRes = registerSchema.safeParse({

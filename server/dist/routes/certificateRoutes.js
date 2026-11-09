@@ -4,9 +4,11 @@ const express_1 = require("express");
 const dbRepository_1 = require("../data/dbRepository");
 const cacheService_1 = require("../cache/cacheService");
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/certificates - User certificates
-router.get('/', auth_1.requireAuth, async (req, res) => {
+router.get('/', auth_1.requireAuth, (0, validate_1.validateQuery)(schemas_1.emptyQuerySchema), async (req, res) => {
     try {
         const userId = req.user?.id;
         const userCerts = await dbRepository_1.repo.getCertificates(userId);
@@ -17,7 +19,7 @@ router.get('/', auth_1.requireAuth, async (req, res) => {
     }
 });
 // GET /api/certificates/verify/:code - Public Verification Portal
-router.get('/verify/:code', async (req, res) => {
+router.get('/verify/:code', (0, validate_1.validateParams)(schemas_1.certificateCodeParamsSchema), (0, validate_1.validateQuery)(schemas_1.emptyQuerySchema), async (req, res) => {
     try {
         const code = String(req.params.code);
         const cacheKey = `cert:verify:${code}`;
@@ -62,7 +64,7 @@ router.get('/verify/:code', async (req, res) => {
     }
 });
 // PATCH /api/certificates/:id/revoke - Revoke invalid credential (Protected with Tenant Ownership Check)
-router.patch('/:id/revoke', auth_1.requireAuth, (0, auth_1.requireRole)('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
+router.patch('/:id/revoke', auth_1.requireAuth, (0, auth_1.requireRole)('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), (0, validate_1.validateBody)(schemas_1.certificateRevokeSchema), async (req, res) => {
     try {
         const { reason } = req.body;
         const targetId = req.params.id;

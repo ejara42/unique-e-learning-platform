@@ -3,9 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
 const storageService_1 = require("../services/storageService");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // POST /api/storage/presigned-upload - Request secure presigned upload URL
-router.post('/presigned-upload', auth_1.requireAuth, async (req, res) => {
+router.post('/presigned-upload', auth_1.requireAuth, (0, validate_1.validateBody)(schemas_1.storageUploadSchema), async (req, res) => {
     try {
         const { fileName, fileType, fileSize, category, isPublic } = req.body;
         if (!fileName || !fileType || typeof fileSize !== 'number' || !category) {
@@ -36,7 +38,7 @@ router.post('/presigned-upload', auth_1.requireAuth, async (req, res) => {
     }
 });
 // POST /api/storage/confirm-upload - Confirm file has been transferred to R2
-router.post('/confirm-upload', auth_1.requireAuth, async (req, res) => {
+router.post('/confirm-upload', auth_1.requireAuth, (0, validate_1.validateBody)(schemas_1.storageConfirmSchema), async (req, res) => {
     try {
         const { assetId } = req.body;
         if (!assetId) {
@@ -54,7 +56,7 @@ router.post('/confirm-upload', auth_1.requireAuth, async (req, res) => {
     }
 });
 // GET /api/storage/download/:assetId - Get presigned download URL with tenant isolation
-router.get('/download/:assetId', auth_1.requireAuth, async (req, res) => {
+router.get('/download/:assetId', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.assetIdParamsSchema), async (req, res) => {
     try {
         const assetId = String(req.params.assetId);
         const tenantId = req.user?.institutionId || req.tenant?.tenantId || null;
@@ -75,7 +77,7 @@ router.get('/download/:assetId', auth_1.requireAuth, async (req, res) => {
     }
 });
 // DELETE /api/storage/:assetId - Delete file asset
-router.delete('/:assetId', auth_1.requireAuth, async (req, res) => {
+router.delete('/:assetId', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.assetIdParamsSchema), async (req, res) => {
     try {
         const assetId = String(req.params.assetId);
         const tenantId = req.user?.institutionId || req.tenant?.tenantId || null;

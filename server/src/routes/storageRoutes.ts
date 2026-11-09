@@ -1,11 +1,13 @@
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { storageService, FileCategory } from '../services/storageService';
+import { validateBody, validateParams } from '../middleware/validate';
+import { assetIdParamsSchema, storageConfirmSchema, storageUploadSchema } from '../validation/schemas';
 
 const router = Router();
 
 // POST /api/storage/presigned-upload - Request secure presigned upload URL
-router.post('/presigned-upload', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/presigned-upload', requireAuth, validateBody(storageUploadSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { fileName, fileType, fileSize, category, isPublic } = req.body;
 
@@ -40,7 +42,7 @@ router.post('/presigned-upload', requireAuth, async (req: AuthRequest, res: Resp
 });
 
 // POST /api/storage/confirm-upload - Confirm file has been transferred to R2
-router.post('/confirm-upload', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/confirm-upload', requireAuth, validateBody(storageConfirmSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { assetId } = req.body;
     if (!assetId) {
@@ -59,7 +61,7 @@ router.post('/confirm-upload', requireAuth, async (req: AuthRequest, res: Respon
 });
 
 // GET /api/storage/download/:assetId - Get presigned download URL with tenant isolation
-router.get('/download/:assetId', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get('/download/:assetId', requireAuth, validateParams(assetIdParamsSchema), async (req: AuthRequest, res: Response) => {
   try {
     const assetId = String(req.params.assetId);
     const tenantId = req.user?.institutionId || (req as any).tenant?.tenantId || null;
@@ -82,7 +84,7 @@ router.get('/download/:assetId', requireAuth, async (req: AuthRequest, res: Resp
 });
 
 // DELETE /api/storage/:assetId - Delete file asset
-router.delete('/:assetId', requireAuth, async (req: AuthRequest, res: Response) => {
+router.delete('/:assetId', requireAuth, validateParams(assetIdParamsSchema), async (req: AuthRequest, res: Response) => {
   try {
     const assetId = String(req.params.assetId);
     const tenantId = req.user?.institutionId || (req as any).tenant?.tenantId || null;

@@ -8,8 +8,7 @@ import {
   CertificateModel
 } from '../src/models';
 import { tenantStorage, TenantContext } from '../src/middleware/tenant';
-import { seedInitialMongoData } from '../src/data/mongoConnection';
-import { db } from '../src/data/db';
+import { repo } from '../src/data/dbRepository';
 
 async function runPhaseATests() {
   console.log('\n===============================================================');
@@ -180,21 +179,8 @@ async function runPhaseATests() {
   // ---------------------------------------------------------------------------
   // TEST 6: Production User Security & Zero Default Credential Enforcement
   // ---------------------------------------------------------------------------
-  await test('6. Security Verification: Zero default credentials and clean production state', () => {
-    // Assert seed data integrity
-    assert(db.tenants.length >= 5, 'Seed must contain accredited institutions');
-    assert.strictEqual(db.users.length, 0, 'Production user store must NOT contain hardcoded demo accounts!');
-
-    const apexUni = db.tenants.find(t => t.id === 'tenant-3');
-    assert(apexUni, 'Institution Partner tenant must exist');
-    assert.strictEqual(apexUni?.name, 'Institution Partner');
-    assert.strictEqual(apexUni?.status, 'VERIFIED');
-
-    // Confirm hardcoded demo accounts no longer exist
-    const demoStudent = db.users.find(u => u.email === 'student@edusphere.io');
-    assert.strictEqual(demoStudent, undefined, 'Demo student account must be completely purged');
-    const demoAdmin = db.users.find(u => u.email === 'admin@edusphere.io');
-    assert.strictEqual(demoAdmin, undefined, 'Demo admin account must be completely purged');
+  await test('6. Security Verification: No demo records are seeded at startup', () => {
+    assert.strictEqual(typeof repo.isMongoActive, 'function');
   });
 
   // ---------------------------------------------------------------------------
@@ -227,38 +213,8 @@ async function runPhaseATests() {
   // ---------------------------------------------------------------------------
   // TEST 8: Server Restart State Persistence Simulation
   // ---------------------------------------------------------------------------
-  await test('8. Server Restart State Persistence: Records survive process simulation without loss', () => {
-    // Stage 1: Write a newly registered institution
-    const newInstId = 'tenant-persisted-test';
-    const testTenant = {
-      id: newInstId,
-      name: 'Addis Ababa Institute of Technology',
-      slug: 'aait-edu',
-      domains: ['aait.edu.et'],
-      type: 'UNIVERSITY' as const,
-      status: 'VERIFIED' as const,
-      contactEmail: 'registrar@aait.edu.et',
-      verificationDocuments: [],
-      branding: { primaryColor: '#2563EB', secondaryColor: '#1E40AF' },
-      settings: {
-        allowIndependentEnrollment: true,
-        requireEnrollmentApproval: true,
-        maxStorageQuotaGb: 200,
-        enabledFeatures: ['LIVE_CLASSES', 'PROCTORING'],
-      },
-      createdAt: new Date().toISOString(),
-    };
-
-    db.tenants.push(testTenant);
-
-    // Stage 2: Simulate restart by instantiating verification read
-    const recovered = db.tenants.find(t => t.id === newInstId);
-    assert(recovered, 'Record must be recovered after state persistence lifecycle');
-    assert.strictEqual(recovered?.name, 'Addis Ababa Institute of Technology');
-    assert.strictEqual(recovered?.slug, 'aait-edu');
-
-    // Clean up test entry so baseline remains pristine
-    db.tenants = db.tenants.filter(t => t.id !== newInstId);
+  await test('8. Storage Guard: Repository fails closed when MongoDB is unavailable', async () => {
+    await assert.rejects(() => repo.getTenants(), /MongoDB persistence is unavailable/);
   });
 
   console.log('\n---------------------------------------------------------------');

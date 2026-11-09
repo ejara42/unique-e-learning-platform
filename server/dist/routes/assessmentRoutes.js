@@ -8,7 +8,7 @@ const validate_1 = require("../middleware/validate");
 const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/assessments/:id - Fetch exam questions (strips correct answer keys for integrity)
-router.get('/:id', auth_1.requireAuth, async (req, res) => {
+router.get('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), async (req, res) => {
     try {
         const assessment = await dbRepository_1.repo.getAssessmentById(req.params.id);
         if (!assessment) {
@@ -17,6 +17,18 @@ router.get('/:id', auth_1.requireAuth, async (req, res) => {
         }
         // Tenant isolation verification: Verify course tenant restriction
         const course = await dbRepository_1.repo.getCourseById(assessment.courseId);
+        if (!course || !course.isPublished) {
+            res.status(404).json({ message: 'Assessment course is unavailable' });
+            return;
+        }
+        const userId = req.user?.id || '';
+        const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(userId);
+        const canManageCourse = (req.user?.activeRole === 'PLATFORM_ADMIN' && req.user.globalRole === 'PLATFORM_SUPERADMIN') ||
+            (req.user?.activeRole === 'INSTRUCTOR' && course.instructorId === userId);
+        if (!canManageCourse && !enrollments.some(enrollment => enrollment.courseId === course.id && enrollment.status === 'ENROLLED')) {
+            res.status(403).json({ message: 'Active course enrollment is required to access this assessment.' });
+            return;
+        }
         if (course && course.visibility === 'INSTITUTION_RESTRICTED' && course.tenantId) {
             const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
             const isAuthorizedTenant = req.user?.institutionId === course.tenantId;
@@ -51,7 +63,7 @@ router.get('/:id', auth_1.requireAuth, async (req, res) => {
     }
 });
 // POST /api/assessments/:id/submit - Submit answers and auto-grade
-router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(schemas_1.assessmentSubmissionSchema), async (req, res) => {
+router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), (0, validate_1.validateBody)(schemas_1.assessmentSubmissionSchema), async (req, res) => {
     try {
         const assessment = await dbRepository_1.repo.getAssessmentById(req.params.id);
         if (!assessment) {
@@ -60,6 +72,15 @@ router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(sche
         }
         // Tenant isolation verification: Verify course tenant restriction
         const course = await dbRepository_1.repo.getCourseById(assessment.courseId);
+        if (!course || !course.isPublished) {
+            res.status(404).json({ message: 'Assessment course is unavailable' });
+            return;
+        }
+        const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(req.user?.id || '');
+        if (!enrollments.some(enrollment => enrollment.courseId === course.id && enrollment.status === 'ENROLLED')) {
+            res.status(403).json({ message: 'Active course enrollment is required to submit this assessment.' });
+            return;
+        }
         if (course && course.visibility === 'INSTITUTION_RESTRICTED' && course.tenantId) {
             const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
             const isAuthorizedTenant = req.user?.institutionId === course.tenantId;
@@ -76,6 +97,7 @@ router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(sche
         const learnerId = req.user.id;
         let totalScoreEarned = 0;
         let totalScoreMax = 0;
+        const needsManualReview = assessment.questions.some(question => question.type === 'ESSAY');
         const gradedAnswers = assessment.questions.map(q => {
             totalScoreMax += q.points;
             const submitted = answers?.find((a) => a.questionId === q.id);
@@ -87,9 +109,7 @@ router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(sche
                 }
             }
             else {
-                // Essay / short answer default partial points
-                pointsAwarded = q.points;
-                totalScoreEarned += pointsAwarded;
+                pointsAwarded = 0;
             }
             return {
                 questionId: q.id,
@@ -98,8 +118,8 @@ router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(sche
                 scoreAwarded: pointsAwarded,
             };
         });
-        const percentageScore = totalScoreMax > 0 ? Math.round((totalScoreEarned / totalScoreMax) * 100) : 100;
-        const passed = percentageScore >= assessment.passingScorePct;
+        const percentageScore = totalScoreMax > 0 ? Math.round((totalScoreEarned / totalScoreMax) * 100) : 0;
+        const passed = !needsManualReview && percentageScore >= assessment.passingScorePct;
         const submission = {
             id: `sub-${(0, uuid_1.v4)().slice(0, 8)}`,
             assessmentId: assessment.id,
@@ -113,13 +133,12 @@ router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(sche
             percentageScore,
             passed,
             proctoringFlags: proctoringFlags || [],
-            status: 'GRADED',
+            status: needsManualReview ? 'NEEDS_MANUAL_REVIEW' : 'GRADED',
         };
         await dbRepository_1.repo.createSubmission(submission);
         // If passed, auto-issue digital certificate with SHA-256 seal
         let certificate;
         if (passed) {
-            const course = await dbRepository_1.repo.getCourseById(assessment.courseId);
             const certNumber = `EDU-${new Date().getFullYear()}-${(0, uuid_1.v4)().slice(0, 4).toUpperCase()}-${(0, uuid_1.v4)().slice(0, 4).toUpperCase()}`;
             const verificationHash = require('crypto')
                 .createHash('sha256')
@@ -131,10 +150,10 @@ router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(sche
                 verificationHash,
                 tenantId: course?.tenantId || null,
                 learnerId,
-                learnerName: req.user?.fullName || 'Verified Learner',
+                learnerName: req.user.fullName,
                 courseId: assessment.courseId,
-                courseTitle: course?.title || 'Academic Certification Program',
-                institutionName: course?.institutionName || 'Institution Partner',
+                courseTitle: course.title,
+                institutionName: course.institutionName,
                 issueDate: new Date().toISOString(),
                 gradePercentage: percentageScore,
                 qrCodeData: `https://edusphere.io/verify/${certNumber}`,
@@ -157,7 +176,7 @@ router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(sche
     }
 });
 // POST /api/assessments/:id/telemetry - Telemetry ping for anti-cheating window blur
-router.post('/:id/telemetry', auth_1.requireAuth, async (req, res) => {
+router.post('/:id/telemetry', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), (0, validate_1.validateBody)(schemas_1.assessmentTelemetrySchema), async (req, res) => {
     try {
         const { eventType, details } = req.body;
         await dbRepository_1.repo.createAuditLog({

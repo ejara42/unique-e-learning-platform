@@ -12,7 +12,6 @@ const crypto_1 = __importDefault(require("crypto"));
 const child_process_1 = require("child_process");
 const mongoConnection_1 = require("../data/mongoConnection");
 const jobQueue_1 = require("../queue/jobQueue");
-const redisClient_1 = require("../queue/redisClient");
 const storageService_1 = require("../services/storageService");
 const models_1 = require("../models");
 exports.RENDITIONS = [
@@ -93,15 +92,12 @@ class TranscodeWorker {
         console.log('===============================================================');
         // 1. Verify Database
         await (0, mongoConnection_1.connectMongoDB)();
-        // 2. Verify Redis
-        const redisCheck = await redisClient_1.redisClient.verifyConnection();
-        console.log(`[Worker] Redis Connectivity: ${redisCheck.connected ? 'ONLINE' : 'UNAVAILABLE'} (${redisCheck.host})`);
-        // 3. Verify FFmpeg Binaries
+        // Verify FFmpeg before accepting persistent MongoDB jobs.
         const hasFfmpeg = this.isFfmpegAvailable();
         const hasFfprobe = this.isFfprobeAvailable();
         console.log(`[Worker] FFmpeg Detected: ${hasFfmpeg ? 'YES' : 'NO'}`);
         console.log(`[Worker] FFprobe Detected: ${hasFfprobe ? 'YES' : 'NO'}`);
-        if (!hasFfmpeg && process.env.ALLOW_SIMULATED_TRANSCODE !== 'true') {
+        if (!hasFfmpeg) {
             console.error('[FATAL] FFmpeg binary not found on system PATH. Halting worker.');
             process.exit(1);
         }
@@ -145,25 +141,39 @@ class TranscodeWorker {
             const inputFilePath = path_1.default.join(tempDir, 'source.mp4');
             // 2. Obtain Source Video
             await jobQueue_1.jobQueue.updateProgress({ jobId, progressPercentage: 15, stage: 'DOWNLOADING_SOURCE' });
-            // If sourceUrl is a mock or remote file, download it
-            if (job.sourceUrl.startsWith('http://') || job.sourceUrl.startsWith('https://')) {
-                try {
-                    const res = await fetch(job.sourceUrl);
-                    if (res.ok) {
-                        const arrayBuffer = await res.arrayBuffer();
-                        fs_1.default.writeFileSync(inputFilePath, Buffer.from(arrayBuffer));
+            const sourceUrl = this.validateSourceUrl(job.sourceUrl);
+            const sourceResponse = await fetch(sourceUrl, { redirect: 'error' });
+            if (!sourceResponse.ok || !sourceResponse.body) {
+                throw new Error(`Source download failed with HTTP ${sourceResponse.status}`);
+            }
+            const contentLength = Number(sourceResponse.headers.get('content-length'));
+            if (!Number.isSafeInteger(contentLength) || contentLength <= 0 || contentLength > 1024 * 1024 * 1024) {
+                throw new Error('Video source must declare a positive size no larger than 1 GiB.');
+            }
+            if (!sourceResponse.headers.get('content-type')?.toLowerCase().startsWith('video/')) {
+                throw new Error('Transcode source did not return a video content type.');
+            }
+            const reader = sourceResponse.body.getReader();
+            const sourceFile = await fs_1.default.promises.open(inputFilePath, 'wx');
+            let downloadedBytes = 0;
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done)
+                        break;
+                    downloadedBytes += value.byteLength;
+                    if (downloadedBytes > contentLength || downloadedBytes > 1024 * 1024 * 1024) {
+                        await reader.cancel();
+                        throw new Error('Video source exceeded its declared or maximum allowed size.');
                     }
-                    else {
-                        // Write a valid dummy MP4 container for test simulation if remote sample 404s
-                        fs_1.default.writeFileSync(inputFilePath, Buffer.from([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70]));
-                    }
-                }
-                catch {
-                    fs_1.default.writeFileSync(inputFilePath, Buffer.from([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70]));
+                    await sourceFile.write(value);
                 }
             }
-            else {
-                fs_1.default.writeFileSync(inputFilePath, Buffer.from([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70]));
+            finally {
+                await sourceFile.close();
+            }
+            if (downloadedBytes !== contentLength) {
+                throw new Error('Downloaded video size did not match its declared content length.');
             }
             await jobQueue_1.jobQueue.updateProgress({ jobId, progressPercentage: 30, stage: 'TRANSCODING_HLS' });
             // 3. Generate AES-128 DRM Key Info for Stream Protection
@@ -171,15 +181,7 @@ class TranscodeWorker {
             // 4. Execute FFmpeg if binary is present
             const hasFfmpeg = this.isFfmpegAvailable();
             const outputMasterPlaylistKey = `hls/${job.courseId}/${job.lessonId}/master.m3u8`;
-            if (hasFfmpeg) {
-                // Execute multi-bitrate HLS encoding with AES-128 segment encryption
-                await this.executeFfmpegTranscode(inputFilePath, tempDir, job, drmKeyInfo);
-            }
-            else {
-                // Staging authorized simulation
-                await new Promise((r) => setTimeout(r, 1000));
-                this.writeSimulatedHlsManifests(tempDir, job, drmKeyInfo);
-            }
+            await this.executeFfmpegTranscode(inputFilePath, tempDir, job, drmKeyInfo);
             await jobQueue_1.jobQueue.updateProgress({ jobId, progressPercentage: 80, stage: 'UPLOADING_TO_R2' });
             // 4. Upload generated HLS files to Cloudflare R2
             const uploadedMasterUrl = await this.uploadHlsToR2(tempDir, job.courseId, job.lessonId);
@@ -202,6 +204,19 @@ class TranscodeWorker {
                 console.warn(`[Worker] Temp directory cleanup warning:`, cleanupErr?.message);
             }
         }
+    }
+    validateSourceUrl(source) {
+        const url = new URL(source);
+        if (url.protocol !== 'https:' || url.username || url.password) {
+            throw new Error('Transcode source must be a credential-free HTTPS URL.');
+        }
+        const allowedHosts = [process.env.R2_ENDPOINT, process.env.S3_ENDPOINT, process.env.R2_PUBLIC_DOMAIN]
+            .filter((value) => Boolean(value))
+            .map(value => new URL(value).hostname.toLowerCase());
+        if (!allowedHosts.includes(url.hostname.toLowerCase())) {
+            throw new Error('Transcode source host is not an approved object-storage host.');
+        }
+        return url;
     }
     /**
      * Executes genuine FFmpeg to produce multi-bitrate HLS playlists and .ts chunks
@@ -248,28 +263,6 @@ class TranscodeWorker {
         // Generate Master Playlist
         const masterPlaylistContent = this.generateMasterPlaylist(exports.RENDITIONS);
         fs_1.default.writeFileSync(path_1.default.join(outputDir, 'master.m3u8'), masterPlaylistContent);
-    }
-    writeSimulatedHlsManifests(outputDir, job, drmKeyInfo) {
-        const keyHeader = drmKeyInfo
-            ? `#EXT-X-KEY:METHOD=AES-128,URI="${drmKeyInfo.keyUri}",IV=0x${drmKeyInfo.ivHex}\n`
-            : '';
-        for (const r of exports.RENDITIONS) {
-            const rDir = path_1.default.join(outputDir, r.resolution);
-            if (!fs_1.default.existsSync(rDir))
-                fs_1.default.mkdirSync(rDir, { recursive: true });
-            const content = `#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-TARGETDURATION:6
-#EXT-X-MEDIA-SEQUENCE:0
-${keyHeader}#EXTINF:6.000000,
-${r.resolution}_000.ts
-#EXT-X-ENDLIST
-`;
-            fs_1.default.writeFileSync(path_1.default.join(rDir, `${r.resolution}.m3u8`), content);
-            fs_1.default.writeFileSync(path_1.default.join(rDir, `${r.resolution}_000.ts`), Buffer.from('MOCK_HLS_SEGMENT'));
-        }
-        const masterContent = this.generateMasterPlaylist(exports.RENDITIONS);
-        fs_1.default.writeFileSync(path_1.default.join(outputDir, 'master.m3u8'), masterContent);
     }
     generateMasterPlaylist(renditions) {
         const list = renditions && Array.isArray(renditions) ? renditions : exports.RENDITIONS;

@@ -2,35 +2,36 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { repo } from '../data/dbRepository';
 import { cacheService } from '../cache/cacheService';
-import { getTenantContext } from '../middleware/tenant';
-import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
+import { requireAuth, requireRole, optionalAuth, AuthRequest } from '../middleware/auth';
 import { ICourse, IEnrollment } from '../types';
 import { CourseReviewModel, CourseAnnouncementModel, CourseModel, EnrollmentModel } from '../models';
 import { eventBus } from '../events/eventBus';
-import { validateBody } from '../middleware/validate';
+import { validateBody, validateParams, validateQuery } from '../middleware/validate';
 import {
   createCourseSchema,
   courseReviewSchema,
   courseAnnouncementSchema,
   courseProgressSchema,
+  courseCatalogQuerySchema,
+  emptyBodySchema,
+  emptyQuerySchema,
+  identifierParamsSchema,
 } from '../validation/schemas';
 
 const router = Router();
 
 // GET /api/courses - Catalog listing with search & tenant filtering
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', optionalAuth, validateQuery(courseCatalogQuerySchema), async (req: AuthRequest, res: Response) => {
   try {
-    const { category, search, level, tenantId } = req.query;
-    const context = getTenantContext();
-    const requestedTenantId = typeof tenantId === 'string' ? tenantId : null;
-
-    let effectiveTenant: string | null = context.tenantId || null;
-    if (effectiveTenant === null && requestedTenantId) {
-      effectiveTenant = requestedTenantId;
-    }
-
-    const queryHash = cacheService.hashQuery({ category, search, level, tenantId: effectiveTenant });
-    const cacheKey = `courses:catalog:${effectiveTenant || 'all'}:${queryHash}`;
+    const { category, search, level } = req.query;
+    const effectiveTenant = req.user?.institutionId || null;
+    const filters = {
+      category: typeof category === 'string' ? category : undefined,
+      search: typeof search === 'string' ? search : undefined,
+      level: typeof level === 'string' ? level : undefined,
+    };
+    const queryHash = cacheService.hashQuery({ ...filters, tenantId: effectiveTenant });
+    const cacheKey = `courses:catalog:${effectiveTenant || 'public'}:${queryHash}`;
     const cached = await cacheService.get<{ courses: ICourse[]; total: number }>(cacheKey);
 
     if (cached) {
@@ -39,12 +40,7 @@ router.get('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const courses = await repo.getCourses({
-      category: category as string,
-      search: search as string,
-      level: level as string,
-      tenantId: effectiveTenant,
-    }, effectiveTenant);
+    const courses = await repo.getCourses(filters, effectiveTenant);
 
     const payload = { courses, total: courses.length };
     await cacheService.set(cacheKey, payload, { ttlSeconds: 300, tags: ['courses:catalog'] });
@@ -57,7 +53,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/courses/my-courses - Learner enrolled courses (Mockup 5)
-router.get('/my-courses', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get('/my-courses', requireAuth, validateQuery(emptyQuerySchema), async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id || '';
     const enrollments = await repo.getEnrollmentsByLearner(userId);
@@ -79,27 +75,32 @@ router.get('/my-courses', requireAuth, async (req: AuthRequest, res: Response) =
 });
 
 // GET /api/courses/:id - Course Detail view (Mockup 4)
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', optionalAuth, validateParams(identifierParamsSchema), validateQuery(emptyQuerySchema), async (req: AuthRequest, res: Response) => {
   try {
-    const context = getTenantContext();
-    const cacheKey = `course:detail:${req.params.id}:${context.tenantId || 'global'}`;
+    const course = await repo.getCourseById(req.params.id as string);
+    if (!course || !course.isPublished) {
+      res.status(404).json({ message: 'Course not found' });
+      return;
+    }
+
+    const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN' &&
+      req.user.globalRole === 'PLATFORM_SUPERADMIN';
+    const isOfferingTenantMember = Boolean(
+      req.user?.institutionId &&
+      course.tenantId &&
+      req.user.institutionId === course.tenantId
+    );
+    if (course.visibility !== 'PUBLIC' && !isOfferingTenantMember && !isPlatformAdmin) {
+      res.status(req.user ? 403 : 401).json({ message: 'This course is restricted to its offering institution.' });
+      return;
+    }
+
+    const cacheKey = `course:detail:${req.params.id}:${req.user?.institutionId || 'public'}`;
     const cached = await cacheService.get<any>(cacheKey);
 
     if (cached) {
       res.setHeader('X-Cache-Status', 'HIT');
       res.json(cached);
-      return;
-    }
-
-    const course = await repo.getCourseById(req.params.id as string, context.tenantId);
-
-    if (!course) {
-      res.status(404).json({ message: 'Course not found or access restricted to specific institution.' });
-      return;
-    }
-
-    if (course.visibility === 'INSTITUTION_RESTRICTED' && course.tenantId && context.tenantId && context.tenantId !== course.tenantId) {
-      res.status(403).json({ message: 'Forbidden: This course is restricted to members of the offering institution.' });
       return;
     }
 
@@ -141,7 +142,7 @@ router.post('/', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PL
 
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const institutionId = req.user?.institutionId || null;
-    let institutionName = 'Institution Partner';
+    let institutionName = '';
     if (institutionId) {
       const tenant = await repo.getTenantById(institutionId);
       if (tenant) institutionName = tenant.name;
@@ -153,35 +154,22 @@ router.post('/', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PL
       institutionName,
       title,
       slug: `${slug}-${Date.now().toString().slice(-4)}`,
-      tagline: description ? description.slice(0, 100) + '...' : 'Master new skills with this course.',
-      description: description || 'Comprehensive practical course.',
+      tagline: description ? description.slice(0, 100) : '',
+      description: description || '',
       category,
       level: level || 'All Levels',
-      durationHours: 12,
-      instructorId: req.user?.id || 'unknown',
-      instructorName: req.user?.fullName || 'Faculty Instructor',
-      thumbnailUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+      durationHours: 0,
+      instructorId: req.user?.id || '',
+      instructorName: req.user?.fullName || '',
+      thumbnailUrl: '',
       visibility: visibility || 'PUBLIC',
       price: price || 0,
-      rating: 5.0,
-      ratingCount: 1,
+      rating: 0,
+      ratingCount: 0,
       enrolledCount: 0,
-      isPublished: isPublished !== false,
-      learningOutcomes: [
-        'Understand enterprise distributed architecture principles',
-        'Build scalable APIs with Node.js and MongoDB',
-        'Implement automated grading and verification pipelines',
-      ],
-      modules: modules || [
-        {
-          id: 'mod-1',
-          title: 'Module 1: Introduction & Fundamentals',
-          order: 1,
-          lessons: [
-            { id: 'les-1', title: 'Course Overview & Prerequisites', order: 1, contentType: 'VIDEO', durationMinutes: 15, isFreePreview: true },
-          ],
-        },
-      ],
+      isPublished: isPublished === true,
+      learningOutcomes: [],
+      modules: modules || [],
       completionCriteria: completionCriteria || {
         minimumPassingGradePct: 75,
       },
@@ -204,11 +192,21 @@ router.post('/', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PL
 });
 
 // POST /api/courses/:id/enroll - Enroll active learner
-router.post('/:id/enroll', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/:id/enroll', requireAuth, validateParams(identifierParamsSchema), validateBody(emptyBodySchema), async (req: AuthRequest, res: Response) => {
   try {
     const course = await repo.getCourseById(req.params.id as string);
     if (!course) {
       res.status(404).json({ message: 'Course not found' });
+      return;
+    }
+
+    if (!course.isPublished) {
+      res.status(404).json({ message: 'Course is not available for enrollment' });
+      return;
+    }
+
+    if (course.price > 0) {
+      res.status(402).json({ message: 'Payment is required. Complete checkout before enrollment.' });
       return;
     }
 
@@ -238,7 +236,7 @@ router.post('/:id/enroll', requireAuth, async (req: AuthRequest, res: Response) 
       tenantId: course.tenantId,
       status: 'ENROLLED',
       enrolledAt: new Date().toISOString(),
-      progressPercentage: 10,
+      progressPercentage: 0,
       completedLessonIds: [],
     };
 
@@ -263,7 +261,7 @@ router.post('/:id/enroll', requireAuth, async (req: AuthRequest, res: Response) 
 });
 
 // PATCH /api/courses/:id/progress - Mark lesson complete
-router.patch('/:id/progress', requireAuth, validateBody(courseProgressSchema), async (req: AuthRequest, res: Response) => {
+router.patch('/:id/progress', requireAuth, validateParams(identifierParamsSchema), validateBody(courseProgressSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { lessonId } = req.body;
     const learnerId = req.user?.id || '';
@@ -281,7 +279,7 @@ router.patch('/:id/progress', requireAuth, validateBody(courseProgressSchema), a
 });
 
 // GET /api/courses/:id/reviews - Retrieve student ratings & reviews (WEB-10)
-router.get('/:id/reviews', async (req: Request, res: Response) => {
+router.get('/:id/reviews', validateParams(identifierParamsSchema), validateQuery(emptyQuerySchema), async (req: Request, res: Response) => {
   try {
     const reviews = await CourseReviewModel.find({ courseId: req.params.id as string })
       .sort({ createdAt: -1 })
@@ -294,7 +292,7 @@ router.get('/:id/reviews', async (req: Request, res: Response) => {
 });
 
 // POST /api/courses/:id/reviews - Submit student rating & review (WEB-10)
-router.post('/:id/reviews', requireAuth, validateBody(courseReviewSchema), async (req: AuthRequest, res: Response) => {
+router.post('/:id/reviews', requireAuth, validateParams(identifierParamsSchema), validateBody(courseReviewSchema), async (req: AuthRequest, res: Response) => {
   try {
     const courseId = req.params.id as string;
     const userId = req.user?.id;
@@ -357,7 +355,7 @@ router.post('/:id/reviews', requireAuth, validateBody(courseReviewSchema), async
 });
 
 // GET /api/courses/:id/announcements - Retrieve course announcements (LRN-07)
-router.get('/:id/announcements', async (req: Request, res: Response) => {
+router.get('/:id/announcements', validateParams(identifierParamsSchema), validateQuery(emptyQuerySchema), async (req: Request, res: Response) => {
   try {
     const announcements = await CourseAnnouncementModel.find({ courseId: req.params.id as string })
       .sort({ createdAt: -1 })
@@ -370,7 +368,7 @@ router.get('/:id/announcements', async (req: Request, res: Response) => {
 });
 
 // POST /api/courses/:id/announcements - Publish faculty course announcement (LRN-07)
-router.post('/:id/announcements', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateBody(courseAnnouncementSchema), async (req: AuthRequest, res: Response) => {
+router.post('/:id/announcements', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateParams(identifierParamsSchema), validateBody(courseAnnouncementSchema), async (req: AuthRequest, res: Response) => {
   try {
     const courseId = req.params.id as string;
     const authorId = req.user?.id || '';

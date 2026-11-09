@@ -23,6 +23,9 @@ import { livekitService } from './services/livekitService';
 import { storageService } from './services/storageService';
 import { emailService } from './services/emailService';
 import { mongoSanitize } from './middleware/mongoSanitize';
+import { repo } from './data/dbRepository';
+import { validateBody, validateParams, validateQuery } from './middleware/validate';
+import { emptyQuerySchema, transcodeJobParamsSchema, transcodeLessonParamsSchema, transcodeRequestSchema } from './validation/schemas';
 
 const app = express();
 
@@ -143,7 +146,7 @@ app.get('/healthz', (_req, res) => {
 // Health check with Database, Multi-Tenant, LiveKit & Transcoding telemetry
 app.get('/api/health', async (req, res) => {
   const livekitTelemetry = await livekitService.getTelemetry();
-  const transcodingTelemetry = transcodingService.getTelemetry();
+  const transcodingTelemetry = await transcodingService.getTelemetry();
   const transcodingReadiness = transcodingService.getReadiness();
 
   const isDbHealthy = !config.isProduction || connectionState.isConnected;
@@ -193,13 +196,25 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/search', searchRoutes);
 
 // Transcoding & HLS Streaming endpoints
-app.post('/api/transcode/enqueue', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req: AuthRequest, res) => {
+app.post('/api/transcode/enqueue', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateBody(transcodeRequestSchema), async (req: AuthRequest, res) => {
   try {
     const { courseId, lessonId, sourceUrl } = req.body;
-    if (!courseId || !lessonId || !sourceUrl) {
-      res.status(400).json({ message: 'courseId, lessonId, and sourceUrl are required' });
+    const course = await repo.getCourseById(courseId);
+    if (!course || !course.modules.some(module => module.lessons.some(lesson => lesson.id === lessonId))) {
+      res.status(404).json({ message: 'Course lesson was not found' });
       return;
     }
+
+    const user = req.user;
+    const isPlatformAdmin = user?.activeRole === 'PLATFORM_ADMIN' && user.globalRole === 'PLATFORM_SUPERADMIN';
+    const canManage = isPlatformAdmin ||
+      (user?.activeRole === 'INSTRUCTOR' && course.instructorId === user.id) ||
+      (user?.activeRole === 'INSTITUTION_ADMIN' && Boolean(user.institutionId && course.tenantId === user.institutionId));
+    if (!canManage) {
+      res.status(403).json({ message: 'Course ownership or offering-institution administration is required.' });
+      return;
+    }
+
     const job = await transcodingService.enqueueTranscodeJob(
       courseId,
       lessonId,
@@ -212,8 +227,13 @@ app.post('/api/transcode/enqueue', requireAuth, requireRole('INSTRUCTOR', 'INSTI
   }
 });
 
-app.get('/api/transcode/:jobId', (req, res) => {
-  const job = transcodingService.getJobStatus(req.params.jobId);
+app.get('/api/transcode/:jobId', validateParams(transcodeJobParamsSchema), validateQuery(emptyQuerySchema), async (req, res) => {
+  const jobId = req.params.jobId;
+  if (typeof jobId !== 'string') {
+    res.status(400).json({ message: 'Invalid transcode job ID' });
+    return;
+  }
+  const job = await transcodingService.getJobStatus(jobId);
   if (!job) {
     res.status(404).json({ message: 'Transcode job not found' });
     return;
@@ -221,8 +241,13 @@ app.get('/api/transcode/:jobId', (req, res) => {
   res.json({ job });
 });
 
-app.get('/api/transcode/hls/:courseId/:lessonId/master.m3u8', (req, res) => {
-  const manifest = transcodingService.generateHlsMasterManifest(req.params.courseId, req.params.lessonId);
+app.get('/api/transcode/hls/:courseId/:lessonId/master.m3u8', validateParams(transcodeLessonParamsSchema), validateQuery(emptyQuerySchema), (req, res) => {
+  const { courseId, lessonId } = req.params;
+  if (typeof courseId !== 'string' || typeof lessonId !== 'string') {
+    res.status(400).json({ message: 'Invalid course or lesson ID' });
+    return;
+  }
+  const manifest = transcodingService.generateHlsMasterManifest(courseId, lessonId);
   res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
   res.send(manifest);
 });

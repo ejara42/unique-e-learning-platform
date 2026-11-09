@@ -14,13 +14,16 @@ vi.mock('./api', () => ({
 }));
 
 describe('CertificateVerifyPage', () => {
+  const testId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const testCertificateNumber = `EDU-TEST-${testId}`;
+  const testLearnerName = `Test Learner ${testId}`;
   const mockValidCertificate = {
-    id: 'cert-789',
-    certificateNumber: 'EDU-2026-DIST-8821',
-    studentName: 'Julian Rivers',
-    learnerName: 'Julian Rivers',
-    courseTitle: 'Advanced Distributed Systems & Microservices',
-    institutionName: 'Stanford Center for Professional Development',
+    id: `cert-${testId}`,
+    certificateNumber: testCertificateNumber,
+    studentName: testLearnerName,
+    learnerName: testLearnerName,
+    courseTitle: `Test Course ${testId}`,
+    institutionName: `Test Institution ${testId}`,
     issueDate: '2026-03-15T00:00:00Z',
     verificationHash: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
   };
@@ -66,13 +69,13 @@ describe('CertificateVerifyPage', () => {
     const input = screen.getByPlaceholderText(/Enter unique Certificate Code/i);
     const verifyBtn = screen.getByRole('button', { name: /Verify Credential/i });
 
-    fireEvent.change(input, { target: { value: 'EDU-2026-DIST-8821' } });
+    fireEvent.change(input, { target: { value: testCertificateNumber } });
     fireEvent.click(verifyBtn);
 
     expect(await screen.findByText(/Verified Official Credential • Cryptographically Authenticated/i)).toBeInTheDocument();
-    expect(screen.getByText('Julian Rivers')).toBeInTheDocument();
-    expect(screen.getByText('Advanced Distributed Systems & Microservices')).toBeInTheDocument();
-    expect(screen.getByText('EDU-2026-DIST-8821')).toBeInTheDocument();
+    expect(screen.getByText(testLearnerName)).toBeInTheDocument();
+    expect(screen.getByText(`Test Course ${testId}`)).toBeInTheDocument();
+    expect(screen.getByText(testCertificateNumber)).toBeInTheDocument();
   });
 
   it('displays verification failure alert when invalid certificate code is queried', async () => {

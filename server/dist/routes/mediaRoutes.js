@@ -5,23 +5,40 @@ const auth_1 = require("../middleware/auth");
 const dbRepository_1 = require("../data/dbRepository");
 const models_1 = require("../models");
 const cdnSecurityService_1 = require("../services/cdnSecurityService");
+const validate_1 = require("../middleware/validate");
+const zod_1 = require("zod");
 const router = (0, express_1.Router)();
+const mediaParamsSchema = zod_1.z.object({
+    courseId: zod_1.z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
+    lessonId: zod_1.z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
+}).strict();
+async function hasMediaAccess(req, courseId, lessonId) {
+    const course = await dbRepository_1.repo.getCourseById(courseId);
+    if (!course || !course.isPublished)
+        return false;
+    const lessonExists = course.modules.some(module => module.lessons.some(lesson => lesson.id === lessonId));
+    if (!lessonExists)
+        return false;
+    const user = req.user;
+    if (!user)
+        return false;
+    if (user.activeRole === 'PLATFORM_ADMIN' && user.globalRole === 'PLATFORM_SUPERADMIN')
+        return true;
+    if (user.activeRole === 'INSTRUCTOR')
+        return course.instructorId === user.id;
+    if (user.activeRole === 'INSTITUTION_ADMIN' && user.institutionId)
+        return course.tenantId === user.institutionId;
+    const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(user.id);
+    return enrollments.some(enrollment => enrollment.courseId === courseId && enrollment.status === 'ENROLLED');
+}
 // GET /api/media/hls-key/:courseId/:lessonId - Authenticated DRM AES-128 Key License Broker
-router.get('/hls-key/:courseId/:lessonId', auth_1.requireAuth, async (req, res) => {
+router.get('/hls-key/:courseId/:lessonId', auth_1.requireAuth, (0, validate_1.validateParams)(mediaParamsSchema), async (req, res) => {
     try {
         const courseId = req.params.courseId;
         const lessonId = req.params.lessonId;
-        const userId = req.user?.id;
-        const userRole = req.user?.activeRole || 'STUDENT';
-        // 1. Authorization Barrier: User must be enrolled or course faculty/superadmin
-        const isStaff = ['INSTRUCTOR', 'PLATFORM_ADMIN', 'INSTITUTION_ADMIN'].includes(userRole);
-        if (!isStaff) {
-            const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(userId || '');
-            const isEnrolled = enrollments.some(e => e.courseId === courseId && e.status === 'ENROLLED');
-            if (!isEnrolled) {
-                res.status(403).json({ message: 'Forbidden: Active course enrollment required to obtain video decryption key.' });
-                return;
-            }
+        if (!await hasMediaAccess(req, courseId, lessonId)) {
+            res.status(403).json({ message: 'Forbidden: Enrollment or resource ownership is required for media access.' });
+            return;
         }
         // 2. Fetch AES-128 cryptographic key from persistence
         let drmRecord = null;
@@ -46,20 +63,13 @@ router.get('/hls-key/:courseId/:lessonId', auth_1.requireAuth, async (req, res) 
     }
 });
 // GET /api/media/playback-url/:courseId/:lessonId - Get signed playback URL with token authentication
-router.get('/playback-url/:courseId/:lessonId', auth_1.requireAuth, async (req, res) => {
+router.get('/playback-url/:courseId/:lessonId', auth_1.requireAuth, (0, validate_1.validateParams)(mediaParamsSchema), async (req, res) => {
     try {
         const courseId = req.params.courseId;
         const lessonId = req.params.lessonId;
-        const userId = req.user?.id;
-        const userRole = req.user?.activeRole || 'STUDENT';
-        const isStaff = ['INSTRUCTOR', 'PLATFORM_ADMIN', 'INSTITUTION_ADMIN'].includes(userRole);
-        if (!isStaff) {
-            const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(userId || '');
-            const isEnrolled = enrollments.some(e => e.courseId === courseId && e.status === 'ENROLLED');
-            if (!isEnrolled) {
-                res.status(403).json({ message: 'Forbidden: Active enrollment required for playback token.' });
-                return;
-            }
+        if (!await hasMediaAccess(req, courseId, lessonId)) {
+            res.status(403).json({ message: 'Forbidden: Enrollment or resource ownership is required for media access.' });
+            return;
         }
         const signedUrl = cdnSecurityService_1.cdnSecurityService.generateSignedPlaybackUrl({
             courseId,

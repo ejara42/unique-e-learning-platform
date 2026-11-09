@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { randomUUID } from 'crypto';
 
 const TARGET_URL = (process.env.TARGET_URL || process.env.API_URL || 'http://localhost:5000').replace(/\/+$/, '');
 
@@ -51,7 +52,7 @@ async function runProductionSmokeTests() {
 
   // 4. Public Credential Verification Portal
   await check('Credential verification (/api/certificates/verify/:code) responds deterministically', async () => {
-    const res = await fetch(`${TARGET_URL}/api/certificates/verify/EDU-NON-EXISTENT-CODE`);
+    const res = await fetch(`${TARGET_URL}/api/certificates/verify/SMOKE-${randomUUID()}`);
     assert.strictEqual(res.status, 404, `Expected HTTP 404 for non-existent credential, received ${res.status}`);
     const body: any = await res.json();
     assert.strictEqual(body.valid, false);
@@ -64,12 +65,31 @@ async function runProductionSmokeTests() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fullName: 'Smoke Attacker',
-        email: `smoke-${Date.now()}@test.invalid`,
+        email: `smoke-${randomUUID()}@example.invalid`,
         password: 'Password1234!',
         role: 'PLATFORM_ADMIN',
       }),
     });
-    assert.strictEqual(res.status, 403, `Privileged self-registration must be blocked with HTTP 403, got ${res.status}`);
+    assert([400, 403].includes(res.status), `Privileged self-registration must be rejected, got HTTP ${res.status}`);
+  });
+
+  await check('Registration validation rejects missing names, weak passwords, malformed emails, and extra fields', async () => {
+    const email = `smoke-${randomUUID()}@example.invalid`;
+    const invalidPayloads = [
+      { email, password: 'StrongPassword2026!', role: 'STUDENT' },
+      { fullName: 'Smoke User', email, password: 'weak', role: 'STUDENT' },
+      { fullName: 'Smoke User', email: 'not-an-email', password: 'StrongPassword2026!', role: 'STUDENT' },
+      { fullName: 'Smoke User', email, password: 'StrongPassword2026!', role: 'STUDENT', isAdmin: true },
+    ];
+
+    for (const payload of invalidPayloads) {
+      const res = await fetch(`${TARGET_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      assert.strictEqual(res.status, 400, `Invalid registration input must return HTTP 400, got ${res.status}`);
+    }
   });
 
   // 6. Security Headers Check

@@ -3,13 +3,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const searchService_1 = require("../search/searchService");
 const tenant_1 = require("../middleware/tenant");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/search/courses - Decoupled Typo-Tolerant, Faceted Search
-router.get('/courses', async (req, res) => {
+router.get('/courses', (0, validate_1.validateQuery)(schemas_1.searchCoursesQuerySchema), async (req, res) => {
     try {
-        const { q, category, level, minPrice, maxPrice, minRating, page, limit, tenantId, } = req.query;
+        const { q, category, level, minPrice, maxPrice, minRating, page, limit, } = req.query;
         const context = (0, tenant_1.getTenantContext)();
-        const effectiveTenant = context.tenantId || (typeof tenantId === 'string' ? tenantId : null);
+        const effectiveTenant = context.tenantId || null;
         const results = await searchService_1.searchService.searchCourses({
             query: q || '',
             category: category,

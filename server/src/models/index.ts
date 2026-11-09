@@ -102,6 +102,7 @@ export interface IUserDocument extends Document {
   activeRole: 'PLATFORM_ADMIN' | 'INSTITUTION_ADMIN' | 'INSTRUCTOR' | 'STUDENT' | 'INDEPENDENT_LEARNER';
   authorizedRoles: Array<'PLATFORM_ADMIN' | 'INSTITUTION_ADMIN' | 'INSTRUCTOR' | 'STUDENT' | 'INDEPENDENT_LEARNER'>;
   institutionId?: string | null;
+  tokenVersion: number;
   security: {
     isEmailVerified: boolean;
     twoFactorEnabled: boolean;
@@ -134,6 +135,7 @@ export const UserSchema = new Schema<IUserDocument>({
     default: ['STUDENT']
   },
   institutionId: { type: String, default: null, index: true },
+  tokenVersion: { type: Number, default: 0, min: 0 },
   security: {
     isEmailVerified: { type: Boolean, default: true },
     twoFactorEnabled: { type: Boolean, default: false }
@@ -501,6 +503,7 @@ export interface IScormSessionDocument extends Document {
   courseId: string;
   cmiData: Record<string, string>;
   isCompleted: boolean;
+  isTerminated: boolean;
 }
 
 export const ScormSessionSchema = new Schema<IScormSessionDocument>({
@@ -509,6 +512,7 @@ export const ScormSessionSchema = new Schema<IScormSessionDocument>({
   courseId: { type: String, required: true, index: true },
   cmiData: { type: Map, of: String, default: {} },
   isCompleted: { type: Boolean, default: false },
+  isTerminated: { type: Boolean, default: false },
 }, { timestamps: true });
 
 // ============================================================================
@@ -864,8 +868,6 @@ export const OutboxEventSchema = new Schema<IOutboxEventDocument>({
 OutboxEventSchema.index({ status: 1, createdAt: 1 });
 
 export const OutboxEventModel = mongoose.models.OutboxEvent || mongoose.model<IOutboxEventDocument>('OutboxEvent', OutboxEventSchema);
-
-
 
 
 

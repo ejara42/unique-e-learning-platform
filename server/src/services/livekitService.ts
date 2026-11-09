@@ -52,7 +52,7 @@ export class LiveKitService {
   generateToken(options: LiveKitTokenOptions): { token: string; wsUrl: string; expiresAt: string } {
     const { roomName, participantIdentity, participantName, role, isHost } = options;
 
-    const isPrivileged = isHost || role === 'INSTRUCTOR' || role === 'PLATFORM_ADMIN' || role === 'INSTITUTION_ADMIN';
+    const isPrivileged = Boolean(isHost);
 
     // LiveKit Video Grants payload
     const videoGrant: Record<string, any> = {

@@ -205,18 +205,20 @@ export const MyCoursesPage: React.FC = () => {
                   }}
                 >
                   {/* Course Thumbnail */}
-                  <img 
-                    src={course.thumbnailUrl || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=200&q=80'} 
-                    alt={course.title}
-                    style={{ 
-                      width: 110, 
-                      height: 72, 
-                      borderRadius: 'var(--radius-md)', 
-                      objectFit: 'cover',
-                      flexShrink: 0,
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  />
+                  {course.thumbnailUrl && (
+                    <img
+                      src={course.thumbnailUrl}
+                      alt=""
+                      style={{
+                        width: 110,
+                        height: 72,
+                        borderRadius: 'var(--radius-md)',
+                        objectFit: 'cover',
+                        flexShrink: 0,
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    />
+                  )}
 
                   {/* Course Details & Progress */}
                   <div style={{ flex: '1 1 300px', minWidth: 240 }}>

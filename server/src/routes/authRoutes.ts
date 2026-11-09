@@ -8,7 +8,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { UserRole } from '../types';
 import { SecurityTokenModel, UserModel } from '../models';
 import { emailService } from '../services/emailService';
-import { validateBody } from '../middleware/validate';
+import { validateBody, validateQuery } from '../middleware/validate';
 import {
   loginSchema,
   registerSchema,
@@ -16,6 +16,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   verifyEmailSchema,
+  emptyQuerySchema,
 } from '../validation/schemas';
 
 const router = Router();
@@ -50,6 +51,7 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
       activeRole: user.activeRole,
       authorizedRoles: user.authorizedRoles || [user.activeRole],
       institutionId: user.institutionId,
+      tokenVersion: user.tokenVersion ?? 0,
     };
 
     const token = jwt.sign(tokenPayload, config.jwtSecret, { expiresIn: '7d' });
@@ -95,11 +97,6 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
       return;
     }
 
-    if (password.length < 8) {
-      res.status(400).json({ message: 'Password must be at least 8 characters in length' });
-      return;
-    }
-
     const salt = bcrypt.genSaltSync(12);
     const passwordHash = bcrypt.hashSync(password, salt);
     const newUserRole: UserRole = role === 'INSTRUCTOR' ? 'INSTRUCTOR' : 'STUDENT';
@@ -110,12 +107,12 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
       email: email.toLowerCase().trim(),
       passwordHash,
       fullName: fullName.trim(),
-      avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80`,
       globalRole: 'STANDARD_USER' as const,
       activeRole: newUserRole,
       authorizedRoles,
       institutionId: null,
       security: { isEmailVerified: true, twoFactorEnabled: false },
+      tokenVersion: 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -129,6 +126,7 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
       activeRole: newUser.activeRole,
       authorizedRoles: newUser.authorizedRoles,
       institutionId: newUser.institutionId,
+      tokenVersion: newUser.tokenVersion,
     };
 
     const token = jwt.sign(tokenPayload, config.jwtSecret, { expiresIn: '7d' });
@@ -140,7 +138,6 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
         id: newUser.id,
         email: newUser.email,
         fullName: newUser.fullName,
-        avatarUrl: newUser.avatarUrl,
         activeRole: newUser.activeRole,
         authorizedRoles: newUser.authorizedRoles,
         institutionId: newUser.institutionId,
@@ -152,7 +149,7 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
 });
 
 // GET /api/auth/me - Authenticated User Profile
-router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get('/me', requireAuth, validateQuery(emptyQuerySchema), async (req: AuthRequest, res: Response) => {
   try {
     const user = await repo.getUserById(req.user?.id || '');
     if (!user) {
@@ -169,6 +166,7 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
         activeRole: user.activeRole,
         authorizedRoles: user.authorizedRoles || [user.activeRole],
         institutionId: user.institutionId,
+        tokenVersion: user.tokenVersion ?? 0,
         bio: user.bio,
       },
     });
@@ -233,6 +231,7 @@ router.post('/switch-role', requireAuth, validateBody(switchRoleSchema), async (
       activeRole: updatedUser.activeRole,
       authorizedRoles: updatedUser.authorizedRoles || [updatedUser.activeRole],
       institutionId: updatedUser.institutionId,
+      tokenVersion: updatedUser.tokenVersion ?? 0,
     };
 
     const token = jwt.sign(tokenPayload, config.jwtSecret, { expiresIn: '7d' });
@@ -324,11 +323,19 @@ router.post('/reset-password', validateBody(resetPasswordSchema), async (req: Re
       return;
     }
 
-    // Update in MongoDB
-    if (repo.isMongoActive()) {
-      await UserModel.findOneAndUpdate({ id: user.id }, { $set: { passwordHash } });
+    if (!repo.isMongoActive()) {
+      throw new Error('MongoDB persistence is unavailable; password reset was not applied.');
+    }
+    const updateResult = await UserModel.updateOne(
+      { id: user.id },
+      { $set: { passwordHash }, $inc: { tokenVersion: 1 } }
+    );
+    if (updateResult.matchedCount !== 1) {
+      res.status(404).json({ message: 'Associated user account no longer exists.' });
+      return;
     }
     user.passwordHash = passwordHash;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
 
     // Dispatch security alert without blocking the password reset flow.
     try {

@@ -16,8 +16,13 @@ export function sanitizeMongoInput<T>(target: T): T {
 
   const clean: Record<string, any> = {};
   for (const [key, value] of Object.entries(target)) {
-    // Prohibit keys starting with $ (e.g. $gt, $ne, $where, $regex) or containing . (path traversal)
-    if (key.startsWith('$') || key.includes('.')) {
+    if (
+      key.startsWith('$') ||
+      key.includes('.') ||
+      key === '__proto__' ||
+      key === 'prototype' ||
+      key === 'constructor'
+    ) {
       continue;
     }
     clean[key] = sanitizeMongoInput(value);
@@ -26,15 +31,35 @@ export function sanitizeMongoInput<T>(target: T): T {
   return clean as T;
 }
 
-export function mongoSanitize(req: Request, _res: Response, next: NextFunction): void {
-  if (req.body && typeof req.body === 'object') {
-    req.body = sanitizeMongoInput(req.body);
+function containsUnsafeMongoKey(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some(containsUnsafeMongoKey);
+
+  return Object.entries(value).some(([key, child]) =>
+    key.startsWith('$') ||
+    key.includes('.') ||
+    key === '__proto__' ||
+    key === 'prototype' ||
+    key === 'constructor' ||
+    containsUnsafeMongoKey(child)
+  );
+}
+
+export function mongoSanitize(req: Request, res: Response, next: NextFunction): void {
+  if ([req.body, req.query, req.params].some(containsUnsafeMongoKey)) {
+    res.status(400).json({
+      error: 'VALIDATION_ERROR',
+      message: 'MongoDB operators and unsafe object keys are not allowed',
+    });
+    return;
   }
-  if (req.query && typeof req.query === 'object') {
-    req.query = sanitizeMongoInput(req.query);
-  }
-  if (req.params && typeof req.params === 'object') {
-    req.params = sanitizeMongoInput(req.params);
-  }
+
+  req.body = sanitizeMongoInput(req.body);
+  Object.defineProperty(req, 'query', {
+    configurable: true,
+    enumerable: true,
+    value: sanitizeMongoInput(req.query),
+  });
+  req.params = sanitizeMongoInput(req.params);
   next();
 }

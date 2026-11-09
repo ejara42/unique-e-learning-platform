@@ -59,6 +59,7 @@ export interface IUser {
   activeRole: UserRole;
   authorizedRoles?: UserRole[];
   institutionId?: string | null;
+  tokenVersion?: number;
   security: {
     isEmailVerified: boolean;
     twoFactorEnabled: boolean;

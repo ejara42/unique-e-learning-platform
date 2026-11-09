@@ -1,8 +1,60 @@
+import readline from 'readline';
 import { connectMongoDB, disconnectMongoDB } from '../data/mongoConnection';
 import { UserModel, AuditLogModel } from '../models';
-import { askPrompt, askSecret, validatePasswordPolicy } from './bootstrapAdmin';
+import { validatePasswordPolicy } from './bootstrapAdmin';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+
+function askPrompt(question: string): Promise<string> {
+  const prompt = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => prompt.question(question, answer => {
+    prompt.close();
+    resolve(answer.trim());
+  }));
+}
+
+function askSecret(question: string): Promise<string> {
+  if (!process.stdin.isTTY || !process.stdin.setRawMode) {
+    return askPrompt(question);
+  }
+
+  return new Promise(resolve => {
+    process.stdout.write(question);
+    let secret = '';
+    const previousRawMode = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
+
+    const onData = (chunk: string) => {
+      for (const char of chunk) {
+        if (char === '\n' || char === '\r') {
+          process.stdin.setRawMode(previousRawMode || false);
+          process.stdin.pause();
+          process.stdin.removeListener('data', onData);
+          process.stdout.write('\n');
+          resolve(secret);
+          return;
+        }
+        if (char === '\u0003') {
+          process.stdin.setRawMode(previousRawMode || false);
+          process.stdin.pause();
+          process.stdin.removeListener('data', onData);
+          process.exit(130);
+        }
+        if (char === '\b' || char === '\x7f') {
+          secret = secret.slice(0, -1);
+          process.stdout.write('\b \b');
+        } else {
+          secret += char;
+          process.stdout.write('*');
+        }
+      }
+    };
+
+    process.stdin.on('data', onData);
+  });
+}
 
 export async function resetAdminCredentials() {
   console.log('\n===============================================================');
@@ -104,4 +156,3 @@ if (require.main === module) {
       process.exit(1);
     });
 }
-

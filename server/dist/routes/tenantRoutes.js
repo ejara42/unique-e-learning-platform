@@ -9,7 +9,7 @@ const validate_1 = require("../middleware/validate");
 const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/tenants - List all or filtered by status
-router.get('/', async (req, res) => {
+router.get('/', (0, validate_1.validateQuery)(schemas_1.tenantDirectoryQuerySchema), async (req, res) => {
     try {
         const { status, type } = req.query;
         const cacheKey = `tenants:directory:${status || 'all'}:${type || 'all'}`;
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
     }
 });
 // GET /api/tenants/:id - Get specific institution
-router.get('/:id', async (req, res) => {
+router.get('/:id', (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), async (req, res) => {
     try {
         const tenant = await dbRepository_1.repo.getTenantById(req.params.id);
         if (!tenant) {
@@ -108,7 +108,7 @@ router.post('/register', (0, validate_1.validateBody)(schemas_1.tenantRegistrati
     }
 });
 // PATCH /api/tenants/:id/status - Approve, suspend or reject institution
-router.patch('/:id/status', auth_1.requireAuth, (0, auth_1.requireRole)('PLATFORM_ADMIN'), (0, validate_1.validateBody)(schemas_1.tenantStatusSchema), async (req, res) => {
+router.patch('/:id/status', auth_1.requireAuth, (0, auth_1.requireRole)('PLATFORM_ADMIN'), (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), (0, validate_1.validateBody)(schemas_1.tenantStatusSchema), async (req, res) => {
     try {
         const { status, remarks } = req.body;
         const validStatuses = ['PENDING_VERIFICATION', 'VERIFIED', 'SUSPENDED', 'REJECTED'];

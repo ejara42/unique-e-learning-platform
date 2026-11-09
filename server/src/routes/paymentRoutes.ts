@@ -3,6 +3,8 @@ import { paymentService } from '../services/paymentService';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { config } from '../config';
 import { eventBus } from '../events/eventBus';
+import { validateBody } from '../middleware/validate';
+import { paymentCheckoutSchema } from '../validation/schemas';
 
 const router = Router();
 
@@ -44,7 +46,7 @@ function isSafeRedirectUrl(value: string | undefined, fallback: string): string 
 }
 
 // POST /api/payments/create-checkout-session
-router.post('/create-checkout-session', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/create-checkout-session', requireAuth, validateBody(paymentCheckoutSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { courseId, successUrl, cancelUrl } = req.body;
 
@@ -70,7 +72,7 @@ router.post('/create-checkout-session', requireAuth, async (req: AuthRequest, re
     });
 
     res.json({
-      message: 'Stripe checkout session initialized (Test Mode)',
+      message: 'Stripe checkout session initialized',
       session,
     });
   } catch (err: any) {

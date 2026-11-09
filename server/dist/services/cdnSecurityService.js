@@ -5,11 +5,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cdnSecurityService = exports.CdnSecurityService = void 0;
 const crypto_1 = __importDefault(require("crypto"));
+const config_1 = require("../config");
 class CdnSecurityService {
     cdnSecret;
     cdnHostname;
     constructor() {
-        this.cdnSecret = process.env.CDN_SIGNING_SECRET || 'edusphere-cdn-secret-key-2026';
+        const signingSecret = process.env.CDN_SIGNING_SECRET?.trim();
+        if (config_1.config.isProduction && (!signingSecret || signingSecret.length < 32)) {
+            throw new Error('[FATAL] CDN_SIGNING_SECRET must contain at least 32 characters in production.');
+        }
+        this.cdnSecret = signingSecret || crypto_1.default.randomBytes(32).toString('hex');
         this.cdnHostname = (process.env.CDN_HOSTNAME || 'https://stream.edusphere.io').replace(/\/+$/, '');
     }
     /**
@@ -34,6 +39,8 @@ class CdnSecurityService {
         const [hmac, expiresStr] = token.split('.');
         const expires = parseInt(expiresStr, 10);
         if (isNaN(expires))
+            return false;
+        if (expires <= Math.floor(Date.now() / 1000) || expires > Math.floor(Date.now() / 1000) + 24 * 60 * 60)
             return false;
         const path = `/hls/${courseId}/${lessonId}/master.m3u8`;
         return this.verifySignedUrl(path, hmac, expires);

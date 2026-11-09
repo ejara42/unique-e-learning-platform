@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { FileAssetModel, IFileAssetDocument } from '../models';
-import { config } from '../config';
 import { connectionState } from '../data/mongoConnection';
 
 export type FileCategory = 'COURSE_MATERIAL' | 'IMAGE' | 'VIDEO_SOURCE' | 'TRANSCODED_HLS' | 'VERIFICATION_DOC';
@@ -56,7 +55,6 @@ const ALLOWED_MIME_TYPES: Record<FileCategory, string[]> = {
     'image/jpeg',
     'image/png',
     'image/webp',
-    'image/svg+xml',
     'image/gif',
   ],
   VIDEO_SOURCE: [
@@ -87,7 +85,6 @@ const MAX_FILE_SIZE_BYTES: Record<FileCategory, number> = {
 
 export class StorageService {
   private config: StorageConfig;
-  private inMemoryAssets: Map<string, any> = new Map();
 
   constructor() {
     this.config = {
@@ -117,7 +114,7 @@ export class StorageService {
       bucket: this.config.bucketName,
       region: this.config.region,
       endpointConfigured: Boolean(this.config.endpoint),
-      status: configured ? 'ONLINE' : (config.isProduction ? 'DEGRADED' : 'STANDALONE_SIMULATED'),
+      status: configured ? 'ONLINE' : 'DEGRADED',
     };
   }
 
@@ -135,7 +132,7 @@ export class StorageService {
 
     // 2. Validate File Size
     const maxSize = MAX_FILE_SIZE_BYTES[category];
-    if (fileSize > maxSize) {
+    if (!Number.isSafeInteger(fileSize) || fileSize <= 0 || fileSize > maxSize) {
       throw new Error(`File size ${Math.round(fileSize / (1024 * 1024))}MB exceeds maximum allowable limit of ${Math.round(maxSize / (1024 * 1024))}MB for category '${category}'.`);
     }
 
@@ -144,6 +141,13 @@ export class StorageService {
     const dangerousExtensions = ['exe', 'bat', 'cmd', 'sh', 'php', 'js', 'jar', 'vbs', 'scr', 'msi', 'com'];
     if (dangerousExtensions.includes(ext)) {
       throw new Error(`Security Violation: Uploading executable file type '.${ext}' is prohibited.`);
+    }
+
+    if (!this.isConfigured()) {
+      throw new Error('Object storage is not configured; upload URL generation is unavailable.');
+    }
+    if (!connectionState.isConnected) {
+      throw new Error('MongoDB is required to persist uploaded file metadata.');
     }
 
     // 4. Construct Tenant-Scoped S3/R2 Object Key
@@ -158,7 +162,7 @@ export class StorageService {
       'content-type': fileType,
     });
 
-    // 6. Record Asset in Database & Memory (Dual-Mode)
+    // 6. Persist the asset record before returning a URL.
     const assetRecord = {
       id: assetId,
       key,
@@ -173,15 +177,7 @@ export class StorageService {
       status: 'PENDING',
       createdAt: new Date().toISOString(),
     };
-    this.inMemoryAssets.set(assetId, assetRecord);
-
-    if (connectionState.isConnected) {
-      try {
-        await FileAssetModel.create(assetRecord);
-      } catch (err: any) {
-        console.warn('[StorageService] Asset metadata persistence warning:', err?.message || err);
-      }
-    }
+    await FileAssetModel.create(assetRecord);
 
     const publicUrl = isPublic
       ? (this.config.publicDomain
@@ -206,15 +202,10 @@ export class StorageService {
    * Confirms upload completion and activates file asset
    */
   async confirmUpload(assetId: string, ownerId: string): Promise<any> {
-    let asset: any = null;
-    if (connectionState.isConnected) {
-      try {
-        asset = await FileAssetModel.findOne({ id: assetId });
-      } catch {}
+    if (!connectionState.isConnected) {
+      throw new Error('MongoDB is required to confirm uploaded file metadata.');
     }
-    if (!asset) {
-      asset = this.inMemoryAssets.get(assetId);
-    }
+    const asset: any = await FileAssetModel.findOne({ id: assetId });
     if (!asset) {
       throw new Error(`File asset '${assetId}' not found`);
     }
@@ -222,10 +213,18 @@ export class StorageService {
       throw new Error('Forbidden: Only the asset owner can confirm upload completion');
     }
 
-    asset.status = 'READY';
-    if (connectionState.isConnected && typeof asset.save === 'function') {
-      await asset.save();
+    const headUrl = this.generateSigV4Url('HEAD', asset.key, 300);
+    const objectResponse = await fetch(headUrl, { method: 'HEAD' });
+    if (!objectResponse.ok) {
+      throw new Error(`Uploaded object verification failed with HTTP ${objectResponse.status}`);
     }
+    const actualSize = Number(objectResponse.headers.get('content-length'));
+    if (!Number.isSafeInteger(actualSize) || actualSize !== asset.fileSize) {
+      throw new Error('Uploaded object size does not match the declared file size.');
+    }
+
+    asset.status = 'READY';
+    await asset.save();
     return asset;
   }
 
@@ -235,15 +234,10 @@ export class StorageService {
   async getPresignedDownloadUrl(options: PresignedDownloadOptions): Promise<{ downloadUrl: string; expiresInSeconds: number; fileName: string }> {
     const { assetId, requestingTenantId, requestingUserId, requestingUserRole } = options;
 
-    let asset: any = null;
-    if (connectionState.isConnected) {
-      try {
-        asset = await FileAssetModel.findOne({ id: assetId });
-      } catch {}
+    if (!connectionState.isConnected) {
+      throw new Error('MongoDB is required to authorize file downloads.');
     }
-    if (!asset) {
-      asset = this.inMemoryAssets.get(assetId);
-    }
+    const asset: any = await FileAssetModel.findOne({ id: assetId });
     if (!asset) {
       throw new Error(`File asset '${assetId}' not found`);
     }
@@ -258,7 +252,11 @@ export class StorageService {
     // 4. Same tenant users have access; different tenant users are BLOCKED
     const isOwner = asset.ownerId === requestingUserId;
     const isPlatformAdmin = requestingUserRole === 'PLATFORM_ADMIN' || requestingUserRole === 'PLATFORM_SUPERADMIN';
-    const isSameTenant = asset.tenantId === requestingTenantId;
+    const isSameTenant = Boolean(
+      asset.tenantId &&
+      requestingTenantId &&
+      asset.tenantId === requestingTenantId
+    );
 
     if (!asset.isPublic && !isPlatformAdmin && !isOwner && !isSameTenant) {
       throw new Error(`Forbidden: Cross-tenant file access blocked. Asset belongs to tenant '${asset.tenantId || 'global'}'`);
@@ -278,15 +276,10 @@ export class StorageService {
    * Deletes object from R2 and marks asset as DELETED
    */
   async deleteAsset(assetId: string, requestingTenantId?: string | null, requestingUserId?: string, requestingUserRole?: string): Promise<boolean> {
-    let asset: any = null;
-    if (connectionState.isConnected) {
-      try {
-        asset = await FileAssetModel.findOne({ id: assetId });
-      } catch {}
+    if (!connectionState.isConnected) {
+      throw new Error('MongoDB is required to authorize file deletion.');
     }
-    if (!asset) {
-      asset = this.inMemoryAssets.get(assetId);
-    }
+    const asset: any = await FileAssetModel.findOne({ id: assetId });
     if (!asset) return false;
 
     const isOwner = asset.ownerId === requestingUserId;
@@ -298,17 +291,14 @@ export class StorageService {
     }
 
     asset.status = 'DELETED';
-    if (connectionState.isConnected && typeof asset.save === 'function') {
-      await asset.save();
-    }
+    await asset.save();
 
     // If R2 credentials are fully configured, dispatch remote S3 DELETE request
     if (this.isConfigured()) {
-      try {
-        const deleteUrl = this.generateSigV4Url('DELETE', asset.key, 300);
-        await fetch(deleteUrl, { method: 'DELETE' });
-      } catch (err: any) {
-        console.error('[StorageService] Remote deletion failed:', err?.message);
+      const deleteUrl = this.generateSigV4Url('DELETE', asset.key, 300);
+      const response = await fetch(deleteUrl, { method: 'DELETE' });
+      if (!response.ok) {
+        throw new Error(`Remote object deletion failed with HTTP ${response.status}`);
       }
     }
 
@@ -320,7 +310,7 @@ export class StorageService {
    */
   async uploadBuffer(key: string, buffer: Buffer, contentType: string): Promise<string> {
     if (!this.isConfigured()) {
-      return `https://mock-r2.edusphere.io/${this.config.bucketName}/${key}`;
+      throw new Error('Object storage is not configured; buffer upload is unavailable.');
     }
 
     const putUrl = this.generateSigV4Url('PUT', key, 600, { 'content-type': contentType });
@@ -363,8 +353,11 @@ export class StorageService {
     const service = 's3';
     const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
 
-    const accessKey = this.config.accessKeyId || 'DEV_R2_KEY_DUMMY';
-    const secretKey = this.config.secretAccessKey || 'DEV_R2_SECRET_KEY_DUMMY';
+    const accessKey = this.config.accessKeyId;
+    const secretKey = this.config.secretAccessKey;
+    if (!accessKey || !secretKey) {
+      throw new Error('Object storage credentials are not configured.');
+    }
 
     const queryParams: Record<string, string> = {
       'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',

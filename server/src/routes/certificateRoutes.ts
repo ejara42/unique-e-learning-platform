@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import { repo } from '../data/dbRepository';
 import { cacheService } from '../cache/cacheService';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
+import { validateBody, validateParams, validateQuery } from '../middleware/validate';
+import { certificateCodeParamsSchema, certificateRevokeSchema, emptyQuerySchema, identifierParamsSchema } from '../validation/schemas';
 
 const router = Router();
 
 // GET /api/certificates - User certificates
-router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get('/', requireAuth, validateQuery(emptyQuerySchema), async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const userCerts = await repo.getCertificates(userId);
@@ -17,7 +19,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/certificates/verify/:code - Public Verification Portal
-router.get('/verify/:code', async (req: Request, res: Response) => {
+router.get('/verify/:code', validateParams(certificateCodeParamsSchema), validateQuery(emptyQuerySchema), async (req: Request, res: Response) => {
   try {
     const code = String(req.params.code);
     const cacheKey = `cert:verify:${code}`;
@@ -68,7 +70,7 @@ router.get('/verify/:code', async (req: Request, res: Response) => {
 });
 
 // PATCH /api/certificates/:id/revoke - Revoke invalid credential (Protected with Tenant Ownership Check)
-router.patch('/:id/revoke', requireAuth, requireRole('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req: AuthRequest, res: Response) => {
+router.patch('/:id/revoke', requireAuth, requireRole('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateParams(identifierParamsSchema), validateBody(certificateRevokeSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { reason } = req.body;
     const targetId = req.params.id as string;

@@ -5,6 +5,8 @@ const paymentService_1 = require("../services/paymentService");
 const auth_1 = require("../middleware/auth");
 const config_1 = require("../config");
 const eventBus_1 = require("../events/eventBus");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 function isSafeRedirectUrl(value, fallback) {
     if (!value)
@@ -40,7 +42,7 @@ function isSafeRedirectUrl(value, fallback) {
     }
 }
 // POST /api/payments/create-checkout-session
-router.post('/create-checkout-session', auth_1.requireAuth, async (req, res) => {
+router.post('/create-checkout-session', auth_1.requireAuth, (0, validate_1.validateBody)(schemas_1.paymentCheckoutSchema), async (req, res) => {
     try {
         const { courseId, successUrl, cancelUrl } = req.body;
         if (!courseId) {
@@ -61,7 +63,7 @@ router.post('/create-checkout-session', auth_1.requireAuth, async (req, res) => 
             cancelUrl: safeCancelUrl,
         });
         res.json({
-            message: 'Stripe checkout session initialized (Test Mode)',
+            message: 'Stripe checkout session initialized',
             session,
         });
     }

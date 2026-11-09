@@ -298,11 +298,13 @@ export const LearnerDashboard: React.FC = () => {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 240, flex: 1 }}>
-                          <img 
-                            src={course.thumbnailUrl || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=200&q=80'}
-                            alt={course.title}
-                            style={{ width: 64, height: 64, borderRadius: 'var(--radius-md)', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border-subtle)' }}
-                          />
+                          {course.thumbnailUrl && (
+                            <img
+                              src={course.thumbnailUrl}
+                              alt=""
+                              style={{ width: 64, height: 64, borderRadius: 'var(--radius-md)', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border-subtle)' }}
+                            />
+                          )}
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                               {course.category}
@@ -314,7 +316,7 @@ export const LearnerDashboard: React.FC = () => {
                               <Clock size={12} />
                               <span>{isCompleted ? 'Curriculum Completed' : `${pct}% completed`}</span>
                               <span>•</span>
-                              <span>{course.institutionName || 'Institutional Partner'}</span>
+                              {course.institutionName && <span>{course.institutionName}</span>}
                             </div>
                           </div>
                         </div>

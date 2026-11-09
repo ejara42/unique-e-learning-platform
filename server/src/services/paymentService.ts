@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { repo } from '../data/dbRepository';
 import { IEnrollment } from '../types';
 import { ProcessedWebhookEventModel } from '../models';
+import { connectionState } from '../data/mongoConnection';
 
 export interface CheckoutSessionOptions {
   courseId: string;
@@ -30,17 +31,9 @@ export interface WebhookGateDecision {
   reason?: string;
 }
 
-export interface MemoryEventRecord {
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  timestamp: number;
-  errorMessage?: string;
-}
-
 export class PaymentService {
   private stripe: Stripe;
   public webhookSecret: string;
-  private sessions: Map<string, StripeCheckoutSession> = new Map();
-  private processedEventsMemory: Map<string, MemoryEventRecord> = new Map();
 
   constructor() {
     const apiKey = process.env.STRIPE_SECRET_KEY?.trim();
@@ -55,15 +48,15 @@ export class PaymentService {
       }
     }
 
-    this.stripe = new Stripe(apiKey || 'sk_test_edusphere_dummy_secret_key_2026', {
+    this.stripe = new Stripe(apiKey || 'sk_test_edusphere_local_tests_only', {
       apiVersion: '2025-01-27.acacia' as any,
     });
-    this.webhookSecret = webhookSecret || 'whsec_edusphere_test_secret_2026';
+    this.webhookSecret = webhookSecret || 'whsec_local_tests_only';
   }
 
   /**
    * Creates a Stripe Checkout Session with dynamic split payouts (15% platform / 85% instructor)
-   * Strictly in Stripe test mode.
+   * Uses a real Stripe Checkout Session. Test/live behavior is determined by Stripe credentials.
    */
   async createCheckoutSession(options: CheckoutSessionOptions): Promise<StripeCheckoutSession> {
     const { courseId, learnerId, learnerEmail, successUrl, cancelUrl } = options;
@@ -72,30 +65,58 @@ export class PaymentService {
     if (!course) {
       throw new Error('Course not found');
     }
+    if (!course.isPublished) throw new Error('Course is not available for purchase');
+    if (!Number.isFinite(course.price) || course.price <= 0) {
+      throw new Error('Only paid courses can be checked out');
+    }
 
-    const priceAmount = (course.price || 49) * 100; // in cents
+    const apiKey = process.env.STRIPE_SECRET_KEY?.trim();
+    if (!apiKey || apiKey === 'sk_test_edusphere_local_tests_only') {
+      throw new Error('A real STRIPE_SECRET_KEY must be configured before checkout.');
+    }
+
+    const priceAmount = Math.round(course.price * 100);
     const commissionPct = process.env.STRIPE_COMMISSION_PCT
       ? Math.min(Math.max(parseFloat(process.env.STRIPE_COMMISSION_PCT) / 100, 0.01), 0.50)
       : 0.15; // Default 15% platform commission
     const platformFee = Math.round(priceAmount * commissionPct); // platform commission
     const instructorPayout = priceAmount - platformFee;  // instructor payout
 
-    const sessionId = `cs_test_${uuidv4().replace(/-/g, '')}`;
+    const stripeSession = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: learnerEmail,
+      client_reference_id: learnerId,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      line_items: [{
+        quantity: 1,
+        price_data: {
+          currency: 'usd',
+          unit_amount: priceAmount,
+          product_data: {
+            name: course.title,
+            description: course.description.slice(0, 500),
+          },
+        },
+      }],
+      metadata: {
+        courseId: course.id,
+        learnerId,
+      },
+    });
+    if (!stripeSession.url) throw new Error('Stripe did not return a Checkout URL.');
 
-    const session: StripeCheckoutSession = {
-      sessionId,
-      paymentUrl: `https://checkout.stripe.com/pay/${sessionId}?success_url=${encodeURIComponent(successUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`,
+    return {
+      sessionId: stripeSession.id,
+      paymentUrl: stripeSession.url,
       amount: priceAmount,
       currency: 'usd',
       platformFee,
       instructorPayout,
       status: 'PENDING',
-      courseId,
+      courseId: course.id,
       learnerId,
     };
-
-    this.sessions.set(sessionId, session);
-    return session;
   }
 
   /**
@@ -137,36 +158,11 @@ export class PaymentService {
    */
   async beginEventProcessing(event: Stripe.Event): Promise<WebhookGateDecision> {
     const eventId = event.id;
-
-    // Check in-memory gate (with crash/staleness recovery)
-    const memEntry = this.processedEventsMemory.get(eventId);
-    if (memEntry) {
-      if (memEntry.status === 'COMPLETED') {
-        return { shouldProcess: false, status: 'ALREADY_COMPLETED', reason: 'Event already successfully processed.' };
-      }
-      if (memEntry.status === 'PROCESSING') {
-        const ageMs = Date.now() - memEntry.timestamp;
-        if (ageMs < 60000) {
-          return { shouldProcess: false, status: 'IN_FLIGHT', reason: 'Event currently in processing by concurrent worker.' };
-        }
-        // Stale processing in memory (simulated process crash) - allow recovery
-        memEntry.status = 'PROCESSING';
-        memEntry.timestamp = Date.now();
-        return { shouldProcess: true, status: 'RETRY_ALLOWED', reason: 'Recovering from stale in-flight processing on retry.' };
-      }
-      if (memEntry.status === 'FAILED') {
-        memEntry.status = 'PROCESSING';
-        memEntry.timestamp = Date.now();
-        return { shouldProcess: true, status: 'RETRY_ALLOWED', reason: 'Recovering from prior failure on retry.' };
-      }
-    }
-
-    if (repo.isMongoActive()) {
-      try {
+    if (!connectionState.isConnected) throw new Error('MongoDB is required to maintain the Stripe webhook idempotency ledger.');
+    try {
         const existing = await ProcessedWebhookEventModel.findOne({ eventId });
         if (existing) {
           if (existing.status === 'COMPLETED') {
-            this.processedEventsMemory.set(eventId, { status: 'COMPLETED', timestamp: Date.now() });
             return { shouldProcess: false, status: 'ALREADY_COMPLETED', reason: 'Event already recorded as COMPLETED in ledger.' };
           }
 
@@ -182,7 +178,6 @@ export class PaymentService {
           existing.status = 'PROCESSING';
           existing.receivedAt = new Date().toISOString();
           await existing.save();
-          this.processedEventsMemory.set(eventId, { status: 'PROCESSING', timestamp: Date.now() });
           return { shouldProcess: true, status: 'RETRY_ALLOWED', reason: 'Recovering from prior failure or crash on retry.' };
         }
 
@@ -204,9 +199,6 @@ export class PaymentService {
         }
         throw err;
       }
-    }
-
-    this.processedEventsMemory.set(eventId, { status: 'PROCESSING', timestamp: Date.now() });
     return { shouldProcess: true, status: 'NEW' };
   }
 
@@ -214,26 +206,22 @@ export class PaymentService {
    * Finalize event as COMPLETED in the ledger
    */
   async markEventCompleted(eventId: string): Promise<void> {
-    this.processedEventsMemory.set(eventId, { status: 'COMPLETED', timestamp: Date.now() });
-    if (repo.isMongoActive()) {
-      await ProcessedWebhookEventModel.findOneAndUpdate(
+    if (!connectionState.isConnected) throw new Error('MongoDB is required to maintain the Stripe webhook idempotency ledger.');
+    await ProcessedWebhookEventModel.findOneAndUpdate(
         { eventId },
         { status: 'COMPLETED', processedAt: new Date().toISOString() }
-      ).catch(() => { });
-    }
+      );
   }
 
   /**
    * Mark event as FAILED so Stripe retries can safely re-attempt
    */
   async markEventFailed(eventId: string, errorMessage: string): Promise<void> {
-    this.processedEventsMemory.set(eventId, { status: 'FAILED', timestamp: Date.now(), errorMessage });
-    if (repo.isMongoActive()) {
-      await ProcessedWebhookEventModel.findOneAndUpdate(
+    if (!connectionState.isConnected) throw new Error('MongoDB is required to maintain the Stripe webhook idempotency ledger.');
+    await ProcessedWebhookEventModel.findOneAndUpdate(
         { eventId },
         { status: 'FAILED', errorMessage }
-      ).catch(() => { });
-    }
+      );
   }
 
   // Backwards compatibility helper for existing suite
@@ -258,28 +246,25 @@ export class PaymentService {
     let instructorPayout: number;
 
     if (typeof sessionOrId === 'string') {
-      sessionId = sessionOrId;
-      const memSession = this.sessions.get(sessionId);
-      if (!memSession) {
-        throw new Error(`Checkout session ${sessionId} not found`);
-      }
-      memSession.status = 'COMPLETED';
-      courseId = memSession.courseId;
-      learnerId = memSession.learnerId;
-      amount = memSession.amount;
-      platformFee = memSession.platformFee;
-      instructorPayout = memSession.instructorPayout;
+      throw new Error(`Checkout session object is required to process Stripe session ${sessionOrId}`);
     } else {
       sessionId = sessionOrId.id;
       courseId = sessionOrId.metadata?.courseId || sessionOrId.client_reference_id;
-      learnerId = sessionOrId.metadata?.learnerId || sessionOrId.customer;
-      amount = sessionOrId.amount_total || 4900;
+      learnerId = sessionOrId.metadata?.learnerId || sessionOrId.client_reference_id;
+      amount = sessionOrId.amount_total;
       platformFee = Math.round(amount * 0.15);
       instructorPayout = amount - platformFee;
+      if (sessionOrId.payment_status !== 'paid' || !Number.isSafeInteger(amount) || amount <= 0) {
+        throw new Error(`Checkout session ${sessionId} is not a paid session with a valid amount.`);
+      }
     }
 
     if (!courseId || !learnerId) {
       throw new Error(`Session ${sessionId} missing required courseId or learnerId`);
+    }
+    const course = await repo.getCourseById(courseId);
+    if (!course || !course.isPublished || Math.round(course.price * 100) !== amount) {
+      throw new Error(`Checkout session ${sessionId} does not match an available course and its current price.`);
     }
 
     // Idempotency: Verify if enrollment already exists
@@ -316,7 +301,7 @@ export class PaymentService {
       id: `log-${uuidv4().slice(0, 8)}`,
       tenantId: null,
       actorId: learnerId,
-      actorName: 'Paid Student',
+      actorName: learnerId,
       actorRole: 'STUDENT',
       action: 'STRIPE_PAYMENT_ENROLLED',
       resourceType: 'PAYMENT',

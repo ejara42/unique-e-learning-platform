@@ -4,13 +4,13 @@ import { repo } from '../data/dbRepository';
 import { cacheService } from '../cache/cacheService';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { ITenant, TenantStatus } from '../types';
-import { validateBody } from '../middleware/validate';
-import { tenantRegistrationSchema, tenantStatusSchema } from '../validation/schemas';
+import { validateBody, validateParams, validateQuery } from '../middleware/validate';
+import { identifierParamsSchema, tenantDirectoryQuerySchema, tenantRegistrationSchema, tenantStatusSchema } from '../validation/schemas';
 
 const router = Router();
 
 // GET /api/tenants - List all or filtered by status
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', validateQuery(tenantDirectoryQuerySchema), async (req: Request, res: Response) => {
   try {
     const { status, type } = req.query;
     const cacheKey = `tenants:directory:${(status as string) || 'all'}:${(type as string) || 'all'}`;
@@ -38,7 +38,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/tenants/:id - Get specific institution
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', validateParams(identifierParamsSchema), async (req: Request, res: Response) => {
   try {
     const tenant = await repo.getTenantById(req.params.id as string);
     if (!tenant) {
@@ -126,7 +126,7 @@ router.post('/register', validateBody(tenantRegistrationSchema), async (req: Req
 });
 
 // PATCH /api/tenants/:id/status - Approve, suspend or reject institution
-router.patch('/:id/status', requireAuth, requireRole('PLATFORM_ADMIN'), validateBody(tenantStatusSchema), async (req: AuthRequest, res: Response) => {
+router.patch('/:id/status', requireAuth, requireRole('PLATFORM_ADMIN'), validateParams(identifierParamsSchema), validateBody(tenantStatusSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { status, remarks } = req.body;
     const validStatuses: TenantStatus[] = ['PENDING_VERIFICATION', 'VERIFIED', 'SUSPENDED', 'REJECTED'];

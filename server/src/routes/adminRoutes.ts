@@ -3,13 +3,13 @@ import { repo } from '../data/dbRepository';
 import { AdmissionModel } from '../models';
 import { getTenantContext } from '../middleware/tenant';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
-import { validateBody } from '../middleware/validate';
-import { admissionStatusSchema } from '../validation/schemas';
+import { validateBody, validateParams, validateQuery } from '../middleware/validate';
+import { adminAdmissionsQuerySchema, admissionStatusSchema, emptyQuerySchema, identifierParamsSchema } from '../validation/schemas';
 
 const router = Router();
 
 // GET /api/admin/metrics - System Overview & KPI Metrics (Protected)
-router.get('/metrics', requireAuth, requireRole('PLATFORM_ADMIN', 'INSTITUTION_ADMIN'), async (req: AuthRequest, res: Response) => {
+router.get('/metrics', requireAuth, requireRole('PLATFORM_ADMIN', 'INSTITUTION_ADMIN'), validateQuery(emptyQuerySchema), async (req: AuthRequest, res: Response) => {
   try {
     const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
     const context = getTenantContext();
@@ -51,7 +51,7 @@ router.get('/metrics', requireAuth, requireRole('PLATFORM_ADMIN', 'INSTITUTION_A
 });
 
 // GET /api/admin/admissions - Student Admission Requests with strict tenant isolation (Protected)
-router.get('/admissions', requireAuth, requireRole('PLATFORM_ADMIN', 'INSTITUTION_ADMIN'), async (req: AuthRequest, res: Response) => {
+router.get('/admissions', requireAuth, requireRole('PLATFORM_ADMIN', 'INSTITUTION_ADMIN'), validateQuery(adminAdmissionsQuerySchema), async (req: AuthRequest, res: Response) => {
   try {
     const { institutionId, status } = req.query;
     const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
@@ -83,7 +83,7 @@ router.get('/admissions', requireAuth, requireRole('PLATFORM_ADMIN', 'INSTITUTIO
 });
 
 // PATCH /api/admin/admissions/:id/status - Approve or reject student application
-router.patch('/admissions/:id/status', requireAuth, requireRole('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateBody(admissionStatusSchema), async (req: AuthRequest, res: Response) => {
+router.patch('/admissions/:id/status', requireAuth, requireRole('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateParams(identifierParamsSchema), validateBody(admissionStatusSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { status, remarks } = req.body;
     const validStatuses = ['ACCEPTED', 'REJECTED', 'PENDING'];

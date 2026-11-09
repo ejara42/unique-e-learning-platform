@@ -41,6 +41,7 @@ router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async
             activeRole: user.activeRole,
             authorizedRoles: user.authorizedRoles || [user.activeRole],
             institutionId: user.institutionId,
+            tokenVersion: user.tokenVersion ?? 0,
         };
         const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.jwtSecret, { expiresIn: '7d' });
         res.json({
@@ -80,10 +81,6 @@ router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema),
             res.status(409).json({ message: 'An account with this email already exists' });
             return;
         }
-        if (password.length < 8) {
-            res.status(400).json({ message: 'Password must be at least 8 characters in length' });
-            return;
-        }
         const salt = bcryptjs_1.default.genSaltSync(12);
         const passwordHash = bcryptjs_1.default.hashSync(password, salt);
         const newUserRole = role === 'INSTRUCTOR' ? 'INSTRUCTOR' : 'STUDENT';
@@ -93,12 +90,12 @@ router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema),
             email: email.toLowerCase().trim(),
             passwordHash,
             fullName: fullName.trim(),
-            avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80`,
             globalRole: 'STANDARD_USER',
             activeRole: newUserRole,
             authorizedRoles,
             institutionId: null,
             security: { isEmailVerified: true, twoFactorEnabled: false },
+            tokenVersion: 0,
             createdAt: new Date().toISOString(),
         };
         await dbRepository_1.repo.createUser(newUser);
@@ -110,6 +107,7 @@ router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema),
             activeRole: newUser.activeRole,
             authorizedRoles: newUser.authorizedRoles,
             institutionId: newUser.institutionId,
+            tokenVersion: newUser.tokenVersion,
         };
         const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.jwtSecret, { expiresIn: '7d' });
         res.status(201).json({
@@ -119,7 +117,6 @@ router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema),
                 id: newUser.id,
                 email: newUser.email,
                 fullName: newUser.fullName,
-                avatarUrl: newUser.avatarUrl,
                 activeRole: newUser.activeRole,
                 authorizedRoles: newUser.authorizedRoles,
                 institutionId: newUser.institutionId,
@@ -131,7 +128,7 @@ router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema),
     }
 });
 // GET /api/auth/me - Authenticated User Profile
-router.get('/me', auth_1.requireAuth, async (req, res) => {
+router.get('/me', auth_1.requireAuth, (0, validate_1.validateQuery)(schemas_1.emptyQuerySchema), async (req, res) => {
     try {
         const user = await dbRepository_1.repo.getUserById(req.user?.id || '');
         if (!user) {
@@ -147,6 +144,7 @@ router.get('/me', auth_1.requireAuth, async (req, res) => {
                 activeRole: user.activeRole,
                 authorizedRoles: user.authorizedRoles || [user.activeRole],
                 institutionId: user.institutionId,
+                tokenVersion: user.tokenVersion ?? 0,
                 bio: user.bio,
             },
         });
@@ -204,6 +202,7 @@ router.post('/switch-role', auth_1.requireAuth, (0, validate_1.validateBody)(sch
             activeRole: updatedUser.activeRole,
             authorizedRoles: updatedUser.authorizedRoles || [updatedUser.activeRole],
             institutionId: updatedUser.institutionId,
+            tokenVersion: updatedUser.tokenVersion ?? 0,
         };
         const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.jwtSecret, { expiresIn: '7d' });
         res.json({
@@ -284,11 +283,16 @@ router.post('/reset-password', (0, validate_1.validateBody)(schemas_1.resetPassw
             res.status(404).json({ message: 'Associated user account no longer exists.' });
             return;
         }
-        // Update in MongoDB
-        if (dbRepository_1.repo.isMongoActive()) {
-            await models_1.UserModel.findOneAndUpdate({ id: user.id }, { $set: { passwordHash } });
+        if (!dbRepository_1.repo.isMongoActive()) {
+            throw new Error('MongoDB persistence is unavailable; password reset was not applied.');
+        }
+        const updateResult = await models_1.UserModel.updateOne({ id: user.id }, { $set: { passwordHash }, $inc: { tokenVersion: 1 } });
+        if (updateResult.matchedCount !== 1) {
+            res.status(404).json({ message: 'Associated user account no longer exists.' });
+            return;
         }
         user.passwordHash = passwordHash;
+        user.tokenVersion = (user.tokenVersion ?? 0) + 1;
         // Dispatch security alert without blocking the password reset flow.
         try {
             await emailService_1.emailService.sendSecurityAlert(user.email, user.fullName, 'Your EduSphere password was successfully reset.');

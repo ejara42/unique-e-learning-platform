@@ -3,27 +3,41 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { repo } from '../data/dbRepository';
 import { DrmKeyModel } from '../models';
 import { cdnSecurityService } from '../services/cdnSecurityService';
+import { validateParams } from '../middleware/validate';
+import { z } from 'zod';
 
 const router = Router();
+const mediaParamsSchema = z.object({
+  courseId: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
+  lessonId: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
+}).strict();
+
+async function hasMediaAccess(req: AuthRequest, courseId: string, lessonId: string): Promise<boolean> {
+  const course = await repo.getCourseById(courseId);
+  if (!course || !course.isPublished) return false;
+  const lessonExists = course.modules.some(module => module.lessons.some(lesson => lesson.id === lessonId));
+  if (!lessonExists) return false;
+
+  const user = req.user;
+  if (!user) return false;
+  if (user.activeRole === 'PLATFORM_ADMIN' && user.globalRole === 'PLATFORM_SUPERADMIN') return true;
+  if (user.activeRole === 'INSTRUCTOR') return course.instructorId === user.id;
+  if (user.activeRole === 'INSTITUTION_ADMIN' && user.institutionId) return course.tenantId === user.institutionId;
+
+  const enrollments = await repo.getEnrollmentsByLearner(user.id);
+  return enrollments.some(enrollment =>
+    enrollment.courseId === courseId && enrollment.status === 'ENROLLED'
+  );
+}
 
 // GET /api/media/hls-key/:courseId/:lessonId - Authenticated DRM AES-128 Key License Broker
-router.get('/hls-key/:courseId/:lessonId', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get('/hls-key/:courseId/:lessonId', requireAuth, validateParams(mediaParamsSchema), async (req: AuthRequest, res: Response) => {
   try {
     const courseId = req.params.courseId as string;
     const lessonId = req.params.lessonId as string;
-    const userId = req.user?.id;
-    const userRole = req.user?.activeRole || 'STUDENT';
-
-    // 1. Authorization Barrier: User must be enrolled or course faculty/superadmin
-    const isStaff = ['INSTRUCTOR', 'PLATFORM_ADMIN', 'INSTITUTION_ADMIN'].includes(userRole);
-    if (!isStaff) {
-      const enrollments = await repo.getEnrollmentsByLearner(userId || '');
-      const isEnrolled = enrollments.some(e => e.courseId === courseId && e.status === 'ENROLLED');
-
-      if (!isEnrolled) {
-        res.status(403).json({ message: 'Forbidden: Active course enrollment required to obtain video decryption key.' });
-        return;
-      }
+    if (!await hasMediaAccess(req, courseId, lessonId)) {
+      res.status(403).json({ message: 'Forbidden: Enrollment or resource ownership is required for media access.' });
+      return;
     }
 
     // 2. Fetch AES-128 cryptographic key from persistence
@@ -52,22 +66,13 @@ router.get('/hls-key/:courseId/:lessonId', requireAuth, async (req: AuthRequest,
 });
 
 // GET /api/media/playback-url/:courseId/:lessonId - Get signed playback URL with token authentication
-router.get('/playback-url/:courseId/:lessonId', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get('/playback-url/:courseId/:lessonId', requireAuth, validateParams(mediaParamsSchema), async (req: AuthRequest, res: Response) => {
   try {
     const courseId = req.params.courseId as string;
     const lessonId = req.params.lessonId as string;
-    const userId = req.user?.id;
-    const userRole = req.user?.activeRole || 'STUDENT';
-
-    const isStaff = ['INSTRUCTOR', 'PLATFORM_ADMIN', 'INSTITUTION_ADMIN'].includes(userRole);
-    if (!isStaff) {
-      const enrollments = await repo.getEnrollmentsByLearner(userId || '');
-      const isEnrolled = enrollments.some(e => e.courseId === courseId && e.status === 'ENROLLED');
-
-      if (!isEnrolled) {
-        res.status(403).json({ message: 'Forbidden: Active enrollment required for playback token.' });
-        return;
-      }
+    if (!await hasMediaAccess(req, courseId, lessonId)) {
+      res.status(403).json({ message: 'Forbidden: Enrollment or resource ownership is required for media access.' });
+      return;
     }
 
     const signedUrl = cdnSecurityService.generateSignedPlaybackUrl({

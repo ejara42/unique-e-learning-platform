@@ -4,13 +4,34 @@ import { repo } from '../data/dbRepository';
 import { livekitService } from '../services/livekitService';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { ILiveSession } from '../types';
-import { validateBody } from '../middleware/validate';
-import { liveRecordingSchema } from '../validation/schemas';
+import { validateBody, validateParams, validateQuery } from '../middleware/validate';
+import { emptyBodySchema, identifierParamsSchema, liveRecordingSchema, liveSessionQuerySchema } from '../validation/schemas';
 
 const router = Router();
 
+async function mayManageSession(session: ILiveSession, req: AuthRequest): Promise<boolean> {
+  const user = req.user;
+  if (!user) return false;
+  if (user.activeRole === 'PLATFORM_ADMIN' && user.globalRole === 'PLATFORM_SUPERADMIN') return true;
+  if (user.activeRole === 'INSTRUCTOR') return session.instructorId === user.id;
+  if (user.activeRole === 'INSTITUTION_ADMIN' && user.institutionId) {
+    const course = await repo.getCourseById(session.courseId);
+    return course?.tenantId === user.institutionId;
+  }
+  return false;
+}
+
+async function mayJoinSession(session: ILiveSession, req: AuthRequest): Promise<boolean> {
+  if (await mayManageSession(session, req)) return true;
+  if (!req.user?.id) return false;
+  const enrollments = await repo.getEnrollmentsByLearner(req.user.id);
+  return enrollments.some(enrollment =>
+    enrollment.courseId === session.courseId && enrollment.status === 'ENROLLED'
+  );
+}
+
 // GET /api/live-sessions - List live sessions
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', validateQuery(liveSessionQuerySchema), async (req: Request, res: Response) => {
   try {
     const { courseId, status } = req.query;
     let sessions = await repo.getLiveSessions();
@@ -29,7 +50,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // GET /api/live-sessions/:id - Get session details
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', validateParams(identifierParamsSchema), async (req: Request, res: Response) => {
   try {
     const session = await repo.getLiveSessionById(req.params.id as string);
     if (!session) {
@@ -43,11 +64,16 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /api/live-sessions/:id/token - Request real-time LiveKit WebRTC access token
-router.post('/:id/token', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/:id/token', requireAuth, validateParams(identifierParamsSchema), validateBody(emptyBodySchema), async (req: AuthRequest, res: Response) => {
   try {
     const session = await repo.getLiveSessionById(req.params.id as string);
     if (!session) {
       res.status(404).json({ message: 'Live session not found' });
+      return;
+    }
+
+    if (!await mayJoinSession(session, req)) {
+      res.status(403).json({ message: 'Active course enrollment or session ownership is required.' });
       return;
     }
 
@@ -90,7 +116,7 @@ router.post('/:id/token', requireAuth, async (req: AuthRequest, res: Response) =
 });
 
 // POST /api/live-sessions/:id/join - Join live room & get WebRTC token with attendance increment
-router.post('/:id/join', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/:id/join', requireAuth, validateParams(identifierParamsSchema), validateBody(emptyBodySchema), async (req: AuthRequest, res: Response) => {
   try {
     const session = await repo.getLiveSessionById(req.params.id as string);
     if (!session) {
@@ -98,14 +124,19 @@ router.post('/:id/join', requireAuth, async (req: AuthRequest, res: Response) =>
       return;
     }
 
-    const updatedSession = await repo.updateLiveSession(session.id, {
-      attendanceCount: (session.attendanceCount || 0) + 1
-    }) || session;
-
     if (!req.user?.id) {
       res.status(401).json({ message: 'Unauthorized: User identity required' });
       return;
     }
+
+    if (!await mayJoinSession(session, req)) {
+      res.status(403).json({ message: 'Active course enrollment or session ownership is required.' });
+      return;
+    }
+
+    await repo.updateLiveSession(session.id, {
+      attendanceCount: (session.attendanceCount || 0) + 1
+    });
 
     const userId = req.user.id;
     const userName = req.user.fullName || 'Participant';
@@ -152,12 +183,17 @@ router.post('/:id/join', requireAuth, async (req: AuthRequest, res: Response) =>
 });
 
 // POST /api/live-sessions/:id/recording - Toggle recording state (Instructor/Admin only)
-router.post('/:id/recording', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateBody(liveRecordingSchema), async (req: AuthRequest, res: Response) => {
+router.post('/:id/recording', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateParams(identifierParamsSchema), validateBody(liveRecordingSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { action } = req.body; // 'START' | 'STOP'
     const session = await repo.getLiveSessionById(req.params.id as string);
     if (!session) {
       res.status(404).json({ message: 'Live session not found' });
+      return;
+    }
+
+    if (!await mayManageSession(session, req)) {
+      res.status(403).json({ message: 'Session ownership or platform administration is required.' });
       return;
     }
 

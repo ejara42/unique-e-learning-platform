@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { config } from '../config';
 import { SecurityTokenModel } from '../models';
 import { connectionState } from '../data/mongoConnection';
 
@@ -16,7 +15,7 @@ export interface EmailTelemetry {
   provider: string;
   senderDomain: string;
   totalDispatched: number;
-  status: 'ONLINE' | 'DEGRADED' | 'STANDALONE_SIMULATED';
+  status: 'ONLINE' | 'DEGRADED';
 }
 
 export class EmailServiceUnavailableError extends Error {
@@ -26,12 +25,21 @@ export class EmailServiceUnavailableError extends Error {
   }
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character] || character);
+}
+
 export class TransactionalEmailService {
   private apiKey: string;
   private fromEmail: string;
   private frontendUrl: string;
   private dispatchedCount = 0;
-  private inMemoryTokens: Map<string, any> = new Map();
 
   constructor() {
     this.apiKey = process.env.RESEND_API_KEY || '';
@@ -50,7 +58,7 @@ export class TransactionalEmailService {
       provider: 'Resend Transactional Email Infrastructure',
       senderDomain: this.fromEmail,
       totalDispatched: this.dispatchedCount,
-      status: configured ? 'ONLINE' : (config.isProduction ? 'DEGRADED' : 'STANDALONE_SIMULATED'),
+      status: configured ? 'ONLINE' : 'DEGRADED',
     };
   }
 
@@ -69,9 +77,6 @@ export class TransactionalEmailService {
     return crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
   }
 
-  /**
-   * Dual-mode Security Token Persistence (MongoDB Atlas + In-Memory Fallback)
-   */
   async createSecurityToken(
     userId: string,
     rawToken: string,
@@ -92,15 +97,10 @@ export class TransactionalEmailService {
       createdAt: new Date(),
     };
 
-    this.inMemoryTokens.set(tokenHash, tokenDoc);
-
-    if (connectionState.isConnected) {
-      try {
-        await SecurityTokenModel.create(tokenDoc);
-      } catch (err: any) {
-        console.warn('[EmailService] Security token persistence warning:', err?.message);
-      }
+    if (!connectionState.isConnected) {
+      throw new EmailServiceUnavailableError('MongoDB is required to persist security tokens.');
     }
+    await SecurityTokenModel.create(tokenDoc);
 
     return { id, tokenHash, expiresAt };
   }
@@ -112,32 +112,19 @@ export class TransactionalEmailService {
     const tokenHash = this.hashToken(rawToken);
     const now = new Date();
 
-    let tokenDoc: any = null;
-    if (connectionState.isConnected) {
-      try {
-        tokenDoc = await SecurityTokenModel.findOne({
-          tokenHash,
-          type,
-          isUsed: false,
-          expiresAt: { $gt: now },
-        });
-      } catch {}
+    if (!connectionState.isConnected) {
+      throw new EmailServiceUnavailableError('MongoDB is required to verify security tokens.');
     }
 
-    if (!tokenDoc) {
-      tokenDoc = this.inMemoryTokens.get(tokenHash);
-    }
+    const tokenDoc = await SecurityTokenModel.findOne({
+      tokenHash,
+      type,
+      isUsed: false,
+      expiresAt: { $gt: now },
+    });
 
     if (!tokenDoc || tokenDoc.type !== type) {
       return { valid: false, error: 'Token not found or invalid type.' };
-    }
-
-    if (tokenDoc.isUsed) {
-      return { valid: false, error: 'Token has already been consumed (single-use violated).' };
-    }
-
-    if (tokenDoc.expiresAt <= now) {
-      return { valid: false, error: 'Token has expired.' };
     }
 
     return { valid: true, userId: tokenDoc.userId };
@@ -147,31 +134,18 @@ export class TransactionalEmailService {
     rawToken: string,
     type: 'PASSWORD_RESET' | 'EMAIL_VERIFICATION'
   ): Promise<{ consumed: boolean; userId?: string }> {
-    const verification = await this.verifySecurityToken(rawToken, type);
-    if (!verification.valid || !verification.userId) {
-      return { consumed: false };
+    if (!connectionState.isConnected) {
+      throw new EmailServiceUnavailableError('MongoDB is required to consume security tokens.');
     }
-
     const tokenHash = this.hashToken(rawToken);
-
-    // Consume in memory
-    const memDoc = this.inMemoryTokens.get(tokenHash);
-    if (memDoc) {
-      memDoc.isUsed = true;
-      memDoc.usedAt = new Date();
-    }
-
-    // Consume in MongoDB
-    if (connectionState.isConnected) {
-      try {
-        await SecurityTokenModel.findOneAndUpdate(
-          { tokenHash },
-          { $set: { isUsed: true, usedAt: new Date() } }
-        );
-      } catch {}
-    }
-
-    return { consumed: true, userId: verification.userId };
+    const tokenDoc = await SecurityTokenModel.findOneAndUpdate(
+      { tokenHash, type, isUsed: false, expiresAt: { $gt: new Date() } },
+      { $set: { isUsed: true, usedAt: new Date() } },
+      { new: true }
+    );
+    return tokenDoc
+      ? { consumed: true, userId: tokenDoc.userId }
+      : { consumed: false };
   }
 
   /**
@@ -185,16 +159,9 @@ export class TransactionalEmailService {
     }
 
     if (!this.isConfigured()) {
-      if (config.isProduction) {
-        throw new EmailServiceUnavailableError(
-          'Transactional email delivery is offline: RESEND_API_KEY is not configured in production environment.'
-        );
-      }
-
-      // Staging / Local development simulation
-      console.log(`[Email Simulation] To: ${to} | Subject: "${subject}" | (Delivery simulated - RESEND_API_KEY unset)`);
-      this.dispatchedCount++;
-      return { id: `mock-email-${crypto.randomBytes(8).toString('hex')}`, success: true };
+      throw new EmailServiceUnavailableError(
+        'Transactional email delivery is unavailable: RESEND_API_KEY is not configured.'
+      );
     }
 
     const controller = new AbortController();
@@ -242,10 +209,11 @@ export class TransactionalEmailService {
    */
   async sendVerificationEmail(to: string, fullName: string, rawToken: string): Promise<{ id: string; success: boolean }> {
     const verificationUrl = `${this.frontendUrl}/verify-email?token=${rawToken}`;
+    const escapedName = escapeHtml(fullName);
     const subject = 'Verify your EduSphere Account';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
-        <h2 style="color: #2563eb;">Welcome to EduSphere, ${fullName}!</h2>
+        <h2 style="color: #2563eb;">Welcome to EduSphere, ${escapedName}!</h2>
         <p>Please confirm your email address to activate your account and start learning.</p>
         <div style="margin: 28px 0;">
           <a href="${verificationUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
@@ -264,11 +232,12 @@ export class TransactionalEmailService {
    */
   async sendPasswordResetEmail(to: string, fullName: string, rawToken: string): Promise<{ id: string; success: boolean }> {
     const resetUrl = `${this.frontendUrl}/reset-password?token=${rawToken}`;
+    const escapedName = escapeHtml(fullName);
     const subject = 'EduSphere — Password Reset Request';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
         <h2 style="color: #2563eb;">Password Reset Request</h2>
-        <p>Hello ${fullName},</p>
+        <p>Hello ${escapedName},</p>
         <p>We received a request to reset your password. Click the button below to choose a new password:</p>
         <div style="margin: 28px 0;">
           <a href="${resetUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
@@ -288,11 +257,13 @@ export class TransactionalEmailService {
   async sendInstitutionStatusNotification(to: string, institutionName: string, status: 'VERIFIED' | 'REJECTED' | 'SUSPENDED', remarks?: string): Promise<{ id: string; success: boolean }> {
     const isApproved = status === 'VERIFIED';
     const subject = `EduSphere Institution Status: ${isApproved ? 'Approved & Verified' : 'Application Update'}`;
+    const escapedInstitutionName = escapeHtml(institutionName);
+    const escapedRemarks = remarks ? escapeHtml(remarks) : '';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b;">
-        <h2 style="color: ${isApproved ? '#16a34a' : '#dc2626'};">${institutionName}</h2>
+        <h2 style="color: ${isApproved ? '#16a34a' : '#dc2626'};">${escapedInstitutionName}</h2>
         <p>Your institutional application on EduSphere has been updated to: <strong>${status}</strong>.</p>
-        ${remarks ? `<p style="padding: 12px; background: #f1f5f9; border-left: 4px solid #94a3b8; font-style: italic;">Remarks: ${remarks}</p>` : ''}
+        ${remarks ? `<p style="padding: 12px; background: #f1f5f9; border-left: 4px solid #94a3b8; font-style: italic;">Remarks: ${escapedRemarks}</p>` : ''}
         ${isApproved ? `<p>Your institution portal is now active. You may log in as Institution Administrator and onboard instructors and courses.</p>` : ''}
       </div>
     `;
@@ -337,4 +308,3 @@ export class TransactionalEmailService {
 }
 
 export const emailService = new TransactionalEmailService();
-

@@ -193,7 +193,7 @@ async function runFullEnterpriseAuditTests() {
   // ---------------------------------------------------------------------------
   await test('7. Interoperability: LTI 1.3 OIDC login flow & SCORM 1.2 runtime session bridge', async () => {
     // LTI 1.3
-    const ltiLogin = interoperabilityService.initiateLtiLogin(
+    const ltiLogin = await interoperabilityService.initiateLtiLogin(
       'https://canvas.instructure.com',
       'user_hint_123',
       'http://localhost:5000/api/lti/launch'
@@ -300,8 +300,8 @@ async function runFullEnterpriseAuditTests() {
         preserveConnection: true,
       });
 
-      assert.strictEqual(duplicateResult.success, false, 'Must reject bootstrap when a superadmin already exists');
-      assert(duplicateResult.message.includes('Platform SuperAdmin already exists'), 'Error message must state superadmin already exists');
+      assert.strictEqual(duplicateResult.success, false, 'Must reject bootstrap when users already exist');
+      assert(duplicateResult.message.includes('database already contains a user'), 'Error message must state the user collection is not empty');
     } finally {
       UserModel.findOne = originalFindOne;
       if (originalReadyState) {
@@ -373,4 +373,3 @@ runFullEnterpriseAuditTests().catch(err => {
   console.error('[Enterprise Test Suite Failure]', err);
   process.exit(1);
 });
-

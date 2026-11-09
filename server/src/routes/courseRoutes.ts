@@ -1,10 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { repo } from '../data/dbRepository';
+import { cacheService } from '../cache/cacheService';
 import { getTenantContext } from '../middleware/tenant';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { ICourse, IEnrollment } from '../types';
 import { CourseReviewModel, CourseAnnouncementModel, CourseModel, EnrollmentModel } from '../models';
+import { eventBus } from '../events/eventBus';
 
 const router = Router();
 
@@ -20,6 +22,16 @@ router.get('/', async (req: Request, res: Response) => {
       effectiveTenant = requestedTenantId;
     }
 
+    const queryHash = cacheService.hashQuery({ category, search, level, tenantId: effectiveTenant });
+    const cacheKey = `courses:catalog:${effectiveTenant || 'all'}:${queryHash}`;
+    const cached = await cacheService.get<{ courses: ICourse[]; total: number }>(cacheKey);
+
+    if (cached) {
+      res.setHeader('X-Cache-Status', 'HIT');
+      res.json(cached);
+      return;
+    }
+
     const courses = await repo.getCourses({
       category: category as string,
       search: search as string,
@@ -27,7 +39,11 @@ router.get('/', async (req: Request, res: Response) => {
       tenantId: effectiveTenant,
     }, effectiveTenant);
 
-    res.json({ courses, total: courses.length });
+    const payload = { courses, total: courses.length };
+    await cacheService.set(cacheKey, payload, { ttlSeconds: 300, tags: ['courses:catalog'] });
+
+    res.setHeader('X-Cache-Status', 'MISS');
+    res.json(payload);
   } catch (err: any) {
     res.status(500).json({ message: 'Error retrieving courses', error: err.message });
   }
@@ -59,6 +75,15 @@ router.get('/my-courses', requireAuth, async (req: AuthRequest, res: Response) =
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const context = getTenantContext();
+    const cacheKey = `course:detail:${req.params.id}:${context.tenantId || 'global'}`;
+    const cached = await cacheService.get<any>(cacheKey);
+
+    if (cached) {
+      res.setHeader('X-Cache-Status', 'HIT');
+      res.json(cached);
+      return;
+    }
+
     const course = await repo.getCourseById(req.params.id as string, context.tenantId);
 
     if (!course) {
@@ -73,10 +98,15 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     const assessment = await repo.getAssessmentByCourseId(course.id);
 
-    res.json({
+    const payload = {
       course,
       assessmentPreview: assessment ? { id: assessment.id, title: assessment.title, durationMinutes: assessment.durationMinutes } : null,
-    });
+    };
+
+    await cacheService.set(cacheKey, payload, { ttlSeconds: 600, tags: ['courses:catalog', `course:${course.id}`] });
+
+    res.setHeader('X-Cache-Status', 'MISS');
+    res.json(payload);
   } catch (err: any) {
     res.status(500).json({ message: 'Error retrieving course details', error: err.message });
   }
@@ -152,6 +182,10 @@ router.post('/', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PL
     };
 
     await repo.createCourse(newCourse);
+    await cacheService.invalidateByTag('courses:catalog');
+
+    // Async event dispatch to decoupled event bus
+    eventBus.publish('COURSE_CREATED', newCourse.id, newCourse);
 
     res.status(201).json({
       message: 'Course created and published to academy curriculum!',
@@ -202,6 +236,15 @@ router.post('/:id/enroll', requireAuth, async (req: AuthRequest, res: Response) 
     };
 
     await repo.createEnrollment(newEnrollment);
+
+    // Async event dispatch to decoupled event bus
+    eventBus.publish('COURSE_ENROLLED', newEnrollment.id, {
+      enrollmentId: newEnrollment.id,
+      courseId: course.id,
+      learnerId,
+      courseTitle: course.title,
+      enrolledAt: newEnrollment.enrolledAt,
+    });
 
     res.status(201).json({
       message: 'Enrollment confirmed!',
@@ -292,13 +335,13 @@ router.post('/:id/reviews', requireAuth, async (req: AuthRequest, res: Response)
       createdAt: new Date().toISOString(),
     });
 
-    // Update aggregate rating on course
-    const allReviews = await CourseReviewModel.find({ courseId });
-    const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
-    await CourseModel.findOneAndUpdate(
-      { id: courseId },
-      { rating: Math.round(avgRating * 10) / 10, ratingCount: allReviews.length }
-    );
+    // Dispatch asynchronous event to decoupled event bus for rating recalculation & search indexing
+    eventBus.publish('REVIEW_SUBMITTED', courseId, {
+      courseId,
+      reviewId: review.id,
+      rating: review.rating,
+      userId,
+    });
 
     res.status(201).json({ message: 'Review published successfully', review });
   } catch (err: any) {

@@ -16,6 +16,8 @@ import paymentRoutes from './routes/paymentRoutes';
 import interoperabilityRoutes from './routes/interoperabilityRoutes';
 import storageRoutes from './routes/storageRoutes';
 import supportRoutes from './routes/supportRoutes';
+import mediaRoutes from './routes/mediaRoutes';
+import searchRoutes from './routes/searchRoutes';
 import { transcodingService } from './services/transcodingService';
 import { livekitService } from './services/livekitService';
 import { storageService } from './services/storageService';
@@ -183,6 +185,8 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/interoperability', interoperabilityRoutes);
 app.use('/api/storage', storageRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/search', searchRoutes);
 
 // Transcoding & HLS Streaming endpoints
 app.post('/api/transcode/enqueue', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req: AuthRequest, res) => {
@@ -249,6 +253,26 @@ const server = app.listen(config.port, async () => {
   try {
     await connectMongoDB();
 
+    // Initialize real-time MongoDB Change Streams for intelligent cache invalidation
+    try {
+      const { mongoChangeStreamWatcher } = await import('./cache/mongoChangeStreamWatcher');
+      mongoChangeStreamWatcher.initialize();
+    } catch {}
+
+    // Initialize Decoupled Faceted Search Engine
+    try {
+      const { searchService } = await import('./search/searchService');
+      await searchService.initialize();
+    } catch {}
+
+    // Initialize Decoupled Event Bus Subscribers
+    try {
+      const { registerAllSubscribers } = await import('./events/subscribers');
+      registerAllSubscribers();
+    } catch (subErr: any) {
+      console.warn('[EventBus] Subscriber registration warning:', subErr?.message);
+    }
+
     // Automated Platform Admin provisioning on deployment if configured in Environment
     if (process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD) {
       try {
@@ -274,6 +298,10 @@ const server = app.listen(config.port, async () => {
 // Graceful process termination (SIGINT for local dev, SIGTERM for cloud orchestrators like Render/Kubernetes)
 const handleGracefulShutdown = async (signal: string) => {
   console.log(`\n[EduSphere] Received ${signal}. Shutting down gracefully...`);
+  try {
+    const { mongoChangeStreamWatcher } = await import('./cache/mongoChangeStreamWatcher');
+    mongoChangeStreamWatcher.stop();
+  } catch {}
   try {
     await disconnectMongoDB();
   } catch (err: any) {

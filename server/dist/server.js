@@ -55,6 +55,8 @@ const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const interoperabilityRoutes_1 = __importDefault(require("./routes/interoperabilityRoutes"));
 const storageRoutes_1 = __importDefault(require("./routes/storageRoutes"));
 const supportRoutes_1 = __importDefault(require("./routes/supportRoutes"));
+const mediaRoutes_1 = __importDefault(require("./routes/mediaRoutes"));
+const searchRoutes_1 = __importDefault(require("./routes/searchRoutes"));
 const transcodingService_1 = require("./services/transcodingService");
 const livekitService_1 = require("./services/livekitService");
 const storageService_1 = require("./services/storageService");
@@ -199,6 +201,8 @@ app.use('/api/payments', paymentRoutes_1.default);
 app.use('/api/interoperability', interoperabilityRoutes_1.default);
 app.use('/api/storage', storageRoutes_1.default);
 app.use('/api/support', supportRoutes_1.default);
+app.use('/api/media', mediaRoutes_1.default);
+app.use('/api/search', searchRoutes_1.default);
 // Transcoding & HLS Streaming endpoints
 app.post('/api/transcode/enqueue', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
     try {
@@ -253,6 +257,26 @@ const server = app.listen(config_1.config.port, async () => {
     console.log(`=======================================================`);
     try {
         await (0, mongoConnection_1.connectMongoDB)();
+        // Initialize real-time MongoDB Change Streams for intelligent cache invalidation
+        try {
+            const { mongoChangeStreamWatcher } = await Promise.resolve().then(() => __importStar(require('./cache/mongoChangeStreamWatcher')));
+            mongoChangeStreamWatcher.initialize();
+        }
+        catch { }
+        // Initialize Decoupled Faceted Search Engine
+        try {
+            const { searchService } = await Promise.resolve().then(() => __importStar(require('./search/searchService')));
+            await searchService.initialize();
+        }
+        catch { }
+        // Initialize Decoupled Event Bus Subscribers
+        try {
+            const { registerAllSubscribers } = await Promise.resolve().then(() => __importStar(require('./events/subscribers')));
+            registerAllSubscribers();
+        }
+        catch (subErr) {
+            console.warn('[EventBus] Subscriber registration warning:', subErr?.message);
+        }
         // Automated Platform Admin provisioning on deployment if configured in Environment
         if (process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD) {
             try {
@@ -280,6 +304,11 @@ exports.server = server;
 // Graceful process termination (SIGINT for local dev, SIGTERM for cloud orchestrators like Render/Kubernetes)
 const handleGracefulShutdown = async (signal) => {
     console.log(`\n[EduSphere] Received ${signal}. Shutting down gracefully...`);
+    try {
+        const { mongoChangeStreamWatcher } = await Promise.resolve().then(() => __importStar(require('./cache/mongoChangeStreamWatcher')));
+        mongoChangeStreamWatcher.stop();
+    }
+    catch { }
     try {
         await (0, mongoConnection_1.disconnectMongoDB)();
     }

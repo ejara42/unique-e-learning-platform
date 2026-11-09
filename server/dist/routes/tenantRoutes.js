@@ -3,17 +3,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const uuid_1 = require("uuid");
 const dbRepository_1 = require("../data/dbRepository");
+const cacheService_1 = require("../cache/cacheService");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 // GET /api/tenants - List all or filtered by status
 router.get('/', async (req, res) => {
     try {
         const { status, type } = req.query;
+        const cacheKey = `tenants:directory:${status || 'all'}:${type || 'all'}`;
+        const cached = await cacheService_1.cacheService.get(cacheKey);
+        if (cached) {
+            res.setHeader('X-Cache-Status', 'HIT');
+            res.json(cached);
+            return;
+        }
         const tenants = await dbRepository_1.repo.getTenants({
             status: status,
             type: type,
         });
-        res.json({ tenants });
+        const payload = { tenants };
+        await cacheService_1.cacheService.set(cacheKey, payload, { ttlSeconds: 900, tags: ['tenants:directory'] });
+        res.setHeader('X-Cache-Status', 'MISS');
+        res.json(payload);
     }
     catch (err) {
         res.status(500).json({ message: 'Error retrieving institutions', error: err.message });
@@ -108,6 +119,7 @@ router.patch('/:id/status', auth_1.requireAuth, (0, auth_1.requireRole)('PLATFOR
             res.status(404).json({ message: 'Institution not found' });
             return;
         }
+        await cacheService_1.cacheService.invalidateByTag('tenants:directory');
         await dbRepository_1.repo.createAuditLog({
             id: `log-${(0, uuid_1.v4)().slice(0, 8)}`,
             tenantId: tenant.id,

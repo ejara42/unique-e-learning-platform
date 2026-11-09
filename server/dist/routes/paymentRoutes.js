@@ -4,6 +4,7 @@ const express_1 = require("express");
 const paymentService_1 = require("../services/paymentService");
 const auth_1 = require("../middleware/auth");
 const config_1 = require("../config");
+const eventBus_1 = require("../events/eventBus");
 const router = (0, express_1.Router)();
 function isSafeRedirectUrl(value, fallback) {
     if (!value)
@@ -113,6 +114,13 @@ router.post('/webhook', async (req, res) => {
             const session = event.data.object;
             const enrollment = await paymentService_1.paymentService.handleCheckoutCompleted(session);
             await paymentService_1.paymentService.markEventCompleted(event.id);
+            // Async event dispatch to decoupled event bus
+            eventBus_1.eventBus.publish('COURSE_ENROLLED', enrollment.id, {
+                enrollmentId: enrollment.id,
+                courseId: enrollment.courseId,
+                learnerId: enrollment.learnerId,
+                enrolledAt: enrollment.enrolledAt,
+            });
             res.status(200).json({
                 received: true,
                 message: 'Payment verified and enrollment granted',

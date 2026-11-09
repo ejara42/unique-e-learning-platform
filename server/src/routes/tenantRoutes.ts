@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { repo } from '../data/dbRepository';
+import { cacheService } from '../cache/cacheService';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { ITenant, TenantStatus } from '../types';
 
@@ -10,11 +11,25 @@ const router = Router();
 router.get('/', async (req: Request, res: Response) => {
   try {
     const { status, type } = req.query;
+    const cacheKey = `tenants:directory:${(status as string) || 'all'}:${(type as string) || 'all'}`;
+    const cached = await cacheService.get<{ tenants: ITenant[] }>(cacheKey);
+
+    if (cached) {
+      res.setHeader('X-Cache-Status', 'HIT');
+      res.json(cached);
+      return;
+    }
+
     const tenants = await repo.getTenants({
       status: status as string,
       type: type as string,
     });
-    res.json({ tenants });
+
+    const payload = { tenants };
+    await cacheService.set(cacheKey, payload, { ttlSeconds: 900, tags: ['tenants:directory'] });
+
+    res.setHeader('X-Cache-Status', 'MISS');
+    res.json(payload);
   } catch (err: any) {
     res.status(500).json({ message: 'Error retrieving institutions', error: err.message });
   }
@@ -124,6 +139,8 @@ router.patch('/:id/status', requireAuth, requireRole('PLATFORM_ADMIN'), async (r
       res.status(404).json({ message: 'Institution not found' });
       return;
     }
+
+    await cacheService.invalidateByTag('tenants:directory');
 
     await repo.createAuditLog({
       id: `log-${uuidv4().slice(0, 8)}`,

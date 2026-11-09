@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { paymentService } from '../services/paymentService';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { config } from '../config';
+import { eventBus } from '../events/eventBus';
 
 const router = Router();
 
@@ -126,6 +127,14 @@ router.post('/webhook', async (req: Request, res: Response) => {
       const session = event.data.object;
       const enrollment = await paymentService.handleCheckoutCompleted(session);
       await paymentService.markEventCompleted(event.id);
+
+      // Async event dispatch to decoupled event bus
+      eventBus.publish('COURSE_ENROLLED', enrollment.id, {
+        enrollmentId: enrollment.id,
+        courseId: enrollment.courseId,
+        learnerId: enrollment.learnerId,
+        enrolledAt: enrollment.enrolledAt,
+      });
 
       res.status(200).json({
         received: true,

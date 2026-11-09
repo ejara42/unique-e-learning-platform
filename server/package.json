@@ -13,6 +13,7 @@
     "test": "node ./node_modules/tsx/dist/cli.mjs tests/phase_a_mongodb.test.ts",
     "test:all": "node ./node_modules/tsx/dist/cli.mjs tests/full_enterprise_suite.test.ts",
     "test:security": "node ./node_modules/tsx/dist/cli.mjs tests/production_security_suite.test.ts",
+    "test:enterprise": "node ./node_modules/tsx/dist/cli.mjs tests/enterprise_phase1_upgrades.test.ts",
     "test:phase-b": "node ./node_modules/tsx/dist/cli.mjs tests/phase_b_infrastructure.test.ts",
     "bootstrap:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/bootstrapAdmin.ts",
     "reset:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/resetAdminPassword.ts",

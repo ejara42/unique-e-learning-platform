@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { repo } from '../data/dbRepository';
+import { cacheService } from '../cache/cacheService';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -19,6 +20,15 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
 router.get('/verify/:code', async (req: Request, res: Response) => {
   try {
     const code = String(req.params.code);
+    const cacheKey = `cert:verify:${code}`;
+    const cached = await cacheService.get<any>(cacheKey);
+
+    if (cached) {
+      res.setHeader('X-Cache-Status', 'HIT');
+      res.status(cached.statusHttp || 200).json(cached.body);
+      return;
+    }
+
     const certificate = await repo.getCertificateByCode(code);
 
     if (!certificate) {
@@ -30,21 +40,28 @@ router.get('/verify/:code', async (req: Request, res: Response) => {
     }
 
     if (certificate.status === 'REVOKED') {
-      res.status(200).json({
+      const responsePayload = {
         valid: false,
         status: 'REVOKED',
         certificate,
         message: `This certificate was REVOKED on safety/academic grounds. Reason: ${certificate.revocationReason || 'Administrative revocation'}`,
-      });
+      };
+      await cacheService.set(cacheKey, { statusHttp: 200, body: responsePayload }, { ttlSeconds: 1800, tags: [`cert:${code}`] });
+      res.setHeader('X-Cache-Status', 'MISS');
+      res.status(200).json(responsePayload);
       return;
     }
 
-    res.json({
+    const responsePayload = {
       valid: true,
       status: 'ACTIVE',
       certificate,
       message: 'Official Authenticated Credential issued by EduSphere platform.',
-    });
+    };
+    await cacheService.set(cacheKey, { statusHttp: 200, body: responsePayload }, { ttlSeconds: 3600, tags: [`cert:${code}`] });
+
+    res.setHeader('X-Cache-Status', 'MISS');
+    res.json(responsePayload);
   } catch (err: any) {
     res.status(500).json({ message: 'Error verifying credential', error: err.message });
   }
@@ -79,6 +96,9 @@ router.patch('/:id/revoke', requireAuth, requireRole('INSTITUTION_ADMIN', 'PLATF
       res.status(404).json({ message: 'Certificate not found during revocation update' });
       return;
     }
+
+    await cacheService.invalidateKey(`cert:verify:${updatedCert.certificateNumber}`);
+    await cacheService.invalidateByTag(`cert:${updatedCert.certificateNumber}`);
 
     await repo.createAuditLog({
       id: `log-${Date.now()}`,

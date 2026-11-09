@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SupportTicketModel = exports.SupportTicketSchema = exports.CourseAnnouncementModel = exports.CourseAnnouncementSchema = exports.CourseReviewModel = exports.CourseReviewSchema = exports.LiveSessionModel = exports.LiveSessionSchema = exports.TranscodeJobModel = exports.SecurityTokenModel = exports.FileAssetModel = exports.TranscodeJobSchema = exports.SecurityTokenSchema = exports.FileAssetSchema = exports.LtiConsumedNonceModel = exports.LtiStateModel = exports.ScormSessionModel = exports.ProcessedWebhookEventModel = exports.AuditLogModel = exports.AdmissionModel = exports.CertificateModel = exports.SubmissionModel = exports.AssessmentModel = exports.EnrollmentModel = exports.CourseModel = exports.UserModel = exports.TenantModel = exports.LtiConsumedNonceSchema = exports.LtiStateSchema = exports.ScormSessionSchema = exports.ProcessedWebhookEventSchema = exports.AuditLogSchema = exports.AdmissionSchema = exports.CertificateSchema = exports.SubmissionSchema = exports.AssessmentSchema = exports.EnrollmentSchema = exports.CourseSchema = exports.UserSchema = exports.TenantSchema = void 0;
+exports.OutboxEventModel = exports.OutboxEventSchema = exports.DrmKeyModel = exports.DrmKeySchema = exports.SupportTicketModel = exports.SupportTicketSchema = exports.CourseAnnouncementModel = exports.CourseAnnouncementSchema = exports.CourseReviewModel = exports.CourseReviewSchema = exports.LiveSessionModel = exports.LiveSessionSchema = exports.TranscodeJobModel = exports.SecurityTokenModel = exports.FileAssetModel = exports.TranscodeJobSchema = exports.SecurityTokenSchema = exports.FileAssetSchema = exports.LtiConsumedNonceModel = exports.LtiStateModel = exports.ScormSessionModel = exports.ProcessedWebhookEventModel = exports.AuditLogModel = exports.AdmissionModel = exports.CertificateModel = exports.SubmissionModel = exports.AssessmentModel = exports.EnrollmentModel = exports.CourseModel = exports.UserModel = exports.TenantModel = exports.LtiConsumedNonceSchema = exports.LtiStateSchema = exports.ScormSessionSchema = exports.ProcessedWebhookEventSchema = exports.AuditLogSchema = exports.AdmissionSchema = exports.CertificateSchema = exports.SubmissionSchema = exports.AssessmentSchema = exports.EnrollmentSchema = exports.CourseSchema = exports.UserSchema = exports.TenantSchema = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 exports.TenantSchema = new mongoose_1.Schema({
     id: { type: String, required: true, unique: true, index: true },
@@ -446,3 +446,25 @@ exports.SupportTicketSchema = new mongoose_1.Schema({
     createdAt: { type: String, default: () => new Date().toISOString() },
 }, { timestamps: true });
 exports.SupportTicketModel = mongoose_1.default.models.SupportTicket || mongoose_1.default.model('SupportTicket', exports.SupportTicketSchema);
+exports.DrmKeySchema = new mongoose_1.Schema({
+    courseId: { type: String, required: true, index: true },
+    lessonId: { type: String, required: true, index: true },
+    keyHex: { type: String, required: true },
+    ivHex: { type: String, required: true },
+    keyUri: { type: String, required: true },
+    createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+exports.DrmKeySchema.index({ courseId: 1, lessonId: 1 }, { unique: true });
+exports.DrmKeyModel = mongoose_1.default.models.DrmKey || mongoose_1.default.model('DrmKey', exports.DrmKeySchema);
+exports.OutboxEventSchema = new mongoose_1.Schema({
+    id: { type: String, required: true, unique: true, index: true },
+    eventType: { type: String, required: true, index: true },
+    aggregateId: { type: String, required: true, index: true },
+    payload: { type: mongoose_1.Schema.Types.Mixed, required: true },
+    status: { type: String, enum: ['PENDING', 'DISPATCHED', 'FAILED'], default: 'PENDING', index: true },
+    retries: { type: Number, default: 0 },
+    createdAt: { type: Date, default: Date.now, index: true },
+    dispatchedAt: Date,
+}, { timestamps: true });
+exports.OutboxEventSchema.index({ status: 1, createdAt: 1 });
+exports.OutboxEventModel = mongoose_1.default.models.OutboxEvent || mongoose_1.default.model('OutboxEvent', exports.OutboxEventSchema);

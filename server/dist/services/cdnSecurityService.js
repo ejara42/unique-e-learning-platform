@@ -1,0 +1,79 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.cdnSecurityService = exports.CdnSecurityService = void 0;
+const crypto_1 = __importDefault(require("crypto"));
+class CdnSecurityService {
+    cdnSecret;
+    cdnHostname;
+    constructor() {
+        this.cdnSecret = process.env.CDN_SIGNING_SECRET || 'edusphere-cdn-secret-key-2026';
+        this.cdnHostname = (process.env.CDN_HOSTNAME || 'https://stream.edusphere.io').replace(/\/+$/, '');
+    }
+    /**
+     * Generates a tamper-proof time-bounded HMAC-SHA256 signed playback token
+     */
+    generatePlaybackToken(courseId, lessonId, validMinutes = 120) {
+        const expires = Math.floor(Date.now() / 1000) + validMinutes * 60;
+        const path = `/hls/${courseId}/${lessonId}/master.m3u8`;
+        const stringToSign = `${path}${expires}`;
+        const hmac = crypto_1.default
+            .createHmac('sha256', this.cdnSecret)
+            .update(stringToSign)
+            .digest('hex');
+        return `${hmac}.${expires}`;
+    }
+    /**
+     * Verifies a standalone signed playback token against course and lesson context
+     */
+    verifyPlaybackToken(courseId, lessonId, token) {
+        if (!token || !token.includes('.'))
+            return false;
+        const [hmac, expiresStr] = token.split('.');
+        const expires = parseInt(expiresStr, 10);
+        if (isNaN(expires))
+            return false;
+        const path = `/hls/${courseId}/${lessonId}/master.m3u8`;
+        return this.verifySignedUrl(path, hmac, expires);
+    }
+    /**
+     * Generates a tamper-proof time-bounded HMAC-SHA256 signed playback URL for HLS playlists
+     * Compatible with Cloudflare Token Authentication / Edge Worker URL Validation
+     */
+    generateSignedPlaybackUrl(options) {
+        const { courseId, lessonId, validMinutes = 120 } = options;
+        const expires = Math.floor(Date.now() / 1000) + validMinutes * 60;
+        const path = `/hls/${courseId}/${lessonId}/master.m3u8`;
+        // String to sign: path + expires
+        const stringToSign = `${path}${expires}`;
+        const token = crypto_1.default
+            .createHmac('sha256', this.cdnSecret)
+            .update(stringToSign)
+            .digest('hex');
+        return `${this.cdnHostname}${path}?token=${token}&expires=${expires}`;
+    }
+    /**
+     * Verifies an incoming signed token request at Edge or API gateway level
+     */
+    verifySignedUrl(path, token, expires) {
+        const now = Math.floor(Date.now() / 1000);
+        if (now > expires) {
+            return false; // Token has expired
+        }
+        const stringToSign = `${path}${expires}`;
+        const expectedToken = crypto_1.default
+            .createHmac('sha256', this.cdnSecret)
+            .update(stringToSign)
+            .digest('hex');
+        try {
+            return crypto_1.default.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken));
+        }
+        catch {
+            return false;
+        }
+    }
+}
+exports.CdnSecurityService = CdnSecurityService;
+exports.cdnSecurityService = new CdnSecurityService();

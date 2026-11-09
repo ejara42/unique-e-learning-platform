@@ -1,12 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 import { spawn, spawnSync } from 'child_process';
-import { connectMongoDB, disconnectMongoDB } from '../data/mongoConnection';
+import { connectMongoDB, disconnectMongoDB, connectionState } from '../data/mongoConnection';
 import { jobQueue } from '../queue/jobQueue';
 import { redisClient } from '../queue/redisClient';
 import { storageService } from '../services/storageService';
-import { TranscodeJobModel, ITranscodeJobDocument } from '../models';
+import { TranscodeJobModel, ITranscodeJobDocument, DrmKeyModel } from '../models';
 
 export interface RenditionSpec {
   resolution: '1080p' | '720p' | '480p' | '360p';
@@ -23,6 +24,70 @@ export const RENDITIONS: RenditionSpec[] = [
   { resolution: '480p', width: 854, height: 480, videoBitrate: '800k', audioBitrate: '96k', bandwidth: 920000 },
   { resolution: '360p', width: 640, height: 360, videoBitrate: '400k', audioBitrate: '64k', bandwidth: 480000 },
 ];
+
+export interface HlsEncryptionKeyInfo {
+  keyUri: string;
+  keyInfoFilePath: string;
+  keyInfoPath: string;
+  keyFilePath: string;
+  keyPath: string;
+  keyHex: string;
+  ivHex: string;
+  keyBytes: Buffer;
+}
+
+/**
+ * Generates AES-128 Encryption Key & Info File for FFmpeg HLS DRM Protection
+ */
+export async function generateHlsEncryptionKeyInfo(
+  courseId: string,
+  lessonId: string,
+  outputDir?: string
+): Promise<HlsEncryptionKeyInfo> {
+  const targetDir = outputDir || path.join(os.tmpdir(), 'edusphere-drm', `${courseId}-${lessonId}`);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  const rawKey = crypto.randomBytes(16); // 128-bit key
+  const iv = crypto.randomBytes(16);     // 128-bit IV
+
+  const keyPath = path.join(targetDir, 'enc.key');
+  fs.writeFileSync(keyPath, rawKey);
+
+  const apiBase = (process.env.API_BASE_URL || 'https://api.edusphere.io').replace(/\/+$/, '');
+  const keyUri = `${apiBase}/api/media/hls-key/${courseId}/${lessonId}`;
+
+  const keyInfoPath = path.join(targetDir, 'key_info.txt');
+  const keyInfoContent = `${keyUri}\n${keyPath}\n${iv.toString('hex')}\n`;
+  fs.writeFileSync(keyInfoPath, keyInfoContent);
+
+  const keyHex = rawKey.toString('hex');
+  const ivHex = iv.toString('hex');
+
+  if (connectionState.isConnected) {
+    try {
+      await DrmKeyModel.findOneAndUpdate(
+        { courseId, lessonId },
+        { $set: { keyHex, ivHex, keyUri, createdAt: new Date().toISOString() } },
+        { upsert: true }
+      );
+    } catch (e: any) {
+      console.warn('[Worker] DRM key store notice:', e.message);
+    }
+  }
+
+  return {
+    keyUri,
+    keyInfoFilePath: keyInfoPath,
+    keyInfoPath,
+    keyFilePath: keyPath,
+    keyPath,
+    keyHex,
+    ivHex,
+    keyBytes: rawKey,
+  };
+}
 
 export class TranscodeWorker {
   private isRunning = false;
@@ -46,6 +111,10 @@ export class TranscodeWorker {
     } catch {
       return false;
     }
+  }
+
+  public async generateHlsEncryptionKeyInfo(tempDir: string, courseId: string, lessonId: string): Promise<HlsEncryptionKeyInfo> {
+    return generateHlsEncryptionKeyInfo(courseId, lessonId, tempDir);
   }
 
   /**
@@ -145,17 +214,20 @@ export class TranscodeWorker {
 
       await jobQueue.updateProgress({ jobId, progressPercentage: 30, stage: 'TRANSCODING_HLS' });
 
-      // 3. Execute FFmpeg if binary is present
+      // 3. Generate AES-128 DRM Key Info for Stream Protection
+      const drmKeyInfo = await this.generateHlsEncryptionKeyInfo(tempDir, job.courseId, job.lessonId);
+
+      // 4. Execute FFmpeg if binary is present
       const hasFfmpeg = this.isFfmpegAvailable();
       const outputMasterPlaylistKey = `hls/${job.courseId}/${job.lessonId}/master.m3u8`;
 
       if (hasFfmpeg) {
-        // Execute multi-bitrate HLS encoding
-        await this.executeFfmpegTranscode(inputFilePath, tempDir, job);
+        // Execute multi-bitrate HLS encoding with AES-128 segment encryption
+        await this.executeFfmpegTranscode(inputFilePath, tempDir, job, drmKeyInfo);
       } else {
         // Staging authorized simulation
         await new Promise((r) => setTimeout(r, 1000));
-        this.writeSimulatedHlsManifests(tempDir, job);
+        this.writeSimulatedHlsManifests(tempDir, job, drmKeyInfo);
       }
 
       await jobQueue.updateProgress({ jobId, progressPercentage: 80, stage: 'UPLOADING_TO_R2' });
@@ -184,7 +256,12 @@ export class TranscodeWorker {
   /**
    * Executes genuine FFmpeg to produce multi-bitrate HLS playlists and .ts chunks
    */
-  private async executeFfmpegTranscode(inputFile: string, outputDir: string, job: ITranscodeJobDocument): Promise<void> {
+  private async executeFfmpegTranscode(
+    inputFile: string,
+    outputDir: string,
+    job: ITranscodeJobDocument,
+    drmKeyInfo?: { keyInfoFilePath: string; keyUri: string; ivHex: string }
+  ): Promise<void> {
     for (const rendition of RENDITIONS) {
       const renditionDir = path.join(outputDir, rendition.resolution);
       if (!fs.existsSync(renditionDir)) {
@@ -208,12 +285,20 @@ export class TranscodeWorker {
         '-keyint_min', '48',
         '-hls_time', '4',
         '-hls_playlist_type', 'vod',
+      ];
+
+      // Inject AES-128 DRM Key Info File if provided
+      if (drmKeyInfo) {
+        ffmpegArgs.push('-hls_key_info_file', drmKeyInfo.keyInfoFilePath);
+      }
+
+      ffmpegArgs.push(
         '-b:v', rendition.videoBitrate,
         '-maxrate', rendition.videoBitrate,
         '-bufsize', `${parseInt(rendition.videoBitrate) * 2}k`,
         '-hls_segment_filename', segmentPattern,
-        playlistPath,
-      ];
+        playlistPath
+      );
 
       await new Promise<void>((resolve, reject) => {
         const proc = spawn('ffmpeg', ffmpegArgs);
@@ -230,7 +315,15 @@ export class TranscodeWorker {
     fs.writeFileSync(path.join(outputDir, 'master.m3u8'), masterPlaylistContent);
   }
 
-  private writeSimulatedHlsManifests(outputDir: string, job: ITranscodeJobDocument): void {
+  private writeSimulatedHlsManifests(
+    outputDir: string,
+    job: ITranscodeJobDocument,
+    drmKeyInfo?: { keyUri: string; ivHex: string }
+  ): void {
+    const keyHeader = drmKeyInfo
+      ? `#EXT-X-KEY:METHOD=AES-128,URI="${drmKeyInfo.keyUri}",IV=0x${drmKeyInfo.ivHex}\n`
+      : '';
+
     for (const r of RENDITIONS) {
       const rDir = path.join(outputDir, r.resolution);
       if (!fs.existsSync(rDir)) fs.mkdirSync(rDir, { recursive: true });
@@ -239,7 +332,7 @@ export class TranscodeWorker {
 #EXT-X-VERSION:3
 #EXT-X-TARGETDURATION:6
 #EXT-X-MEDIA-SEQUENCE:0
-#EXTINF:6.000000,
+${keyHeader}#EXTINF:6.000000,
 ${r.resolution}_000.ts
 #EXT-X-ENDLIST
 `;

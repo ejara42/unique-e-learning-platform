@@ -811,6 +811,62 @@ export const SupportTicketSchema = new Schema<ISupportTicketDocument>({
 
 export const SupportTicketModel = mongoose.models.SupportTicket || mongoose.model<ISupportTicketDocument>('SupportTicket', SupportTicketSchema);
 
+// ============================================================================
+// 15. VIDEO DRM & AES-128 ENCRYPTION KEYS
+// ============================================================================
+export interface IDrmKeyDocument extends Document {
+  courseId: string;
+  lessonId: string;
+  keyHex: string;
+  ivHex: string;
+  keyUri: string;
+  createdAt: string;
+}
+
+export const DrmKeySchema = new Schema<IDrmKeyDocument>({
+  courseId: { type: String, required: true, index: true },
+  lessonId: { type: String, required: true, index: true },
+  keyHex: { type: String, required: true },
+  ivHex: { type: String, required: true },
+  keyUri: { type: String, required: true },
+  createdAt: { type: String, default: () => new Date().toISOString() },
+}, { timestamps: true });
+
+DrmKeySchema.index({ courseId: 1, lessonId: 1 }, { unique: true });
+
+export const DrmKeyModel = mongoose.models.DrmKey || mongoose.model<IDrmKeyDocument>('DrmKey', DrmKeySchema);
+
+// ============================================================================
+// 16. TRANSACTIONAL OUTBOX & DOMAIN EVENTS
+// ============================================================================
+export interface IOutboxEventDocument extends Document {
+  id: string;
+  eventType: string;
+  aggregateId: string;
+  payload: Record<string, any>;
+  status: 'PENDING' | 'DISPATCHED' | 'FAILED';
+  retries: number;
+  createdAt: Date;
+  dispatchedAt?: Date;
+}
+
+export const OutboxEventSchema = new Schema<IOutboxEventDocument>({
+  id: { type: String, required: true, unique: true, index: true },
+  eventType: { type: String, required: true, index: true },
+  aggregateId: { type: String, required: true, index: true },
+  payload: { type: Schema.Types.Mixed, required: true },
+  status: { type: String, enum: ['PENDING', 'DISPATCHED', 'FAILED'], default: 'PENDING', index: true },
+  retries: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now, index: true },
+  dispatchedAt: Date,
+}, { timestamps: true });
+
+OutboxEventSchema.index({ status: 1, createdAt: 1 });
+
+export const OutboxEventModel = mongoose.models.OutboxEvent || mongoose.model<IOutboxEventDocument>('OutboxEvent', OutboxEventSchema);
+
+
+
 
 
 

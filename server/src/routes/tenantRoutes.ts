@@ -4,6 +4,8 @@ import { repo } from '../data/dbRepository';
 import { cacheService } from '../cache/cacheService';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { ITenant, TenantStatus } from '../types';
+import { validateBody } from '../middleware/validate';
+import { tenantRegistrationSchema, tenantStatusSchema } from '../validation/schemas';
 
 const router = Router();
 
@@ -50,7 +52,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // POST /api/tenants/register - Onboarding application (Mockup 7)
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', validateBody(tenantRegistrationSchema), async (req: Request, res: Response) => {
   try {
     const {
       institutionName,
@@ -124,7 +126,7 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // PATCH /api/tenants/:id/status - Approve, suspend or reject institution
-router.patch('/:id/status', requireAuth, requireRole('PLATFORM_ADMIN'), async (req: AuthRequest, res: Response) => {
+router.patch('/:id/status', requireAuth, requireRole('PLATFORM_ADMIN'), validateBody(tenantStatusSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { status, remarks } = req.body;
     const validStatuses: TenantStatus[] = ['PENDING_VERIFICATION', 'VERIFIED', 'SUSPENDED', 'REJECTED'];

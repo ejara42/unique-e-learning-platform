@@ -5,6 +5,8 @@ const uuid_1 = require("uuid");
 const dbRepository_1 = require("../data/dbRepository");
 const livekitService_1 = require("../services/livekitService");
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/live-sessions - List live sessions
 router.get('/', async (req, res) => {
@@ -137,7 +139,7 @@ router.post('/:id/join', auth_1.requireAuth, async (req, res) => {
     }
 });
 // POST /api/live-sessions/:id/recording - Toggle recording state (Instructor/Admin only)
-router.post('/:id/recording', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
+router.post('/:id/recording', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), (0, validate_1.validateBody)(schemas_1.liveRecordingSchema), async (req, res) => {
     try {
         const { action } = req.body; // 'START' | 'STOP'
         const session = await dbRepository_1.repo.getLiveSessionById(req.params.id);

@@ -209,7 +209,7 @@ export const Sidebar: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Role Switcher for Multi-Role / Demo Accounts */}
+            {/* Role Switcher for Multi-Role Accounts */}
             {currentUser.authorizedRoles && currentUser.authorizedRoles.length > 1 && (
               <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
                 <div style={{ fontSize: '0.66rem', color: '#94A3B8', marginBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>

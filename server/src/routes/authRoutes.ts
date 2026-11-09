@@ -8,11 +8,20 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { UserRole } from '../types';
 import { SecurityTokenModel, UserModel } from '../models';
 import { emailService } from '../services/emailService';
+import { validateBody } from '../middleware/validate';
+import {
+  loginSchema,
+  registerSchema,
+  switchRoleSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
+} from '../validation/schemas';
 
 const router = Router();
 
 // POST /api/auth/login - Production User Authentication
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', validateBody(loginSchema), async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -65,7 +74,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/register - Self-service User Registration (Learners, Instructors)
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', validateBody(registerSchema), async (req: Request, res: Response) => {
   try {
     const { fullName, email, password, role } = req.body;
 
@@ -169,7 +178,7 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/auth/switch-role - Secure Role Switching with Authorization Verification
-router.post('/switch-role', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/switch-role', requireAuth, validateBody(switchRoleSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { newRole } = req.body;
     const user = await repo.getUserById(req.user?.id || '');
@@ -247,7 +256,7 @@ router.post('/switch-role', requireAuth, async (req: AuthRequest, res: Response)
 });
 
 // POST /api/auth/forgot-password - Secure Password Reset Dispatch
-router.post('/forgot-password', async (req: Request, res: Response) => {
+router.post('/forgot-password', validateBody(forgotPasswordSchema), async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     if (!email || !email.includes('@')) {
@@ -281,7 +290,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/reset-password - Execute Password Reset with Single-Use Verification
-router.post('/reset-password', async (req: Request, res: Response) => {
+router.post('/reset-password', validateBody(resetPasswordSchema), async (req: Request, res: Response) => {
   try {
     const { token, newPassword } = req.body;
 
@@ -341,7 +350,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/verify-email - Single-Use Email Verification
-router.post('/verify-email', async (req: Request, res: Response) => {
+router.post('/verify-email', validateBody(verifyEmailSchema), async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
     if (!token) {

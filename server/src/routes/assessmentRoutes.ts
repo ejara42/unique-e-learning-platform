@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { repo } from '../data/dbRepository';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { ISubmission, ICertificate } from '../types';
+import { validateBody } from '../middleware/validate';
+import { assessmentSubmissionSchema } from '../validation/schemas';
 
 const router = Router();
 
@@ -53,7 +55,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/assessments/:id/submit - Submit answers and auto-grade
-router.post('/:id/submit', requireAuth, async (req: AuthRequest, res: Response) => {
+router.post('/:id/submit', requireAuth, validateBody(assessmentSubmissionSchema), async (req: AuthRequest, res: Response) => {
   try {
     const assessment = await repo.getAssessmentById(req.params.id as string);
     if (!assessment) {

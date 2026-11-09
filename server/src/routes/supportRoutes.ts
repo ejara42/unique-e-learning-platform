@@ -3,11 +3,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { SupportTicketModel } from '../models';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { repo } from '../data/dbRepository';
+import { validateBody } from '../middleware/validate';
+import { supportTicketSchema } from '../validation/schemas';
 
 const router = Router();
 
 // POST /api/support/ticket - Public/Student Support & Inquiries (WEB-02, ADM-04)
-router.post('/ticket', async (req: Request, res: Response) => {
+router.post('/ticket', validateBody(supportTicketSchema), async (req: Request, res: Response) => {
   try {
     const { fullName, email, category, subject, message } = req.body;
 

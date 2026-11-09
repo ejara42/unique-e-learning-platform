@@ -4,6 +4,8 @@ import { repo } from '../data/dbRepository';
 import { livekitService } from '../services/livekitService';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { ILiveSession } from '../types';
+import { validateBody } from '../middleware/validate';
+import { liveRecordingSchema } from '../validation/schemas';
 
 const router = Router();
 
@@ -150,7 +152,7 @@ router.post('/:id/join', requireAuth, async (req: AuthRequest, res: Response) =>
 });
 
 // POST /api/live-sessions/:id/recording - Toggle recording state (Instructor/Admin only)
-router.post('/:id/recording', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req: AuthRequest, res: Response) => {
+router.post('/:id/recording', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateBody(liveRecordingSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { action } = req.body; // 'START' | 'STOP'
     const session = await repo.getLiveSessionById(req.params.id as string);

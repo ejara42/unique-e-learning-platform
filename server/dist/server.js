@@ -61,6 +61,7 @@ const transcodingService_1 = require("./services/transcodingService");
 const livekitService_1 = require("./services/livekitService");
 const storageService_1 = require("./services/storageService");
 const emailService_1 = require("./services/emailService");
+const mongoSanitize_1 = require("./middleware/mongoSanitize");
 const app = (0, express_1.default)();
 exports.app = app;
 const authRequestWindowMs = 15 * 60 * 1000;
@@ -150,6 +151,8 @@ app.use(express_1.default.json({
         req.rawBody = buf;
     }
 }));
+// NoSQL Injection Mitigation (OWASP A03:2021)
+app.use(mongoSanitize_1.mongoSanitize);
 app.use('/api/auth', authRateLimiter(20));
 app.use(tenant_1.tenantMiddleware);
 // Lightweight health probe for Cloud Load Balancers and Render Health Checks

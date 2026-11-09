@@ -703,7 +703,7 @@ export const LandingPage: React.FC = () => {
           }}>
             <input 
               type="text" 
-              placeholder="Enter credential code (e.g. EDU-2026-X89K-4921)" 
+              placeholder="Enter credential code (e.g. EDU-XXXX-XXXX-XXXX)" 
               value={verifyCodeInput}
               onChange={e => setVerifyCodeInput(e.target.value)}
               className="input-field"

@@ -13,6 +13,15 @@ import { assertSafeTestDatabase } from '../src/scripts/verifyBackupRestore';
 import { requireRole, AuthRequest } from '../src/middleware/auth';
 import { TenantModel } from '../src/models';
 import { IUser, ICertificate, ICourse, IEnrollment } from '../src/types';
+import { sanitizeMongoInput } from '../src/middleware/mongoSanitize';
+import {
+  loginSchema,
+  registerSchema,
+  createCourseSchema,
+  courseReviewSchema,
+  supportTicketSchema,
+  sanitizeHtmlString,
+} from '../src/validation/schemas';
 
 let passedTests = 0;
 let totalTests = 0;
@@ -772,6 +781,104 @@ async function runAdversarialSecuritySuite() {
     assert(typeof transcodeTelem.configured === 'boolean');
     assert(typeof transcodeTelem.mode === 'string');
     assert(typeof transcodeTelem.isReady === 'boolean');
+  });
+
+  // ==========================================================================
+  // SECTION 9: STRICT INPUT VALIDATION, NOSQL INJECTION & APPSEC HARDENING
+  // ==========================================================================
+  console.log('\n--- [9/9] Strict Zod Input Validation, NoSQL Injection & AppSec Hardening ---');
+
+  await runTest('NoSQL Injection: sanitizeMongoInput purges operator keys ($gt, $ne, $where) and dot paths', async () => {
+    const maliciousPayload = {
+      username: 'legitUser',
+      password: { $ne: null },
+      filter: {
+        $where: 'sleep(5000)',
+        'nested.path': 'injected',
+        validKey: 'safeValue',
+      },
+      tags: ['safe', { $gt: '' }],
+    };
+
+    const sanitized = sanitizeMongoInput(maliciousPayload) as any;
+    assert.strictEqual(sanitized.username, 'legitUser');
+    assert.strictEqual(sanitized.password.$ne, undefined, '$ne operator must be stripped');
+    assert.deepStrictEqual(sanitized.password, {}, 'Empty object retained when key stripped');
+    assert.strictEqual(sanitized.filter.$where, undefined, '$where operator must be stripped');
+    assert.strictEqual(sanitized.filter['nested.path'], undefined, 'Dot-path must be stripped');
+    assert.strictEqual(sanitized.filter.validKey, 'safeValue', 'Legitimate keys must be preserved');
+    assert.strictEqual(sanitized.tags[0], 'safe');
+    assert.strictEqual(sanitized.tags[1].$gt, undefined, '$gt in arrays must be stripped');
+  });
+
+  await runTest('Schema Validation: loginSchema rejects invalid email formats and enforces strict payload stripping', async () => {
+    // 1. Invalid email
+    const invalidEmailRes = loginSchema.safeParse({ email: 'not-an-email', password: 'ValidPassword123!' });
+    assert.strictEqual(invalidEmailRes.success, false, 'Must reject invalid email format');
+
+    // 2. Extra keys (Mass Assignment / Prototype Pollution prevention)
+    const extraKeyRes = loginSchema.safeParse({
+      email: 'user@example.com',
+      password: 'ValidPassword123!',
+      isAdmin: true, // Unexpected field
+    });
+    assert.strictEqual(extraKeyRes.success, false, 'Strict schema must reject unrecognized payload keys');
+
+    // 3. Valid payload normalizes email to lowercase
+    const validRes = loginSchema.safeParse({ email: 'USER@EXAMPLE.COM', password: 'ValidPassword123!' });
+    assert.strictEqual(validRes.success, true);
+    if (validRes.success) {
+      assert.strictEqual(validRes.data.email, 'user@example.com', 'Email must be normalized to lowercase');
+    }
+  });
+
+  await runTest('Schema Validation: registerSchema enforces length boundaries and password complexity', async () => {
+    // 1. Password too short (< 8 chars)
+    const shortPassRes = registerSchema.safeParse({
+      fullName: 'Alice Smith',
+      email: 'alice@example.com',
+      password: 'Pass1',
+      role: 'STUDENT',
+    });
+    assert.strictEqual(shortPassRes.success, false, 'Must reject passwords under 8 characters');
+
+    // 2. Name too short (< 2 chars)
+    const shortNameRes = registerSchema.safeParse({
+      fullName: 'A',
+      email: 'alice@example.com',
+      password: 'ValidPassword123!',
+      role: 'STUDENT',
+    });
+    assert.strictEqual(shortNameRes.success, false, 'Must reject names under 2 characters');
+
+    // 3. Valid registration payload passes
+    const validRes = registerSchema.safeParse({
+      fullName: 'Alice Smith',
+      email: 'Alice.Smith@Example.COM',
+      password: 'StrongPassword2026!',
+      role: 'STUDENT',
+    });
+    assert.strictEqual(validRes.success, true);
+    if (validRes.success) {
+      assert.strictEqual(validRes.data.email, 'alice.smith@example.com');
+    }
+  });
+
+  await runTest('AppSec Sanitization: Stored XSS vectors and script injection are neutralized', async () => {
+    const maliciousInput = '<script>alert("pwned")</script><b>Hello</b><img src=x onerror=alert(1)>';
+    const sanitized = sanitizeHtmlString(maliciousInput);
+    assert(!sanitized.includes('<script>'), 'Script tags must be removed');
+    assert(!sanitized.includes('onerror='), 'Inline event handlers must be stripped');
+
+    // Review schema applies transformation
+    const reviewRes = courseReviewSchema.safeParse({
+      rating: 5,
+      comment: 'Great course! <script>stealCookies()</script>',
+    });
+    assert.strictEqual(reviewRes.success, true);
+    if (reviewRes.success) {
+      assert(!reviewRes.data.comment.includes('<script>'), 'Review comment must have script tags stripped');
+    }
   });
 
   console.log('\n========================================================================');

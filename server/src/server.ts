@@ -22,6 +22,7 @@ import { transcodingService } from './services/transcodingService';
 import { livekitService } from './services/livekitService';
 import { storageService } from './services/storageService';
 import { emailService } from './services/emailService';
+import { mongoSanitize } from './middleware/mongoSanitize';
 
 const app = express();
 
@@ -127,6 +128,9 @@ app.use(express.json({
     req.rawBody = buf;
   }
 }));
+
+// NoSQL Injection Mitigation (OWASP A03:2021)
+app.use(mongoSanitize);
 
 app.use('/api/auth', authRateLimiter(20));
 app.use(tenantMiddleware);

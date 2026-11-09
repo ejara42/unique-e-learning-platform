@@ -993,7 +993,7 @@ export const AdminDashboard: React.FC = () => {
                   type="email"
                   value={newInstEmail}
                   onChange={e => setNewInstEmail(e.target.value)}
-                  placeholder="admin@institution.edu"
+                  placeholder="dean@institution.edu"
                   className="input-field"
                   style={{ height: 40, fontSize: '0.88rem' }}
                   required

@@ -5,6 +5,8 @@ const uuid_1 = require("uuid");
 const dbRepository_1 = require("../data/dbRepository");
 const cacheService_1 = require("../cache/cacheService");
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/tenants - List all or filtered by status
 router.get('/', async (req, res) => {
@@ -45,7 +47,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 // POST /api/tenants/register - Onboarding application (Mockup 7)
-router.post('/register', async (req, res) => {
+router.post('/register', (0, validate_1.validateBody)(schemas_1.tenantRegistrationSchema), async (req, res) => {
     try {
         const { institutionName, institutionType, address, contactEmail, contactPhone, documents, } = req.body;
         if (!institutionName || !institutionType || !contactEmail) {
@@ -106,7 +108,7 @@ router.post('/register', async (req, res) => {
     }
 });
 // PATCH /api/tenants/:id/status - Approve, suspend or reject institution
-router.patch('/:id/status', auth_1.requireAuth, (0, auth_1.requireRole)('PLATFORM_ADMIN'), async (req, res) => {
+router.patch('/:id/status', auth_1.requireAuth, (0, auth_1.requireRole)('PLATFORM_ADMIN'), (0, validate_1.validateBody)(schemas_1.tenantStatusSchema), async (req, res) => {
     try {
         const { status, remarks } = req.body;
         const validStatuses = ['PENDING_VERIFICATION', 'VERIFIED', 'SUSPENDED', 'REJECTED'];

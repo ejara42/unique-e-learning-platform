@@ -223,7 +223,24 @@ async function runFullEnterpriseAuditTests() {
     assert(apexUni, 'Institution Partner must exist');
     assert.strictEqual(apexUni?.name, 'Institution Partner');
 
-    const cert = await repo.getCertificateByCode('EDU-2026-X89K-4921');
+    // Dynamically provision a verified certificate fixture for resilience verification
+    const testCertNumber = `EDU-${Date.now()}-TEST`;
+    await repo.createCertificate({
+      id: `cert-${Date.now()}`,
+      certificateNumber: testCertNumber,
+      verificationHash: crypto.createHash('sha256').update(testCertNumber).digest('hex'),
+      learnerId: 'test-learner-1',
+      learnerName: 'Test Learner',
+      courseId: 'course-1',
+      courseTitle: 'Introduction to Programming',
+      institutionName: 'Institution Partner',
+      issueDate: new Date().toISOString(),
+      gradePercentage: 95,
+      qrCodeData: `https://edusphere.io/verify/${testCertNumber}`,
+      status: 'VALID',
+    });
+
+    const cert = await repo.getCertificateByCode(testCertNumber);
     assert(cert, 'Verified Certificate must be retrievable');
     assert.strictEqual(cert?.status, 'VALID');
   });

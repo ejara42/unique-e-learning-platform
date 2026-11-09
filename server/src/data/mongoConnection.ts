@@ -74,8 +74,11 @@ export async function connectMongoDB(customUri?: string): Promise<boolean> {
 
     console.log(`[EduSphere DB] Connected to MongoDB: ${mongoose.connection.host}:${mongoose.connection.port}/${mongoose.connection.name}`);
 
-    // Seed data if collections are empty
-    await seedInitialMongoData();
+    // Production Isolation: Never automatically seed mock/demo data into production databases!
+    // In local development/testing, demo fixtures can be loaded via SEED_DEMO_DATA=true.
+    if (!config.isProduction && process.env.SEED_DEMO_DATA === 'true') {
+      await seedInitialMongoData();
+    }
 
     return true;
   } catch (err: any) {

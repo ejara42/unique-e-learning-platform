@@ -3,6 +3,8 @@ import { repo } from '../data/dbRepository';
 import { AdmissionModel } from '../models';
 import { getTenantContext } from '../middleware/tenant';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
+import { validateBody } from '../middleware/validate';
+import { admissionStatusSchema } from '../validation/schemas';
 
 const router = Router();
 
@@ -81,7 +83,7 @@ router.get('/admissions', requireAuth, requireRole('PLATFORM_ADMIN', 'INSTITUTIO
 });
 
 // PATCH /api/admin/admissions/:id/status - Approve or reject student application
-router.patch('/admissions/:id/status', requireAuth, requireRole('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req: AuthRequest, res: Response) => {
+router.patch('/admissions/:id/status', requireAuth, requireRole('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateBody(admissionStatusSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { status, remarks } = req.body;
     const validStatuses = ['ACCEPTED', 'REJECTED', 'PENDING'];

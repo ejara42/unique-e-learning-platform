@@ -8,6 +8,8 @@ const tenant_1 = require("../middleware/tenant");
 const auth_1 = require("../middleware/auth");
 const models_1 = require("../models");
 const eventBus_1 = require("../events/eventBus");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/courses - Catalog listing with search & tenant filtering
 router.get('/', async (req, res) => {
@@ -94,7 +96,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 // POST /api/courses - Course Builder 4-Step Wizard (Mockup 6)
-router.post('/', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
+router.post('/', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), (0, validate_1.validateBody)(schemas_1.createCourseSchema), async (req, res) => {
     try {
         const { title, description, category, level, price, visibility, modules, completionCriteria, isPublished, } = req.body;
         if (!title || !category) {
@@ -215,7 +217,7 @@ router.post('/:id/enroll', auth_1.requireAuth, async (req, res) => {
     }
 });
 // PATCH /api/courses/:id/progress - Mark lesson complete
-router.patch('/:id/progress', auth_1.requireAuth, async (req, res) => {
+router.patch('/:id/progress', auth_1.requireAuth, (0, validate_1.validateBody)(schemas_1.courseProgressSchema), async (req, res) => {
     try {
         const { lessonId } = req.body;
         const learnerId = req.user?.id || '';
@@ -244,7 +246,7 @@ router.get('/:id/reviews', async (req, res) => {
     }
 });
 // POST /api/courses/:id/reviews - Submit student rating & review (WEB-10)
-router.post('/:id/reviews', auth_1.requireAuth, async (req, res) => {
+router.post('/:id/reviews', auth_1.requireAuth, (0, validate_1.validateBody)(schemas_1.courseReviewSchema), async (req, res) => {
     try {
         const courseId = req.params.id;
         const userId = req.user?.id;
@@ -315,7 +317,7 @@ router.get('/:id/announcements', async (req, res) => {
     }
 });
 // POST /api/courses/:id/announcements - Publish faculty course announcement (LRN-07)
-router.post('/:id/announcements', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
+router.post('/:id/announcements', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), (0, validate_1.validateBody)(schemas_1.courseAnnouncementSchema), async (req, res) => {
     try {
         const courseId = req.params.id;
         const authorId = req.user?.id || '';

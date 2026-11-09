@@ -551,23 +551,8 @@ class InMemoryDatabase {
       },
     ];
 
-    // 6. Certificates (Verified Digital Credential Template / Fixture)
-    this.certificates = [
-      {
-        id: 'cert-1',
-        certificateNumber: 'EDU-2026-X89K-4921',
-        verificationHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-        learnerId: 'learner-alumni-1',
-        learnerName: 'Verified Learner',
-        courseId: 'course-2',
-        courseTitle: 'Cybersecurity Fundamentals',
-        institutionName: 'Institution Partner',
-        issueDate: '2026-02-10',
-        gradePercentage: 92,
-        qrCodeData: 'https://edusphere.io/verify/EDU-2026-X89K-4921',
-        status: 'VALID',
-      },
-    ];
+    // 6. Production Certificates: Generated dynamically upon verified course completion.
+    this.certificates = [];
 
     // 7. Live Sessions
     this.liveSessions = [

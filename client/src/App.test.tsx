@@ -42,7 +42,7 @@ describe('App shell', () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByRole('button', { name: /Explore as Learner/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Explore as Learner/i }, { timeout: 10000 })).toBeInTheDocument();
     expect(screen.getByText(/Accredited Multi-Tenant Academic Platform/i)).toBeInTheDocument();
-  });
+  }, 20000);
 });

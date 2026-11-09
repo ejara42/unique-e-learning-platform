@@ -5,6 +5,8 @@ const dbRepository_1 = require("../data/dbRepository");
 const models_1 = require("../models");
 const tenant_1 = require("../middleware/tenant");
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/admin/metrics - System Overview & KPI Metrics (Protected)
 router.get('/metrics', auth_1.requireAuth, (0, auth_1.requireRole)('PLATFORM_ADMIN', 'INSTITUTION_ADMIN'), async (req, res) => {
@@ -74,7 +76,7 @@ router.get('/admissions', auth_1.requireAuth, (0, auth_1.requireRole)('PLATFORM_
     }
 });
 // PATCH /api/admin/admissions/:id/status - Approve or reject student application
-router.patch('/admissions/:id/status', auth_1.requireAuth, (0, auth_1.requireRole)('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), async (req, res) => {
+router.patch('/admissions/:id/status', auth_1.requireAuth, (0, auth_1.requireRole)('INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), (0, validate_1.validateBody)(schemas_1.admissionStatusSchema), async (req, res) => {
     try {
         const { status, remarks } = req.body;
         const validStatuses = ['ACCEPTED', 'REJECTED', 'PENDING'];

@@ -328,7 +328,7 @@ export const Footer: React.FC = () => {
               <div style={{ backgroundColor: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: 12 }}>
                 <div style={{ fontWeight: 700, color: 'var(--navy-950)', fontSize: '0.88rem' }}>How do employers verify my certificate?</div>
                 <div style={{ fontSize: '0.84rem', color: 'var(--slate-600)', marginTop: 4 }}>
-                  Each certificate issued displays a unique credential code (e.g., EDU-2026-X89K-4921). Anyone can enter this code at the public Verification Portal to verify issuer, date, and passing grade without needing an account.
+                  Each certificate issued displays a unique credential code (e.g., EDU-XXXX-XXXX-XXXX). Anyone can enter this code at the public Verification Portal to verify issuer, date, and passing grade without needing an account.
                 </div>
               </div>
               <div style={{ backgroundColor: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: 12 }}>
@@ -383,7 +383,7 @@ export const Footer: React.FC = () => {
                     required
                     value={ticketEmail}
                     onChange={e => setTicketEmail(e.target.value)}
-                    placeholder="student@institution.edu"
+                    placeholder="you@institution.edu"
                     className="input-field"
                     style={{ height: 38, fontSize: '0.86rem' }}
                   />

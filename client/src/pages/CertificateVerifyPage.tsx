@@ -120,7 +120,7 @@ export const CertificateVerifyPage: React.FC = () => {
                 type="text"
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                placeholder="Enter unique Certificate Code (e.g. EDU-2026-X89K-4921)"
+                placeholder="Enter unique Certificate Code (e.g. EDU-XXXX-XXXX-XXXX)"
                 className="input-field"
                 style={{ paddingLeft: 40, height: 44, fontSize: '0.9rem', borderRadius: 'var(--radius-md)' }}
               />

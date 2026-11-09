@@ -4,6 +4,8 @@ const express_1 = require("express");
 const uuid_1 = require("uuid");
 const dbRepository_1 = require("../data/dbRepository");
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/assessments/:id - Fetch exam questions (strips correct answer keys for integrity)
 router.get('/:id', auth_1.requireAuth, async (req, res) => {
@@ -49,7 +51,7 @@ router.get('/:id', auth_1.requireAuth, async (req, res) => {
     }
 });
 // POST /api/assessments/:id/submit - Submit answers and auto-grade
-router.post('/:id/submit', auth_1.requireAuth, async (req, res) => {
+router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateBody)(schemas_1.assessmentSubmissionSchema), async (req, res) => {
     try {
         const assessment = await dbRepository_1.repo.getAssessmentById(req.params.id);
         if (!assessment) {

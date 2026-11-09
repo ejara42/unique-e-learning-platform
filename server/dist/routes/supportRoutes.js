@@ -5,9 +5,11 @@ const uuid_1 = require("uuid");
 const models_1 = require("../models");
 const auth_1 = require("../middleware/auth");
 const dbRepository_1 = require("../data/dbRepository");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // POST /api/support/ticket - Public/Student Support & Inquiries (WEB-02, ADM-04)
-router.post('/ticket', async (req, res) => {
+router.post('/ticket', (0, validate_1.validateBody)(schemas_1.supportTicketSchema), async (req, res) => {
     try {
         const { fullName, email, category, subject, message } = req.body;
         if (!fullName || !email || !subject || !message) {

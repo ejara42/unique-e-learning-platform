@@ -162,8 +162,8 @@ export const registerSchema = z.object({
   fullName: z.string().trim().min(2, 'Name must be at least 2 characters in length').max(100),
   email: z.string().trim().email('A valid email address is required').max(255).toLowerCase(),
   password: strongPassword,
-  role: z.enum(['STUDENT', 'INDEPENDENT_LEARNER'], {
-    message: 'Public registration is limited to learner roles',
+  role: z.enum(['STUDENT', 'INDEPENDENT_LEARNER', 'INSTRUCTOR'], {
+    message: 'Valid registration roles are STUDENT, INDEPENDENT_LEARNER, or INSTRUCTOR',
   }),
   institutionName: z.string().trim().max(150).optional(),
 }).strict();

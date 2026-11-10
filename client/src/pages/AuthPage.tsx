@@ -796,6 +796,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
                   style={{ height: 46 }}
                 >
                   <option value="STUDENT">{t.roleStudent}</option>
+                  <option value="INSTRUCTOR">{t.roleTeacher}</option>
                   <option value="INDEPENDENT_LEARNER">{t.roleIndependent}</option>
                 </select>
               </div>

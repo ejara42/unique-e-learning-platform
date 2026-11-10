@@ -187,6 +187,17 @@ export const verifyEmailSchema = z.object({
   token: z.string().trim().min(8, 'Verification token is required').max(256),
 }).strict();
 
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required').max(128),
+  newPassword: strongPassword,
+}).strict();
+
+export const updateProfileSchema = z.object({
+  fullName: sanitizedString(2, 100).optional(),
+  bio: z.string().trim().max(1000).transform(sanitizeHtmlString).optional(),
+  avatarUrl: z.string().url().max(2048).optional(),
+}).strict();
+
 // =============================================================================
 // Course Schemas
 // =============================================================================

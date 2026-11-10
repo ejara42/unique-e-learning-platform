@@ -17,6 +17,8 @@ import {
   resetPasswordSchema,
   verifyEmailSchema,
   emptyQuerySchema,
+  changePasswordSchema,
+  updateProfileSchema,
 } from '../validation/schemas';
 
 const router = Router();
@@ -172,6 +174,107 @@ router.get('/me', requireAuth, validateQuery(emptyQuerySchema), async (req: Auth
     });
   } catch (err: any) {
     res.status(500).json({ message: 'Error retrieving profile', error: err.message });
+  }
+});
+
+// PATCH /api/auth/profile - Update Authenticated User Profile (ACC-07)
+router.patch('/profile', requireAuth, validateBody(updateProfileSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id || '';
+    const { fullName, bio, avatarUrl } = req.body;
+
+    const user = await repo.getUserById(userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    const updates: Partial<typeof user> = {};
+    if (fullName !== undefined) updates.fullName = fullName;
+    if (bio !== undefined) updates.bio = bio;
+    if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
+
+    if (repo.isMongoActive()) {
+      await UserModel.findOneAndUpdate({ id: userId }, { $set: updates });
+    }
+
+    Object.assign(user, updates);
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        avatarUrl: user.avatarUrl,
+        activeRole: user.activeRole,
+        authorizedRoles: user.authorizedRoles || [user.activeRole],
+        institutionId: user.institutionId,
+        bio: user.bio,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to update profile', error: err.message });
+  }
+});
+
+// POST /api/auth/change-password - Change Password While Authenticated (ACC-06)
+router.post('/change-password', requireAuth, validateBody(changePasswordSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id || '';
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await repo.getUserById(userId);
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    const isMatch = bcrypt.compareSync(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      res.status(400).json({ message: 'Current password is incorrect' });
+      return;
+    }
+
+    const salt = bcrypt.genSaltSync(12);
+    const passwordHash = bcrypt.hashSync(newPassword, salt);
+
+    if (repo.isMongoActive()) {
+      await UserModel.findOneAndUpdate(
+        { id: userId },
+        { $set: { passwordHash }, $inc: { tokenVersion: 1 } }
+      );
+    }
+    user.passwordHash = passwordHash;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+
+    await repo.createAuditLog({
+      id: `log-${uuidv4().slice(0, 8)}`,
+      tenantId: user.institutionId || null,
+      actorId: user.id,
+      actorName: user.fullName,
+      actorRole: user.activeRole,
+      action: 'USER_PASSWORD_CHANGE',
+      resourceType: 'USER',
+      resourceId: user.id,
+      details: 'User successfully changed account password while authenticated.',
+      ipAddress: req.ip || '127.0.0.1',
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      await emailService.sendSecurityAlert(
+        user.email,
+        user.fullName,
+        'Your EduSphere password was changed successfully from your account settings.'
+      );
+    } catch (alertErr: any) {
+      console.error('[Auth] change-password security alert failed:', alertErr?.message || alertErr);
+    }
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to change password', error: err.message });
   }
 });
 

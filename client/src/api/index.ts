@@ -152,6 +152,18 @@ export const api = {
     localStorage.setItem('edusphere_token', res.token);
     return res;
   },
+  async updateProfile(updates: { fullName?: string; bio?: string; avatarUrl?: string }): Promise<{ user: IUser; message: string }> {
+    return request<{ user: IUser; message: string }>('/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  },
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    return request<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
   logout() {
     localStorage.removeItem('edusphere_token');
   },

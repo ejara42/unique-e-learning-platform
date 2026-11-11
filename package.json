@@ -11,6 +11,10 @@
     "build:all": "npm run build:server && npm run build:client",
     "test:server": "npm --prefix server test",
     "test:security": "npm --prefix server run test:security",
+    "test:api": "npm --prefix server run test:api",
+    "test:integration": "npm --prefix server run test:integration",
+    "test:client": "npm --prefix client test",
+    "test:e2e": "npm --prefix client run test:e2e",
     "test:all": "npm --prefix server run test:all"
   },
   "engines": {

@@ -11,7 +11,7 @@ const validate_1 = require("../middleware/validate");
 const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
 // GET /api/courses - Catalog listing with search & tenant filtering
-router.get('/', auth_1.optionalAuth, (0, validate_1.validateQuery)(schemas_1.courseCatalogQuerySchema), async (req, res) => {
+router.get('/', auth_1.optionalAuth, (0, validate_1.validateQuery)(schemas_1.courseCatalogQuerySchema), async (req, res, next) => {
     try {
         const { category, search, level } = req.query;
         const effectiveTenant = req.user?.institutionId || null;
@@ -35,7 +35,15 @@ router.get('/', auth_1.optionalAuth, (0, validate_1.validateQuery)(schemas_1.cou
         res.json(payload);
     }
     catch (err) {
-        res.status(500).json({ message: 'Error retrieving courses', error: err.message });
+        if (err.name === 'DatabaseUnavailableError' ||
+            err.statusCode === 503 ||
+            err.name === 'MongooseError' ||
+            err.name === 'MongoServerSelectionError' ||
+            (typeof err.message === 'string' && err.message.includes('buffering timed out'))) {
+            res.status(503).json({ error: 'SERVICE_UNAVAILABLE', message: err.message });
+            return;
+        }
+        next(err);
     }
 });
 // GET /api/courses/my-courses - Learner enrolled courses (Mockup 5)

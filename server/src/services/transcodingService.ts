@@ -23,7 +23,7 @@ export interface TranscodeJob {
 
 export interface TranscodingTelemetry {
   configured: boolean;
-  mode: 'MONGODB_PERSISTENT_WORKER' | 'UNAVAILABLE';
+  mode: 'MONGODB_PERSISTENT_QUEUE' | 'UNAVAILABLE';
   totalJobsQueued: number;
   details: string;
   isReady: boolean;
@@ -34,9 +34,6 @@ export class VideoTranscodingService {
   getReadiness(): { isReady: boolean; status: 'ONLINE' | 'DEGRADED'; reason?: string } {
     if (!connectionState.isConnected) {
       return { isReady: false, status: 'DEGRADED', reason: 'MongoDB-backed transcode queue is unavailable.' };
-    }
-    if (!this.isFfmpegAvailable()) {
-      return { isReady: false, status: 'DEGRADED', reason: 'FFmpeg is unavailable; transcoding is disabled.' };
     }
     return { isReady: true, status: 'ONLINE' };
   }
@@ -86,9 +83,6 @@ export class VideoTranscodingService {
     if (!connectionState.isConnected) {
       throw new Error('MongoDB is required to persist transcoding jobs.');
     }
-    if (!this.isFfmpegAvailable()) {
-      throw new Error('FFmpeg is unavailable; transcoding job was not accepted.');
-    }
     this.validateSourceUrl(sourceUrl);
     return await jobQueue.enqueueTranscodeJob({ courseId, lessonId, sourceUrl, tenantId }) as TranscodeJob;
   }
@@ -131,13 +125,11 @@ export class VideoTranscodingService {
       : 0;
     return {
       configured,
-      mode: configured ? 'MONGODB_PERSISTENT_WORKER' : 'UNAVAILABLE',
+      mode: configured ? 'MONGODB_PERSISTENT_QUEUE' : 'UNAVAILABLE',
       totalJobsQueued,
       details: !connectionState.isConnected
         ? 'MongoDB-backed transcode queue is unavailable.'
-        : !ffmpegAvailable
-          ? 'FFmpeg is unavailable; transcoding is disabled.'
-          : 'Jobs are persisted in MongoDB and processed by the transcode worker.',
+        : 'Jobs are persisted in MongoDB FIFO queue and processed by the dedicated FFmpeg background worker.',
       isReady: configured,
       ffmpegAvailable,
     };

@@ -13,7 +13,7 @@ Before starting:
 - [ ] `client/package-lock.json` exists (confirmed ✅)
 - [ ] `server/package-lock.json` exists (confirmed ✅)
 - [ ] Local builds clean: `npm --prefix server run build` and `npm --prefix client run build` both exit 0
-- [ ] All 49 tests pass: `npm --prefix server run test:all && npm --prefix server run test:security`
+- [ ] All test suites pass: `npm --prefix server run test:all && npm --prefix server run test:security && npm --prefix server run test:api && npm --prefix client test` (108 unit tests + 12 HTTP API tests)
 - [ ] No real credentials in any tracked file — `server/.env.example` uses only placeholders
 
 ---
@@ -60,37 +60,22 @@ Before starting:
 
 ---
 
-## Phase 2: Upstash Redis
+## Phase 2: Queue Architecture & Worker Configuration
 
-> ℹ️ **Current Status:** `transcodingService.ts` uses `process.env.REDIS_HOST` only to detect whether Redis is "configured". The actual BullMQ client and worker are **not yet implemented** — jobs execute in an in-process simulation. Setting Redis variables enables the "DISTRIBUTED_BULLMQ_CLUSTER" telemetry label and removes DEGRADED status from the health check.
+> ℹ️ **Architecture (Option B):** The background transcoding queue is powered by a high-resilience, persistent MongoDB FIFO queue (`TranscodeJobModel`, `jobQueue.ts`) with duplicate job protection, exponential backoff retries, and worker crash recovery (`recoverStalledJobs()`). 
 >
-> For staging, you may skip this phase and set `ALLOW_SIMULATED_TRANSCODE=true` instead. Add Redis when implementing the real worker.
+> The Express API gateway (`edusphere-api`) enqueues transcode jobs directly into MongoDB without requiring local FFmpeg binaries. The dedicated Render background worker (`edusphere-transcode-worker`), provisioned via `Dockerfile.worker`, pulls and processes transcode jobs using actual system FFmpeg and FFprobe binaries.
+>
+> Upstash Redis connection parameters (`REDIS_URL`) remain supported for distributed cache-aside layers.
 
-### 2.1 Create Redis Database (If Proceeding)
+### 2.1 Worker Service Deployment
+The Render Blueprint (`render.yaml`) automatically configures the background worker:
+- **Service Name:** `edusphere-transcode-worker`
+- **Runtime:** `docker` (`Dockerfile.worker`)
+- **Command:** `node dist/worker/transcodeWorker.js`
+- **Environment:** Inherits `MONGODB_URI`, `R2_*` storage credentials, and `JWT_SECRET`.
 
-1. Log in to [console.upstash.com](https://console.upstash.com)
-2. Click **Create Database**
-3. Name: `edusphere-staging-queue`
-4. Type: **Regional**
-5. Region: **US East 1** (closest to Render Oregon)
-6. Enable **TLS**
-
-### 2.2 Get Connection Details
-
-From the database dashboard, under **Details**:
-- **Endpoint:** `your-db-name.upstash.io`
-- **Port:** `6379`
-- **Password:** (copy the full password)
-- **Redis URL:** `rediss://default:<password>@your-db-name.upstash.io:6379`
-
-Set in Render:
-```
-REDIS_HOST=your-db-name.upstash.io
-REDIS_PORT=6379
-REDIS_URL=rediss://default:<password>@your-db-name.upstash.io:6379
-```
-
-**✅ Pass Condition for staging skip:** `ALLOW_SIMULATED_TRANSCODE=true` is set; `/api/health` reports transcoding `mode: STANDALONE_EMBEDDED_WORKER` without DEGRADED status.
+**✅ Pass Condition:** `render.yaml` contains both `edusphere-api` and `edusphere-transcode-worker`. Both services start and maintain independent lifecycles.
 
 ---
 

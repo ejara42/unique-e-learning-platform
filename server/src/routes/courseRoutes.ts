@@ -21,7 +21,7 @@ import {
 const router = Router();
 
 // GET /api/courses - Catalog listing with search & tenant filtering
-router.get('/', optionalAuth, validateQuery(courseCatalogQuerySchema), async (req: AuthRequest, res: Response) => {
+router.get('/', optionalAuth, validateQuery(courseCatalogQuerySchema), async (req: AuthRequest, res: Response, next) => {
   try {
     const { category, search, level } = req.query;
     const effectiveTenant = req.user?.institutionId || null;
@@ -48,7 +48,17 @@ router.get('/', optionalAuth, validateQuery(courseCatalogQuerySchema), async (re
     res.setHeader('X-Cache-Status', 'MISS');
     res.json(payload);
   } catch (err: any) {
-    res.status(500).json({ message: 'Error retrieving courses', error: err.message });
+    if (
+      err.name === 'DatabaseUnavailableError' ||
+      err.statusCode === 503 ||
+      err.name === 'MongooseError' ||
+      err.name === 'MongoServerSelectionError' ||
+      (typeof err.message === 'string' && err.message.includes('buffering timed out'))
+    ) {
+      res.status(503).json({ error: 'SERVICE_UNAVAILABLE', message: err.message });
+      return;
+    }
+    next(err);
   }
 });
 

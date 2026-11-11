@@ -138,31 +138,109 @@ app.use(mongoSanitize);
 app.use('/api/auth', authRateLimiter(20));
 app.use(tenantMiddleware);
 
-// Lightweight health probe for Cloud Load Balancers and Render Health Checks
-app.get('/healthz', (_req, res) => {
-  res.status(200).json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+// ==============================================================================
+// HEALTH & READINESS PROBES (Separated Liveness, Readiness & Telemetry)
+// ==============================================================================
+
+// 1. Process Liveness Probes: Verifies HTTP server is up and event loop is responsive
+app.get(['/healthz', '/api/health/live'], (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    alive: true,
+    service: 'edusphere-api',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Health check with Database, Multi-Tenant, LiveKit & Transcoding telemetry
+// 2. Gateway Readiness Probe: Fails with HTTP 503 if mandatory dependencies are unavailable
+app.get('/api/health/ready', (_req, res) => {
+  const isDbReady = connectionState.isConnected;
+  const isQueueReady = connectionState.isConnected;
+  const isReady = isDbReady && isQueueReady;
+
+  const statusCode = isReady ? 200 : 503;
+  res.status(statusCode).json({
+    ready: isReady,
+    status: isReady ? 'READY' : 'NOT_READY',
+    timestamp: new Date().toISOString(),
+    components: {
+      database: isDbReady ? 'READY' : 'UNAVAILABLE',
+      queue: isQueueReady ? 'READY' : 'UNAVAILABLE',
+    },
+    ...(!isReady && {
+      reason: !isDbReady ? 'Mandatory MongoDB persistence is disconnected.' : 'Queue persistence is unavailable.'
+    })
+  });
+});
+
+// 3. Granular Component Probes
+app.get('/api/health/database', (_req, res) => {
+  if (connectionState.isConnected) {
+    res.status(200).json({ status: 'READY', connected: true, database: connectionState.databaseName || 'edusphere' });
+  } else {
+    res.status(503).json({ status: 'UNAVAILABLE', connected: false, error: connectionState.error || 'Database connection dropped.' });
+  }
+});
+
+app.get('/api/health/queue', (_req, res) => {
+  if (connectionState.isConnected) {
+    res.status(200).json({ status: 'READY', provider: 'MongoDB Persistent FIFO Queue', ready: true });
+  } else {
+    res.status(503).json({ status: 'UNAVAILABLE', provider: 'MongoDB Persistent FIFO Queue', ready: false, reason: 'Database offline.' });
+  }
+});
+
+app.get('/api/health/storage', (_req, res) => {
+  const storageTel = storageService.getTelemetry();
+  res.status(storageTel.configured ? 200 : 200).json({
+    status: storageTel.configured ? 'CONFIGURED' : 'UNCONFIGURED',
+    telemetry: storageTel,
+  });
+});
+
+app.get('/api/health/integrations', async (_req, res) => {
+  const livekitTelemetry = await livekitService.getTelemetry();
+  const emailTelemetry = emailService.getTelemetry();
+  res.status(200).json({
+    liveKit: livekitTelemetry,
+    transactionalEmail: emailTelemetry,
+    stripe: {
+      configured: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'sk_test_edusphere_local_tests_only'),
+      webhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET && process.env.STRIPE_WEBHOOK_SECRET !== 'whsec_local_tests_only'),
+    }
+  });
+});
+
+// 4. Comprehensive Telemetry Endpoint
 app.get('/api/health', async (req, res) => {
   const livekitTelemetry = await livekitService.getTelemetry();
   const transcodingTelemetry = await transcodingService.getTelemetry();
-  const transcodingReadiness = transcodingService.getReadiness();
+  const storageTelemetry = storageService.getTelemetry();
+  const emailTelemetry = emailService.getTelemetry();
 
-  const isDbHealthy = !config.isProduction || connectionState.isConnected;
-  const isTranscodingHealthy = !config.isProduction || transcodingReadiness.isReady;
-  const isHealthy = isDbHealthy && isTranscodingHealthy;
+  const isDbReady = connectionState.isConnected;
+  const isReady = isDbReady;
 
-  const status = isHealthy ? 'ONLINE' : 'DEGRADED';
-  const statusCode = isHealthy ? 200 : 503;
+  const status = isReady ? 'ONLINE' : 'DEGRADED';
+  const statusCode = isReady ? 200 : 503;
 
   res.status(statusCode).json({
     status,
-    ready: connectionState.isConnected && transcodingReadiness.isReady,
+    ready: isReady,
     environment: config.nodeEnv,
     version: '1.0.0',
     service: 'EduSphere Enterprise API Gateway',
     timestamp: new Date().toISOString(),
+    liveness: {
+      alive: true,
+      uptime: process.uptime(),
+    },
+    readiness: {
+      overall: isReady,
+      database: isDbReady ? 'READY' : 'DEGRADED',
+      queue: isDbReady ? 'READY' : 'DEGRADED',
+    },
     database: {
       provider: 'MongoDB 8.x / Mongoose ODM',
       connected: connectionState.isConnected,
@@ -173,10 +251,14 @@ app.get('/api/health', async (req, res) => {
       mode: 'AsyncLocalStorage Logical Partitioning',
       activeContext: (req as any).tenant || null,
     },
-    liveKit: livekitTelemetry,
+    queue: {
+      architecture: 'Persistent MongoDB FIFO Queue',
+      status: isDbReady ? 'READY' : 'UNAVAILABLE',
+    },
     mediaTranscoding: transcodingTelemetry,
-    objectStorage: storageService.getTelemetry(),
-    transactionalEmail: emailService.getTelemetry(),
+    objectStorage: storageTelemetry,
+    transactionalEmail: emailTelemetry,
+    liveKit: livekitTelemetry,
   });
 });
 
@@ -254,10 +336,21 @@ app.get('/api/transcode/hls/:courseId/:lessonId/master.m3u8', validateParams(tra
 
 // Centralized Enterprise Error Handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  if (err instanceof DatabaseUnavailableError || err?.name === 'DatabaseUnavailableError') {
+  if (
+    err instanceof DatabaseUnavailableError ||
+    err?.name === 'DatabaseUnavailableError' ||
+    err?.name === 'MongooseError' ||
+    err?.name === 'MongoServerSelectionError' ||
+    err?.name === 'MongoNetworkError' ||
+    err?.name === 'MongoTimeoutError' ||
+    (typeof err?.message === 'string' && (
+      err.message.includes('buffering timed out') ||
+      err.message.includes('Could not connect to any servers')
+    ))
+  ) {
     res.status(503).json({
       error: 'SERVICE_UNAVAILABLE',
-      message: err.message,
+      message: err.message || 'Database persistence is currently unavailable.',
     });
     return;
   }
@@ -271,78 +364,82 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   });
 });
 
-// Start Server and initialize MongoDB connection
-const server = app.listen(config.port, async () => {
-  console.log(`=======================================================`);
-  console.log(`🚀 EduSphere Backend API Server is active!`);
-  console.log(`📡 URL: http://localhost:${config.port}`);
-  console.log(`🛡️  Multi-Tenant Context: AsyncLocalStorage Active`);
-  console.log(`=======================================================`);
+// Start Server and initialize MongoDB connection if not running in test mode
+let server: any = null;
 
-  try {
-    await connectMongoDB();
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(config.port, async () => {
+    console.log(`=======================================================`);
+    console.log(`🚀 EduSphere Backend API Server is active!`);
+    console.log(`📡 URL: http://localhost:${config.port}`);
+    console.log(`🛡️  Multi-Tenant Context: AsyncLocalStorage Active`);
+    console.log(`=======================================================`);
 
-    // Initialize real-time MongoDB Change Streams for intelligent cache invalidation
     try {
-      const { mongoChangeStreamWatcher } = await import('./cache/mongoChangeStreamWatcher');
-      mongoChangeStreamWatcher.initialize();
-    } catch {}
+      await connectMongoDB();
 
-    // Initialize Decoupled Faceted Search Engine
-    try {
-      const { searchService } = await import('./search/searchService');
-      await searchService.initialize();
-    } catch {}
-
-    // Initialize Decoupled Event Bus Subscribers
-    try {
-      const { registerAllSubscribers } = await import('./events/subscribers');
-      registerAllSubscribers();
-    } catch (subErr: any) {
-      console.warn('[EventBus] Subscriber registration warning:', subErr?.message);
-    }
-
-    // Automated Platform Admin provisioning on deployment if configured in Environment
-    if (process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD) {
+      // Initialize real-time MongoDB Change Streams for intelligent cache invalidation
       try {
-        const { bootstrapPlatformAdmin } = await import('./scripts/bootstrapAdmin');
-        await bootstrapPlatformAdmin({
-          email: process.env.INITIAL_ADMIN_EMAIL,
-          password: process.env.INITIAL_ADMIN_PASSWORD,
-          fullName: process.env.INITIAL_ADMIN_NAME || 'Platform Administrator',
-          preserveConnection: true,
-        });
-      } catch (adminBootstrapErr: any) {
-        console.error('[EduSphere Admin Bootstrap Error]', adminBootstrapErr?.message || adminBootstrapErr);
+        const { mongoChangeStreamWatcher } = await import('./cache/mongoChangeStreamWatcher');
+        mongoChangeStreamWatcher.initialize();
+      } catch {}
+
+      // Initialize Decoupled Faceted Search Engine
+      try {
+        const { searchService } = await import('./search/searchService');
+        await searchService.initialize();
+      } catch {}
+
+      // Initialize Decoupled Event Bus Subscribers
+      try {
+        const { registerAllSubscribers } = await import('./events/subscribers');
+        registerAllSubscribers();
+      } catch (subErr: any) {
+        console.warn('[EventBus] Subscriber registration warning:', subErr?.message);
+      }
+
+      // Automated Platform Admin provisioning on deployment if configured in Environment
+      if (process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD) {
+        try {
+          const { bootstrapPlatformAdmin } = await import('./scripts/bootstrapAdmin');
+          await bootstrapPlatformAdmin({
+            email: process.env.INITIAL_ADMIN_EMAIL,
+            password: process.env.INITIAL_ADMIN_PASSWORD,
+            fullName: process.env.INITIAL_ADMIN_NAME || 'Platform Administrator',
+            preserveConnection: true,
+          });
+        } catch (adminBootstrapErr: any) {
+          console.error('[EduSphere Admin Bootstrap Error]', adminBootstrapErr?.message || adminBootstrapErr);
+        }
+      }
+    } catch (err: any) {
+      if (config.isProduction) {
+        console.error('[FATAL] Process exiting due to production database connection failure.');
+        process.exit(1);
       }
     }
-  } catch (err: any) {
-    if (config.isProduction) {
-      console.error('[FATAL] Process exiting due to production database connection failure.');
-      process.exit(1);
-    }
-  }
-});
-
-// Graceful process termination (SIGINT for local dev, SIGTERM for cloud orchestrators like Render/Kubernetes)
-const handleGracefulShutdown = async (signal: string) => {
-  console.log(`\n[EduSphere] Received ${signal}. Shutting down gracefully...`);
-  try {
-    const { mongoChangeStreamWatcher } = await import('./cache/mongoChangeStreamWatcher');
-    mongoChangeStreamWatcher.stop();
-  } catch {}
-  try {
-    await disconnectMongoDB();
-  } catch (err: any) {
-    console.error('[EduSphere] Error disconnecting MongoDB during shutdown:', err?.message || err);
-  }
-  server.close(() => {
-    console.log('[EduSphere] HTTP server closed cleanly.');
-    process.exit(0);
   });
-};
 
-process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
+  // Graceful process termination (SIGINT for local dev, SIGTERM for cloud orchestrators like Render/Kubernetes)
+  const handleGracefulShutdown = async (signal: string) => {
+    console.log(`\n[EduSphere] Received ${signal}. Shutting down gracefully...`);
+    try {
+      const { mongoChangeStreamWatcher } = await import('./cache/mongoChangeStreamWatcher');
+      mongoChangeStreamWatcher.stop();
+    } catch {}
+    try {
+      await disconnectMongoDB();
+    } catch (err: any) {
+      console.error('[EduSphere] Error disconnecting MongoDB during shutdown:', err?.message || err);
+    }
+    server?.close(() => {
+      console.log('[EduSphere] HTTP server closed cleanly.');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
+}
 
 export { app, server };

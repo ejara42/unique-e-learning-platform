@@ -138,6 +138,12 @@ export class TranscodeWorker {
       process.exit(1);
     }
 
+    // Recover any stalled/interrupted jobs from previous worker crashes or restarts
+    const recoveredCount = await jobQueue.recoverStalledJobs();
+    if (recoveredCount > 0) {
+      console.log(`[Worker] Recovered ${recoveredCount} stalled/interrupted jobs from previous worker session.`);
+    }
+
     this.isRunning = true;
     console.log('[Worker] Worker loop initialized. Polling for transcode jobs...');
 

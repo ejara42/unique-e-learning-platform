@@ -48,9 +48,9 @@ export const TeacherCourseStudio: React.FC = () => {
     }>;
   }>>([
     {
-      title: 'Module 1: Foundations & Architecture',
+      title: '',
       lessons: [
-        { title: 'Lecture 1: Core Principles and Objectives', type: 'VIDEO', duration: 20 },
+        { title: '', type: 'VIDEO', duration: 15 },
       ],
     },
   ]);
@@ -72,50 +72,7 @@ export const TeacherCourseStudio: React.FC = () => {
     options: string[];
     correctAnswerIndex: number;
     points: number;
-  }>>([
-    {
-      id: 'q-1',
-      type: 'MCQ',
-      prompt: 'What architectural principle guarantees fault-tolerance and horizontal scaling in modern enterprise cloud systems?',
-      options: [
-        'Single monolithic server deployment',
-        'Stateless containerized services with redundant load balancing',
-        'Direct hardcoded database socket connections',
-        'Single point of failure database write locks'
-      ],
-      correctAnswerIndex: 1,
-      points: 25,
-    },
-    {
-      id: 'q-2',
-      type: 'MCQ',
-      prompt: 'Which cryptographic algorithm computes the immutable verification hash on EduSphere graduation certificates?',
-      options: ['MD5', 'DES', 'SHA-256', 'Blowfish'],
-      correctAnswerIndex: 2,
-      points: 25,
-    },
-    {
-      id: 'q-3',
-      type: 'TRUE_FALSE',
-      prompt: 'Role-based access control (RBAC) enforces security boundaries by preventing unauthorized users from accessing instructor and administration dashboards.',
-      options: ['True', 'False'],
-      correctAnswerIndex: 0,
-      points: 25,
-    },
-    {
-      id: 'q-4',
-      type: 'MCQ',
-      prompt: 'In a multi-tenant university platform, how is institutional isolation maintained across tenants?',
-      options: [
-        'Shared unpartitioned tables without tenant filters',
-        'Strict tenantId indexing with asynchronous context isolation barriers',
-        'Client-side localStorage filtering only',
-        'Unencrypted flat files'
-      ],
-      correctAnswerIndex: 1,
-      points: 25,
-    },
-  ]);
+  }>>([]);
 
   // Success Feedback
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -125,8 +82,8 @@ export const TeacherCourseStudio: React.FC = () => {
     setModules([
       ...modules,
       {
-        title: `Module ${modules.length + 1}: Advanced Concepts`,
-        lessons: [{ title: 'Hands-on Laboratory Exercise', type: 'VIDEO', duration: 25 }],
+        title: '',
+        lessons: [{ title: '', type: 'VIDEO', duration: 15 }],
       },
     ]);
   };
@@ -139,7 +96,7 @@ export const TeacherCourseStudio: React.FC = () => {
   const handleAddLesson = (moduleIndex: number) => {
     const updated = [...modules];
     updated[moduleIndex].lessons.push({
-      title: `Lesson ${updated[moduleIndex].lessons.length + 1}: Topic Discussion`,
+      title: '',
       type: 'VIDEO',
       duration: 15,
     });
@@ -157,12 +114,8 @@ export const TeacherCourseStudio: React.FC = () => {
     const newQ = {
       id: `q-${Date.now().toString().slice(-4)}`,
       type,
-      prompt: type === 'TRUE_FALSE'
-        ? 'State whether the following claim is true or false.'
-        : type === 'ESSAY'
-        ? 'Provide an in-depth analytical explanation for the following problem.'
-        : 'Enter question prompt...',
-      options: type === 'TRUE_FALSE' ? ['True', 'False'] : type === 'ESSAY' ? [] : ['Option A', 'Option B', 'Option C', 'Option D'],
+      prompt: '',
+      options: type === 'TRUE_FALSE' ? ['True', 'False'] : type === 'ESSAY' ? [] : ['', '', '', ''],
       correctAnswerIndex: 0,
       points: 25,
     };
@@ -170,7 +123,6 @@ export const TeacherCourseStudio: React.FC = () => {
   };
 
   const handleRemoveQuestion = (qIndex: number) => {
-    if (questions.length <= 1) return;
     setQuestions(questions.filter((_, idx) => idx !== qIndex));
   };
 
@@ -210,25 +162,39 @@ export const TeacherCourseStudio: React.FC = () => {
       return;
     }
 
+    const validModules = modules
+      .map((m, mIdx) => ({
+        id: `mod-${mIdx + 1}`,
+        title: m.title.trim() || `Module ${mIdx + 1}`,
+        order: mIdx + 1,
+        lessons: m.lessons
+          .filter((l) => l.title.trim().length > 0)
+          .map((l, lIdx) => ({
+            id: `les-${mIdx + 1}-${lIdx + 1}`,
+            title: l.title.trim(),
+            order: lIdx + 1,
+            contentType: l.type,
+            durationMinutes: l.duration || 15,
+            videoUrl: l.videoUrl || undefined,
+            isFreePreview: lIdx === 0,
+          })),
+      }))
+      .filter((m) => m.lessons.length > 0);
+
+    if (validModules.length === 0) {
+      showToast({
+        title: 'Curriculum empty',
+        description: 'Please add at least one module and lesson with a title before publishing.',
+        tone: 'error',
+      });
+      setCurrentStep(2);
+      return;
+    }
+
     if (isSubmitting) return;
 
     setIsSubmitting(true);
     try {
-      const formattedModules = modules.map((m, mIdx) => ({
-        id: `mod-${mIdx + 1}`,
-        title: m.title,
-        order: mIdx + 1,
-        lessons: m.lessons.map((l, lIdx) => ({
-          id: `les-${mIdx + 1}-${lIdx + 1}`,
-          title: l.title,
-          order: lIdx + 1,
-          contentType: l.type,
-          durationMinutes: l.duration,
-          videoUrl: l.videoUrl || undefined,
-          isFreePreview: lIdx === 0,
-        })),
-      }));
-
       const res = await api.createCourse({
         title,
         description,
@@ -236,13 +202,14 @@ export const TeacherCourseStudio: React.FC = () => {
         level,
         price,
         thumbnailUrl: thumbnailUrl || undefined,
-        modules: formattedModules as any,
+        modules: validModules as any,
         completionCriteria: { minimumPassingGradePct: passingGrade },
         isPublished: true,
       });
 
       // Create and link the course's official examination
-      if (questions.length > 0) {
+      const validQuestions = questions.filter((q) => q.prompt.trim().length > 0);
+      if (validQuestions.length > 0) {
         await api.createAssessment({
           courseId: res.course.id,
           title: examTitle.trim() || `${title} - Official Certification Examination`,
@@ -250,7 +217,7 @@ export const TeacherCourseStudio: React.FC = () => {
           instructions: examInstructions,
           durationMinutes: examDuration,
           passingScorePct: passingGrade,
-          questions,
+          questions: validQuestions,
         }).catch((err) => {
           console.warn('[Assessment Link Warning]', err.message);
         });
@@ -649,6 +616,7 @@ export const TeacherCourseStudio: React.FC = () => {
                       <input
                         type="text"
                         value={mod.title}
+                        placeholder={`Module ${mIdx + 1} Title (e.g. Introduction & Core Foundations)`}
                         onChange={e => {
                           const updated = [...modules];
                           updated[mIdx].title = e.target.value;
@@ -703,6 +671,7 @@ export const TeacherCourseStudio: React.FC = () => {
                         <input
                           type="text"
                           value={lesson.title}
+                          placeholder={`Lesson ${lIdx + 1} Title (e.g. Architecture Overview)`}
                           onChange={e => {
                             const updated = [...modules];
                             updated[mIdx].lessons[lIdx].title = e.target.value;
@@ -1061,66 +1030,113 @@ export const TeacherCourseStudio: React.FC = () => {
 
             {/* Question Cards List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 28 }}>
-              {questions.map((q, qIdx) => (
+              {questions.length === 0 ? (
                 <div
-                  key={q.id || qIdx}
                   style={{
                     backgroundColor: '#FFFFFF',
-                    border: '1px solid var(--border-color)',
+                    border: '2px dashed var(--border-color)',
                     borderRadius: 'var(--radius-md)',
-                    padding: '20px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                    transition: 'border-color 0.15s ease',
+                    padding: '36px 20px',
+                    textAlign: 'center',
                   }}
                 >
-                  {/* Question Header Bar */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: 12,
-                    paddingBottom: 10,
-                    borderBottom: '1px solid var(--border-subtle)',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{
-                        backgroundColor: 'var(--navy-900)',
-                        color: '#FFFFFF',
-                        fontWeight: 800,
-                        fontSize: '0.78rem',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                      }}>
-                        Question {qIdx + 1}
-                      </span>
-                      <span style={{
-                        backgroundColor: q.type === 'MCQ' ? '#EFF6FF' : q.type === 'TRUE_FALSE' ? '#F0FDF4' : '#FEF3C7',
-                        color: q.type === 'MCQ' ? '#1D4ED8' : q.type === 'TRUE_FALSE' ? '#15803D' : '#B45309',
-                        fontWeight: 700,
-                        fontSize: '0.74rem',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: `1px solid ${q.type === 'MCQ' ? '#BFDBFE' : q.type === 'TRUE_FALSE' ? '#BBF7D0' : '#FDE68A'}`,
-                      }}>
-                        {q.type === 'MCQ' ? 'Multiple Choice' : q.type === 'TRUE_FALSE' ? 'True / False' : 'Essay Prompt'}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-600)' }}>Score Points:</span>
-                        <input
-                          type="number"
-                          value={q.points}
-                          onChange={e => handleUpdateQuestion(qIdx, 'points', Math.max(1, parseInt(e.target.value, 10) || 1))}
-                          min={1}
-                          max={100}
-                          className="input-field"
-                          style={{ width: 58, height: 32, fontSize: '0.84rem', fontWeight: 700, textAlign: 'center', padding: '2px 4px' }}
-                        />
+                  <FileText size={38} style={{ color: 'var(--slate-400)', margin: '0 auto 12px' }} />
+                  <h4 style={{ margin: '0 0 6px', fontSize: '1rem', fontWeight: 700, color: 'var(--navy-900)' }}>
+                    No Examination Questions Added Yet
+                  </h4>
+                  <p style={{ margin: '0 auto 20px', fontSize: '0.85rem', color: 'var(--slate-500)', maxWidth: 460 }}>
+                    Build your official certification examination by creating custom Multiple Choice, True/False, or Essay questions. Questions are evaluated live with anti-cheating telemetry.
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleAddQuestion('MCQ')}
+                      icon={<Plus size={14} />}
+                    >
+                      + Add Multiple Choice
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleAddQuestion('TRUE_FALSE')}
+                      icon={<Plus size={14} />}
+                    >
+                      + Add True / False
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleAddQuestion('ESSAY')}
+                      icon={<Plus size={14} />}
+                    >
+                      + Add Essay
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                questions.map((q, qIdx) => (
+                  <div
+                    key={q.id || qIdx}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '20px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                      transition: 'border-color 0.15s ease',
+                    }}
+                  >
+                    {/* Question Header Bar */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: 12,
+                      paddingBottom: 10,
+                      borderBottom: '1px solid var(--border-subtle)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{
+                          backgroundColor: 'var(--navy-900)',
+                          color: '#FFFFFF',
+                          fontWeight: 800,
+                          fontSize: '0.78rem',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-sm)',
+                        }}>
+                          Question {qIdx + 1}
+                        </span>
+                        <span style={{
+                          backgroundColor: q.type === 'MCQ' ? '#EFF6FF' : q.type === 'TRUE_FALSE' ? '#F0FDF4' : '#FEF3C7',
+                          color: q.type === 'MCQ' ? '#1D4ED8' : q.type === 'TRUE_FALSE' ? '#15803D' : '#B45309',
+                          fontWeight: 700,
+                          fontSize: '0.74rem',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: `1px solid ${q.type === 'MCQ' ? '#BFDBFE' : q.type === 'TRUE_FALSE' ? '#BBF7D0' : '#FDE68A'}`,
+                        }}>
+                          {q.type === 'MCQ' ? 'Multiple Choice' : q.type === 'TRUE_FALSE' ? 'True / False' : 'Essay Prompt'}
+                        </span>
                       </div>
 
-                      {questions.length > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-600)' }}>Score Points:</span>
+                          <input
+                            type="number"
+                            value={q.points}
+                            onChange={e => handleUpdateQuestion(qIdx, 'points', Math.max(1, parseInt(e.target.value, 10) || 1))}
+                            min={1}
+                            max={100}
+                            className="input-field"
+                            style={{ width: 58, height: 32, fontSize: '0.84rem', fontWeight: 700, textAlign: 'center', padding: '2px 4px' }}
+                          />
+                        </div>
+
                         <button
                           type="button"
                           onClick={() => handleRemoveQuestion(qIdx)}
@@ -1138,9 +1154,8 @@ export const TeacherCourseStudio: React.FC = () => {
                         >
                           <Trash2 size={16} />
                         </button>
-                      )}
+                      </div>
                     </div>
-                  </div>
 
                   {/* Question Prompt Field */}
                   <div style={{ marginBottom: 14 }}>
@@ -1317,7 +1332,7 @@ export const TeacherCourseStudio: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ))}
+              )))}
             </div>
 
             <div style={{

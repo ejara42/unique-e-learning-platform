@@ -21,6 +21,7 @@ export const AssessmentExamPlayer: React.FC = () => {
   const { selectedAssessmentId, setCurrentPage, openVerification, currentUser } = useApp();
   const { toast, showToast, dismissToast } = useToast();
   const [assessment, setAssessment] = useState<IAssessment | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
   const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes in seconds
@@ -43,6 +44,7 @@ export const AssessmentExamPlayer: React.FC = () => {
       return;
     }
     if (selectedAssessmentId) {
+      setLoadError(null);
       api.getAssessment(selectedAssessmentId)
         .then(res => {
           setAssessment(res.assessment);
@@ -52,7 +54,9 @@ export const AssessmentExamPlayer: React.FC = () => {
           console.error('[Assessment Load Error]', err.message);
           if (err.message && err.message.includes('Unauthorized')) {
             setCurrentPage('login');
+            return;
           }
+          setLoadError(err.message || 'Assessment not found or not published.');
         });
     }
   }, [selectedAssessmentId, currentUser]);
@@ -140,6 +144,22 @@ export const AssessmentExamPlayer: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (loadError) {
+    return (
+      <>
+        <ToastViewport toast={toast} onDismiss={dismissToast} />
+        <div style={{ minHeight: '70vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40, textAlign: 'center' }}>
+          <AlertTriangle size={36} color="var(--danger)" />
+          <h3 style={{ margin: 0, fontWeight: 700, color: 'var(--navy-900)' }}>Examination Not Available</h3>
+          <p style={{ color: 'var(--slate-500)', fontSize: '0.92rem', maxWidth: 440 }}>
+            {loadError}
+          </p>
+          <Button variant="primary" onClick={() => setCurrentPage('my-courses')}>Return to My Courses</Button>
+        </div>
+      </>
+    );
+  }
 
   if (!assessment) {
     if (!selectedAssessmentId) {

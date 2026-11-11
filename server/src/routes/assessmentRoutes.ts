@@ -88,12 +88,12 @@ router.get('/course/:courseId', requireAuth, validateParams(courseIdParamsSchema
     const questions = isInstructorOrAdmin
       ? assessment.questions
       : assessment.questions.map(q => ({
-          id: q.id,
-          type: q.type,
-          prompt: q.prompt,
-          options: q.options,
-          points: q.points,
-        }));
+        id: q.id,
+        type: q.type,
+        prompt: q.prompt,
+        options: q.options,
+        points: q.points,
+      }));
 
     res.json({
       assessment: {
@@ -120,61 +120,8 @@ router.get('/:id', requireAuth, validateParams(identifierParamsSchema), async (r
       assessment = await repo.getAssessmentByCourseId(req.params.id as string);
     }
     if (!assessment) {
-      if (req.params.id === 'assessment-1') {
-        const courses = await repo.getCourses({}, null);
-        const targetCourse = courses[0];
-        if (targetCourse) {
-          const defaultAssessment: IAssessment = {
-            id: 'assessment-1',
-            courseId: targetCourse.id,
-            title: `${targetCourse.title} - Official Proctored Examination`,
-            type: 'FINAL_EXAM',
-            instructions: 'Answer all questions. Browser focus loss and tab switches will be logged.',
-            durationMinutes: 30,
-            passingScorePct: 75,
-            questions: [
-              {
-                id: 'q1',
-                type: 'MCQ',
-                prompt: 'What primary design principle guarantees high availability in cloud-native applications?',
-                options: ['Single monolithic instance', 'Stateless services and redundant scaling', 'Hardcoded IP dependencies', 'Synchronous blocking I/O'],
-                correctAnswerIndex: 1,
-                points: 25,
-              },
-              {
-                id: 'q2',
-                type: 'MCQ',
-                prompt: 'Which cryptographic algorithm produces the 256-bit hash used for EduSphere certificate validation?',
-                options: ['MD5', 'DES', 'SHA-256', 'RC4'],
-                correctAnswerIndex: 2,
-                points: 25,
-              },
-              {
-                id: 'q3',
-                type: 'TRUE_FALSE',
-                prompt: 'True or False: Role-based access control enforces least-privilege principles by restricting unauthenticated dashboard access.',
-                options: ['True', 'False'],
-                correctAnswerIndex: 0,
-                points: 25,
-              },
-              {
-                id: 'q4',
-                type: 'MCQ',
-                prompt: 'In a multi-tenant database architecture, how is customer data safely partitioned?',
-                options: ['Shared global collections without tenant identifiers', 'TenantId field isolation and AsyncLocalStorage context', 'Client-side cookie storage', 'Public FTP directory'],
-                correctAnswerIndex: 1,
-                points: 25,
-              },
-            ],
-          };
-          await repo.createAssessment(defaultAssessment).catch(() => {});
-          assessment = defaultAssessment;
-        }
-      }
-      if (!assessment) {
-        res.status(404).json({ message: 'Assessment not found' });
-        return;
-      }
+      res.status(404).json({ message: 'Assessment not found. The instructor has not yet authored an assessment for this course.' });
+      return;
     }
 
     // Tenant isolation verification: Verify course tenant restriction

@@ -107,6 +107,20 @@ export const LessonPlayerPage: React.FC = () => {
     }
   };
 
+  const handleStartExam = async () => {
+    if (!course?.id) return;
+    try {
+      const res = await api.getAssessmentByCourse(course.id);
+      if (res?.assessment?.id) {
+        startExam(res.assessment.id);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    toast.error('No examination has been authored for this course yet.');
+  };
+
   // High-Fidelity Skeleton Loader
   if (isLoading || !course || !lesson) {
     return (
@@ -437,7 +451,7 @@ export const LessonPlayerPage: React.FC = () => {
               {/* Assessment Gate Banner */}
               <div className="pt-4 border-t border-slate-800">
                 <button
-                  onClick={() => startExam(course.id)}
+                  onClick={handleStartExam}
                   className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs shadow-soft flex items-center justify-center gap-2 transition-all active:scale-95"
                 >
                   <Award className="w-4 h-4" />

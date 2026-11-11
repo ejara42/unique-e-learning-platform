@@ -7,12 +7,102 @@ const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
 const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
+// POST /api/assessments - Instructor or Admin creates an assessment/exam for a course
+router.post('/', auth_1.requireAuth, (0, auth_1.requireRole)('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), (0, validate_1.validateBody)(schemas_1.createAssessmentSchema), async (req, res) => {
+    try {
+        const { courseId, title, type, instructions, durationMinutes, passingScorePct, questions } = req.body;
+        const course = await dbRepository_1.repo.getCourseById(courseId);
+        if (!course) {
+            res.status(404).json({ message: 'Target course not found' });
+            return;
+        }
+        const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
+        const isInstitutionAdmin = req.user?.activeRole === 'INSTITUTION_ADMIN' && req.user.institutionId === course.tenantId;
+        const isCourseInstructor = req.user?.activeRole === 'INSTRUCTOR' && (course.instructorId === req.user.id || !course.instructorId);
+        if (!isPlatformAdmin && !isInstitutionAdmin && !isCourseInstructor) {
+            res.status(403).json({ message: 'Forbidden: You do not have permission to author assessments for this course' });
+            return;
+        }
+        const formattedQuestions = questions.map((q, idx) => ({
+            id: q.id || `q-${idx + 1}-${(0, uuid_1.v4)().slice(0, 6)}`,
+            type: q.type || 'MCQ',
+            prompt: q.prompt,
+            options: q.options || [],
+            correctAnswerIndex: typeof q.correctAnswerIndex === 'number' ? q.correctAnswerIndex : 0,
+            points: q.points || 1,
+        }));
+        const newAssessment = {
+            id: `assessment-${(0, uuid_1.v4)().slice(0, 8)}`,
+            courseId,
+            title: title || `${course.title} Examination`,
+            type: type || 'FINAL_EXAM',
+            instructions: instructions || 'Please complete all questions before the countdown timer expires. Tab switching is logged.',
+            durationMinutes: durationMinutes || 30,
+            passingScorePct: passingScorePct || 75,
+            questions: formattedQuestions,
+        };
+        await dbRepository_1.repo.createAssessment(newAssessment);
+        res.status(201).json({
+            message: 'Examination successfully created and published!',
+            assessment: newAssessment,
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to create assessment', error: err.message });
+    }
+});
+// GET /api/assessments/course/:courseId - Fetch the exam for a specific course
+router.get('/course/:courseId', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.courseIdParamsSchema), async (req, res) => {
+    try {
+        const courseId = req.params.courseId;
+        const course = await dbRepository_1.repo.getCourseById(courseId);
+        if (!course) {
+            res.status(404).json({ message: 'Course not found' });
+            return;
+        }
+        const assessment = await dbRepository_1.repo.getAssessmentByCourseId(courseId);
+        if (!assessment) {
+            res.json({ assessment: null });
+            return;
+        }
+        const isInstructorOrAdmin = (req.user?.activeRole === 'PLATFORM_ADMIN' && req.user.globalRole === 'PLATFORM_SUPERADMIN') ||
+            (req.user?.activeRole === 'INSTRUCTOR' && course.instructorId === req.user?.id) ||
+            (req.user?.activeRole === 'INSTITUTION_ADMIN' && req.user?.institutionId === course.tenantId);
+        const questions = isInstructorOrAdmin
+            ? assessment.questions
+            : assessment.questions.map(q => ({
+                id: q.id,
+                type: q.type,
+                prompt: q.prompt,
+                options: q.options,
+                points: q.points,
+            }));
+        res.json({
+            assessment: {
+                id: assessment.id,
+                courseId: assessment.courseId,
+                title: assessment.title,
+                type: assessment.type,
+                instructions: assessment.instructions,
+                durationMinutes: assessment.durationMinutes,
+                passingScorePct: assessment.passingScorePct,
+                questions,
+            },
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Error retrieving assessment for course', error: err.message });
+    }
+});
 // GET /api/assessments/:id - Fetch exam questions (strips correct answer keys for integrity)
 router.get('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), async (req, res) => {
     try {
-        const assessment = await dbRepository_1.repo.getAssessmentById(req.params.id);
+        let assessment = await dbRepository_1.repo.getAssessmentById(req.params.id);
         if (!assessment) {
-            res.status(404).json({ message: 'Assessment not found' });
+            assessment = await dbRepository_1.repo.getAssessmentByCourseId(req.params.id);
+        }
+        if (!assessment) {
+            res.status(404).json({ message: 'Assessment not found. The instructor has not yet authored an assessment for this course.' });
             return;
         }
         // Tenant isolation verification: Verify course tenant restriction
@@ -65,7 +155,10 @@ router.get('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.
 // POST /api/assessments/:id/submit - Submit answers and auto-grade
 router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), (0, validate_1.validateBody)(schemas_1.assessmentSubmissionSchema), async (req, res) => {
     try {
-        const assessment = await dbRepository_1.repo.getAssessmentById(req.params.id);
+        let assessment = await dbRepository_1.repo.getAssessmentById(req.params.id);
+        if (!assessment) {
+            assessment = await dbRepository_1.repo.getAssessmentByCourseId(req.params.id);
+        }
         if (!assessment) {
             res.status(404).json({ message: 'Assessment not found' });
             return;

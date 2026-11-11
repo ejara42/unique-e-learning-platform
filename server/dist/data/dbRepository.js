@@ -168,6 +168,11 @@ class DatabaseRepository {
         const doc = await models_1.AssessmentModel.findOne({ courseId }).lean();
         return doc || null;
     }
+    async createAssessment(assessmentData) {
+        this.assertActiveStorage();
+        await models_1.AssessmentModel.create(assessmentData);
+        return assessmentData;
+    }
     async createSubmission(submissionData) {
         this.assertActiveStorage();
         await models_1.SubmissionModel.create(submissionData);

@@ -174,9 +174,13 @@ export const CourseDetailPage: React.FC = () => {
         return;
       }
     } catch {
-      // fallback
+      // ignore
     }
-    startExam(course.id);
+    showToast({
+      title: 'No Examination Available',
+      description: 'The faculty instructor has not yet authored an assessment for this curriculum.',
+      tone: 'info',
+    });
   };
 
   const totalLessons = course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;

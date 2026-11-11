@@ -95,7 +95,7 @@ export class PaymentService {
           unit_amount: priceAmount,
           product_data: {
             name: course.title,
-            description: course.description.slice(0, 500),
+            description: (course.description || course.title).slice(0, 500),
           },
         },
       }],

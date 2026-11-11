@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { Logo } from './Logo';
+import { toast } from 'sonner';
 import { 
   ShieldCheck, 
   ArrowUp, 
@@ -46,10 +47,13 @@ export const Footer: React.FC = () => {
         message: ticketMessage.trim(),
       });
       setTicketSuccess(res.message || 'Ticket submitted successfully. Our operations desk will respond shortly.');
+      toast.success('Support ticket submitted successfully.', {
+        description: 'Our operations desk will respond shortly.',
+      });
       setTicketSubject('');
       setTicketMessage('');
     } catch (err: any) {
-      alert(err.message || 'Failed to submit support ticket');
+      toast.error(err.message || 'Failed to submit support ticket');
     } finally {
       setIsSubmittingTicket(false);
     }

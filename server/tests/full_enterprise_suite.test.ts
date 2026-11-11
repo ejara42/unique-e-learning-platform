@@ -6,8 +6,13 @@ import {
   UserModel,
   CourseModel,
   EnrollmentModel,
-  CertificateModel
+  CertificateModel,
+  TranscodeJobModel,
+  LtiStateModel,
+  ScormSessionModel,
+  AuditLogModel,
 } from '../src/models';
+import { connectionState } from '../src/data/mongoConnection';
 import { tenantStorage, TenantContext } from '../src/middleware/tenant';
 import { repo } from '../src/data/dbRepository';
 import { livekitService } from '../src/services/livekitService';
@@ -36,6 +41,209 @@ async function runFullEnterpriseAuditTests() {
       console.error(`  ❌ [FAIL] ${name}`);
       console.error(`     Reason: ${err.message}`);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // OFFLINE TEST STUBS SETUP (If live MongoDB Atlas is unreachable in CI / sandbox)
+  // ---------------------------------------------------------------------------
+  const testTenants = new Map<string, any>();
+  const testCertificates = new Map<string, any>();
+  const testCourses = new Map<string, any>();
+  const testEnrollments = new Map<string, any>();
+  const testTranscodeJobs = new Map<string, any>();
+  const testLtiStates = new Map<string, any>();
+  const testScormSessions = new Map<string, any>();
+
+  const wasOffline = !connectionState.isConnected;
+  if (wasOffline) {
+    connectionState.isConnected = true;
+
+    // Seed default accredited institutions
+    const seedTenants = [
+      { id: 'tenant-1', slug: 'mit', name: 'MIT Open Learning', type: 'UNIVERSITY', status: 'ACTIVE' },
+      { id: 'tenant-2', slug: 'stanford', name: 'Stanford Online', type: 'UNIVERSITY', status: 'ACTIVE' },
+      { id: 'tenant-3', slug: 'institution-partner', name: 'Institution Partner', type: 'UNIVERSITY', status: 'ACTIVE' },
+      { id: 'tenant-4', slug: 'oxford', name: 'Oxford Continuing Education', type: 'UNIVERSITY', status: 'ACTIVE' },
+      { id: 'tenant-5', slug: 'harvard', name: 'Harvard Division of Continuing Education', type: 'UNIVERSITY', status: 'ACTIVE' },
+    ];
+    seedTenants.forEach(t => testTenants.set(t.id, t));
+
+    // Seed default course
+    const defaultCourse = {
+      id: 'course-1',
+      title: 'Introduction to Programming',
+      slug: 'intro-to-programming',
+      category: 'Computer Science',
+      price: 100,
+      isPublished: true,
+      instructorId: 'inst-1',
+      instructorName: 'Institution Instructor',
+      institutionName: 'Institution Partner',
+      tenantId: 'tenant-3',
+    };
+    testCourses.set(defaultCourse.id, defaultCourse);
+
+    (TenantModel as any).find = (query?: any) => ({
+      lean: async () => Array.from(testTenants.values()),
+    });
+    (TenantModel as any).findOne = (query: any) => {
+      let match = null;
+      if (query.$or) {
+        match = Array.from(testTenants.values()).find(t =>
+          query.$or.some((clause: any) => clause.id === t.id || clause.slug === t.slug)
+        );
+      } else if (query.id) {
+        match = testTenants.get(query.id);
+      }
+      return {
+        lean: async () => match || null,
+        then: (resolve: any) => Promise.resolve(match || null).then(resolve),
+      };
+    };
+
+    (CertificateModel as any).create = async (doc: any) => {
+      testCertificates.set(doc.certificateNumber, doc);
+      if (doc.verificationHash) testCertificates.set(doc.verificationHash, doc);
+      return doc;
+    };
+    (CertificateModel as any).findOne = (query: any) => {
+      let match = null;
+      if (query.$or) {
+        match = Array.from(testCertificates.values()).find(c => {
+          return query.$or.some((clause: any) => {
+            if (clause.certificateNumber?.$regex) {
+              return clause.certificateNumber.$regex.test(c.certificateNumber);
+            }
+            if (clause.verificationHash) {
+              return c.verificationHash === clause.verificationHash;
+            }
+            return false;
+          });
+        });
+      }
+      return {
+        lean: async () => match || null,
+        then: (resolve: any) => Promise.resolve(match || null).then(resolve),
+      };
+    };
+
+    (CourseModel as any).findOne = (query: any) => {
+      let match = null;
+      if (query.$or) {
+        match = Array.from(testCourses.values()).find(c =>
+          query.$or.some((clause: any) => clause.id === c.id || clause.slug === c.slug)
+        );
+      } else if (query.id) {
+        match = testCourses.get(query.id);
+      }
+      return {
+        lean: async () => match || null,
+        then: (resolve: any) => Promise.resolve(match || null).then(resolve),
+      };
+    };
+
+    (EnrollmentModel as any).find = (query: any) => ({
+      lean: async () => {
+        const all = Array.from(testEnrollments.values());
+        return query?.learnerId ? all.filter(e => e.learnerId === query.learnerId) : all;
+      },
+    });
+    (EnrollmentModel as any).findOne = (query: any) => {
+      const all = Array.from(testEnrollments.values());
+      const match = all.find(e => {
+        if (query.id && e.id !== query.id) return false;
+        if (query.courseId && e.courseId !== query.courseId) return false;
+        if (query.learnerId && e.learnerId !== query.learnerId) return false;
+        return true;
+      });
+      if (!match) {
+        return {
+          lean: async () => null,
+          then: (resolve: any) => Promise.resolve(null).then(resolve),
+        };
+      }
+      const doc = {
+        ...match,
+        completedLessonIds: match.completedLessonIds || [],
+        toObject: function() { return { ...this }; },
+        save: async function() {
+          testEnrollments.set(this.id, { ...this });
+          return this;
+        },
+      };
+      return {
+        lean: async () => doc,
+        then: (resolve: any) => Promise.resolve(doc).then(resolve),
+      };
+    };
+    (EnrollmentModel as any).create = async (doc: any) => {
+      testEnrollments.set(doc.id, doc);
+      return doc;
+    };
+
+    (AuditLogModel as any).create = async (doc: any) => doc;
+
+    (TranscodeJobModel as any).findOne = (query: any) => {
+      const job = Array.from(testTranscodeJobs.values()).find(j => {
+        if (query.id && j.id !== query.id) return false;
+        if (query.courseId && j.courseId !== query.courseId) return false;
+        if (query.lessonId && j.lessonId !== query.lessonId) return false;
+        return true;
+      });
+      return {
+        lean: async () => job || null,
+        then: (resolve: any) => Promise.resolve(job || null).then(resolve),
+      };
+    };
+    (TranscodeJobModel as any).create = async (doc: any) => {
+      testTranscodeJobs.set(doc.id, doc);
+      return doc;
+    };
+
+    (LtiStateModel as any).create = async (doc: any) => {
+      testLtiStates.set(doc.state, { ...doc, createdAt: Date.now() });
+      return doc;
+    };
+    (LtiStateModel as any).findOne = (query: any) => {
+      const item = testLtiStates.get(query.state) || null;
+      return {
+        lean: async () => item,
+        then: (resolve: any) => Promise.resolve(item).then(resolve),
+      };
+    };
+
+    (ScormSessionModel as any).findOne = (query: any) => {
+      const item = testScormSessions.get(query.sessionId) || null;
+      if (!item) {
+        return {
+          lean: async () => null,
+          then: (resolve: any) => Promise.resolve(null).then(resolve),
+        };
+      }
+      const doc = {
+        ...item,
+        save: async function() {
+          testScormSessions.set(this.sessionId, { ...this });
+          return this;
+        },
+      };
+      return {
+        lean: async () => item,
+        then: (resolve: any) => Promise.resolve(doc).then(resolve),
+      };
+    };
+    (ScormSessionModel as any).findOneAndUpdate = async (query: any, update: any) => {
+      const item = testScormSessions.get(query.sessionId);
+      if (item) {
+        Object.assign(item, update);
+        testScormSessions.set(query.sessionId, item);
+      }
+      return item;
+    };
+    (ScormSessionModel as any).create = async (doc: any) => {
+      testScormSessions.set(doc.sessionId, { ...doc });
+      return doc;
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -146,52 +354,82 @@ async function runFullEnterpriseAuditTests() {
   // 4. VIDEO TRANSCODING & HLS ADAPTIVE STREAMING
   // ---------------------------------------------------------------------------
   await test('5. Video Transcoding: BullMQ job queue enqueues jobs & produces valid HLS .m3u8 manifest', async () => {
-    const job = await transcodingService.enqueueTranscodeJob('course-1', 'lesson-1', 'https://video.mp4');
-    assert(job.id.startsWith('job-transcode-'));
-    assert.strictEqual(job.renditions.length, 4, 'Must produce 4 adaptive bitrate renditions (1080p, 720p, 480p, 360p)');
+    process.env.S3_ENDPOINT = process.env.S3_ENDPOINT || 'https://storage.edusphere.io';
+    const origFfmpeg = transcodingService.isFfmpegAvailable;
+    transcodingService.isFfmpegAvailable = () => true;
 
-    const manifest = transcodingService.generateHlsMasterManifest('course-1', 'lesson-1');
-    assert(manifest.includes('#EXT-X-STREAM-INF'), 'Manifest must include HLS stream inf tags');
-    assert(manifest.includes('1920x1080'), 'Manifest must include 1080p resolution definition');
-    assert(manifest.includes('640x360'), 'Manifest must include 360p mobile rendition');
+    try {
+      const job = await transcodingService.enqueueTranscodeJob('course-1', 'lesson-1', 'https://storage.edusphere.io/raw-videos/lecture1.mp4');
+      assert(job.id.startsWith('job-transcode-'));
+      assert.strictEqual(job.renditions.length, 4, 'Must produce 4 adaptive bitrate renditions (1080p, 720p, 480p, 360p)');
+
+      const manifest = transcodingService.generateHlsMasterManifest('course-1', 'lesson-1');
+      assert(manifest.includes('#EXT-X-STREAM-INF'), 'Manifest must include HLS stream inf tags');
+      assert(manifest.includes('1920x1080'), 'Manifest must include 1080p resolution definition');
+      assert(manifest.includes('640x360'), 'Manifest must include 360p mobile rendition');
+    } finally {
+      transcodingService.isFfmpegAvailable = origFfmpeg;
+    }
   });
 
   // ---------------------------------------------------------------------------
   // 5. STRIPE PAYMENTS & SPLIT PAYOUT WEBHOOK VERIFICATION
   // ---------------------------------------------------------------------------
   await test('6. Payments: Stripe Checkout splits payouts (15% platform / 85% instructor) & validates official Stripe SDK signatures', async () => {
-    const session = await paymentService.createCheckoutSession({
-      courseId: 'course-1',
-      learnerId: 'user-paid-1',
-      learnerEmail: 'test.paid@edusphere.io',
-      successUrl: 'http://localhost:5173/success',
-      cancelUrl: 'http://localhost:5173/cancel',
+    process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'sk_test_suite_secret_key_1234567890';
+    const origStripe = (paymentService as any).stripe.checkout.sessions.create;
+    (paymentService as any).stripe.checkout.sessions.create = async () => ({
+      id: `cs_test_${Date.now()}`,
+      url: 'https://checkout.stripe.com/pay/cs_test_mock',
     });
 
-    assert.strictEqual(session.status, 'PENDING');
-    assert(session.platformFee > 0, 'Platform fee must be calculated');
-    assert.strictEqual(session.amount, session.platformFee + session.instructorPayout, 'Total amount must equal fee + payout');
+    try {
+      const session = await paymentService.createCheckoutSession({
+        courseId: 'course-1',
+        learnerId: 'user-paid-1',
+        learnerEmail: 'test.paid@edusphere.io',
+        successUrl: 'http://localhost:5173/success',
+        cancelUrl: 'http://localhost:5173/cancel',
+      });
 
-    // Test official Stripe SDK signature verification
-    const payloadRaw = JSON.stringify({ id: `evt_suite_${Date.now()}`, type: 'checkout.session.completed', sessionId: session.sessionId });
-    const header = paymentService.generateTestWebhookSignature(payloadRaw);
+      assert.strictEqual(session.status, 'PENDING');
+      assert(session.platformFee > 0, 'Platform fee must be calculated');
+      assert.strictEqual(session.amount, session.platformFee + session.instructorPayout, 'Total amount must equal fee + payout');
 
-    const isValidSig = paymentService.verifyWebhookSignature(payloadRaw, header);
-    assert.strictEqual(isValidSig, true, 'Official Stripe SDK signature verification must pass');
+      // Test official Stripe SDK signature verification
+      const payloadRaw = JSON.stringify({ id: `evt_suite_${Date.now()}`, type: 'checkout.session.completed', sessionId: session.sessionId });
+      const header = paymentService.generateTestWebhookSignature(payloadRaw);
 
-    const constructedEvent = paymentService.constructWebhookEvent(Buffer.from(payloadRaw), header);
-    assert.strictEqual(constructedEvent.type, 'checkout.session.completed');
+      const isValidSig = paymentService.verifyWebhookSignature(payloadRaw, header);
+      assert.strictEqual(isValidSig, true, 'Official Stripe SDK signature verification must pass');
 
-    // Simulate completion
-    const enrollment = await paymentService.handleCheckoutCompleted(session.sessionId);
-    assert.strictEqual(enrollment.status, 'ENROLLED');
-    assert.strictEqual(enrollment.courseId, 'course-1');
+      const constructedEvent = paymentService.constructWebhookEvent(Buffer.from(payloadRaw), header);
+      assert.strictEqual(constructedEvent.type, 'checkout.session.completed');
+
+      // Simulate completion with Stripe session payload
+      const enrollment = await paymentService.handleCheckoutCompleted({
+        id: session.sessionId,
+        payment_status: 'paid',
+        amount_total: session.amount,
+        client_reference_id: session.learnerId,
+        metadata: { courseId: session.courseId, learnerId: session.learnerId },
+      });
+      assert.strictEqual(enrollment.status, 'ENROLLED');
+      assert.strictEqual(enrollment.courseId, 'course-1');
+    } finally {
+      (paymentService as any).stripe.checkout.sessions.create = origStripe;
+    }
   });
 
   // ---------------------------------------------------------------------------
   // 6. EDUCATIONAL INTEROPERABILITY (LTI 1.3 & SCORM)
   // ---------------------------------------------------------------------------
   await test('7. Interoperability: LTI 1.3 OIDC login flow & SCORM 1.2 runtime session bridge', async () => {
+    interoperabilityService.registerTrustedPlatform({
+      issuer: 'https://canvas.instructure.com',
+      clientId: 'canvas-client-123',
+    });
+
     // LTI 1.3
     const ltiLogin = await interoperabilityService.initiateLtiLogin(
       'https://canvas.instructure.com',
@@ -202,11 +440,11 @@ async function runFullEnterpriseAuditTests() {
     assert(ltiLogin.state.startsWith('state_'));
 
     // SCORM 1.2 Runtime
-    const scormSession = interoperabilityService.initializeScormSession('session-scorm-99', 'learner-1', 'course-1');
+    const scormSession = await interoperabilityService.initializeScormSession('session-scorm-99', 'learner-1', 'course-1');
     assert.strictEqual(scormSession.status, 'true');
 
-    interoperabilityService.setScormValue('session-scorm-99', 'cmi.core.lesson_status', 'completed');
-    assert.strictEqual(interoperabilityService.getScormValue('session-scorm-99', 'cmi.core.lesson_status'), 'completed');
+    await interoperabilityService.setScormValue('session-scorm-99', 'cmi.core.lesson_status', 'completed');
+    assert.strictEqual(await interoperabilityService.getScormValue('session-scorm-99', 'cmi.core.lesson_status'), 'completed');
 
     const commitSuccess = await interoperabilityService.commitScormSession('session-scorm-99');
     assert.strictEqual(commitSuccess, true);

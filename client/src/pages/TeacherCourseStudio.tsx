@@ -16,7 +16,9 @@ import {
   DollarSign,
   Layers,
   Sparkles,
-  HelpCircle
+  HelpCircle,
+  Clock,
+  Award
 } from 'lucide-react';
 import { Button, Badge, ToastViewport, useToast } from '../components/ui';
 
@@ -53,10 +55,67 @@ export const TeacherCourseStudio: React.FC = () => {
     },
   ]);
 
-  // Step 3: Assessment & Passing Criteria
+  // Step 3: Examination & Certification Standards
+  const [examTitle, setExamTitle] = useState('');
+  const [examInstructions, setExamInstructions] = useState('Answer all questions. Browser focus loss, tab switching, and copy-paste events are actively recorded by anti-cheating telemetry.');
+  const [examDuration, setExamDuration] = useState(30);
+  const [examType, setExamType] = useState<'FINAL_EXAM' | 'MIDTERM' | 'QUIZ'>('FINAL_EXAM');
   const [passingGrade, setPassingGrade] = useState(75);
   const [antiCheatingEnabled, setAntiCheatingEnabled] = useState(true);
   const [hlsTranscoding, setHlsTranscoding] = useState(true);
+
+  // Examination Questions
+  const [questions, setQuestions] = useState<Array<{
+    id: string;
+    type: 'MCQ' | 'TRUE_FALSE' | 'ESSAY';
+    prompt: string;
+    options: string[];
+    correctAnswerIndex: number;
+    points: number;
+  }>>([
+    {
+      id: 'q-1',
+      type: 'MCQ',
+      prompt: 'What architectural principle guarantees fault-tolerance and horizontal scaling in modern enterprise cloud systems?',
+      options: [
+        'Single monolithic server deployment',
+        'Stateless containerized services with redundant load balancing',
+        'Direct hardcoded database socket connections',
+        'Single point of failure database write locks'
+      ],
+      correctAnswerIndex: 1,
+      points: 25,
+    },
+    {
+      id: 'q-2',
+      type: 'MCQ',
+      prompt: 'Which cryptographic algorithm computes the immutable verification hash on EduSphere graduation certificates?',
+      options: ['MD5', 'DES', 'SHA-256', 'Blowfish'],
+      correctAnswerIndex: 2,
+      points: 25,
+    },
+    {
+      id: 'q-3',
+      type: 'TRUE_FALSE',
+      prompt: 'Role-based access control (RBAC) enforces security boundaries by preventing unauthorized users from accessing instructor and administration dashboards.',
+      options: ['True', 'False'],
+      correctAnswerIndex: 0,
+      points: 25,
+    },
+    {
+      id: 'q-4',
+      type: 'MCQ',
+      prompt: 'In a multi-tenant university platform, how is institutional isolation maintained across tenants?',
+      options: [
+        'Shared unpartitioned tables without tenant filters',
+        'Strict tenantId indexing with asynchronous context isolation barriers',
+        'Client-side localStorage filtering only',
+        'Unencrypted flat files'
+      ],
+      correctAnswerIndex: 1,
+      points: 25,
+    },
+  ]);
 
   // Success Feedback
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,6 +151,56 @@ export const TeacherCourseStudio: React.FC = () => {
     if (updated[moduleIndex].lessons.length <= 1) return;
     updated[moduleIndex].lessons = updated[moduleIndex].lessons.filter((_, idx) => idx !== lessonIndex);
     setModules(updated);
+  };
+
+  const handleAddQuestion = (type: 'MCQ' | 'TRUE_FALSE' | 'ESSAY' = 'MCQ') => {
+    const newQ = {
+      id: `q-${Date.now().toString().slice(-4)}`,
+      type,
+      prompt: type === 'TRUE_FALSE'
+        ? 'State whether the following claim is true or false.'
+        : type === 'ESSAY'
+        ? 'Provide an in-depth analytical explanation for the following problem.'
+        : 'Enter question prompt...',
+      options: type === 'TRUE_FALSE' ? ['True', 'False'] : type === 'ESSAY' ? [] : ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswerIndex: 0,
+      points: 25,
+    };
+    setQuestions([...questions, newQ]);
+  };
+
+  const handleRemoveQuestion = (qIndex: number) => {
+    if (questions.length <= 1) return;
+    setQuestions(questions.filter((_, idx) => idx !== qIndex));
+  };
+
+  const handleUpdateQuestion = (qIndex: number, field: string, val: any) => {
+    const updated = [...questions];
+    (updated[qIndex] as any)[field] = val;
+    setQuestions(updated);
+  };
+
+  const handleAddOption = (qIndex: number) => {
+    const updated = [...questions];
+    if (updated[qIndex].options.length >= 6) return;
+    updated[qIndex].options.push(`Option ${String.fromCharCode(65 + updated[qIndex].options.length)}`);
+    setQuestions(updated);
+  };
+
+  const handleRemoveOption = (qIndex: number, optIndex: number) => {
+    const updated = [...questions];
+    if (updated[qIndex].options.length <= 2) return;
+    updated[qIndex].options = updated[qIndex].options.filter((_, idx) => idx !== optIndex);
+    if (updated[qIndex].correctAnswerIndex >= updated[qIndex].options.length) {
+      updated[qIndex].correctAnswerIndex = 0;
+    }
+    setQuestions(updated);
+  };
+
+  const handleUpdateOption = (qIndex: number, optIndex: number, text: string) => {
+    const updated = [...questions];
+    updated[qIndex].options[optIndex] = text;
+    setQuestions(updated);
   };
 
   const handlePublish = async () => {
@@ -132,8 +241,23 @@ export const TeacherCourseStudio: React.FC = () => {
         isPublished: true,
       });
 
-      setSuccessMsg(`Course "${title}" successfully published to EduSphere!`);
-      showToast({ title: 'Course published', description: 'Your curriculum is now live in the academic catalog.', tone: 'success' });
+      // Create and link the course's official examination
+      if (questions.length > 0) {
+        await api.createAssessment({
+          courseId: res.course.id,
+          title: examTitle.trim() || `${title} - Official Certification Examination`,
+          type: examType,
+          instructions: examInstructions,
+          durationMinutes: examDuration,
+          passingScorePct: passingGrade,
+          questions,
+        }).catch((err) => {
+          console.warn('[Assessment Link Warning]', err.message);
+        });
+      }
+
+      setSuccessMsg(`Course "${title}" and official certification examination successfully published!`);
+      showToast({ title: 'Course & Exam Published', description: 'Your curriculum and proctored examination are live in the academic catalog.', tone: 'success' });
       setTimeout(() => {
         openCourse(res.course.id);
       }, 1500);
@@ -698,7 +822,7 @@ export const TeacherCourseStudio: React.FC = () => {
           </div>
         )}
 
-        {/* Step 3: Settings */}
+        {/* Step 3: Settings & Assessment Builder */}
         {currentStep === 3 && (
           <div style={{
             backgroundColor: '#FFFFFF',
@@ -706,89 +830,494 @@ export const TeacherCourseStudio: React.FC = () => {
             borderRadius: 'var(--radius-lg)',
             padding: '28px',
             boxShadow: 'var(--shadow-xs)',
-            maxWidth: 820,
+            maxWidth: 880,
           }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 6 }}>
-              3. Examination & Integrity Standards
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 10 }}>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--navy-950)', margin: 0 }}>
+                3. Examination & Certification Standards
+              </h2>
+              <span style={{
+                backgroundColor: 'var(--primary-light)',
+                color: 'var(--primary)',
+                fontWeight: 700,
+                fontSize: '0.78rem',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid rgba(29, 78, 216, 0.2)',
+              }}>
+                {questions.length} Questions • {questions.reduce((sum, q) => sum + (q.points || 0), 0)} Total Points
+              </span>
+            </div>
             <p style={{ color: 'var(--slate-500)', fontSize: '0.86rem', marginBottom: 24 }}>
-              Set passing score thresholds for official diploma generation and configure exam telemetry.
+              Author the formal course examination, define objective questions and correct answer keys, and set passing score thresholds for official certificate generation.
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 28 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
-                  Minimum Passing Grade (%) for Official Credential
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Exam Parameters Card */}
+            <div style={{
+              backgroundColor: 'var(--slate-50)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '20px',
+              marginBottom: 28,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: '0.94rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Award size={18} color="var(--primary)" />
+                <span>Examination Parameters & Benchmark</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                    Examination Title
+                  </label>
                   <input
-                    type="number"
-                    value={passingGrade}
-                    onChange={e => setPassingGrade(parseInt(e.target.value, 10))}
-                    min={50}
-                    max={100}
+                    type="text"
+                    value={examTitle}
+                    onChange={e => setExamTitle(e.target.value)}
+                    placeholder={title ? `${title} Official Examination` : 'Official Certificate Examination'}
                     className="input-field"
-                    style={{ maxWidth: 120, height: 42, fontSize: '0.94rem', fontWeight: 700 }}
+                    style={{ height: 40, fontSize: '0.88rem' }}
                   />
-                  <span style={{ fontSize: '0.84rem', color: 'var(--slate-500)' }}>
-                    Scholars scoring at or above this threshold automatically receive a cryptographically signed diploma.
-                  </span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                    Examination Classification
+                  </label>
+                  <select
+                    value={examType}
+                    onChange={e => setExamType(e.target.value as any)}
+                    className="input-field"
+                    style={{ height: 40, fontSize: '0.88rem' }}
+                  >
+                    <option value="FINAL_EXAM">Final Certification Examination</option>
+                    <option value="MIDTERM">Proctored Midterm Exam</option>
+                    <option value="QUIZ">Curriculum Knowledge Quiz</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Anti-Cheating Switch Card */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '16px 18px',
-                backgroundColor: 'var(--slate-50)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-color)',
-              }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <ShieldCheck size={16} color="var(--primary)" />
-                    <span>Real-Time Anti-Cheating Examination Telemetry</span>
-                  </div>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--slate-500)', marginTop: 2 }}>
-                    Monitors browser window focus, tab switching, and proctoring events during assessments.
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                    Time Limit (Minutes)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Clock size={16} color="var(--slate-400)" />
+                    <input
+                      type="number"
+                      value={examDuration}
+                      onChange={e => setExamDuration(Math.max(5, Math.min(360, parseInt(e.target.value, 10) || 30)))}
+                      min={5}
+                      max={360}
+                      className="input-field"
+                      style={{ height: 40, width: 100, fontSize: '0.9rem', fontWeight: 700 }}
+                    />
+                    <span style={{ fontSize: '0.82rem', color: 'var(--slate-500)' }}>minutes</span>
                   </div>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={antiCheatingEnabled}
-                  onChange={e => setAntiCheatingEnabled(e.target.checked)}
-                  style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                    Minimum Passing Grade (%)
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <ShieldCheck size={16} color="var(--slate-400)" />
+                    <input
+                      type="number"
+                      value={passingGrade}
+                      onChange={e => setPassingGrade(Math.max(50, Math.min(100, parseInt(e.target.value, 10) || 75)))}
+                      min={50}
+                      max={100}
+                      className="input-field"
+                      style={{ height: 40, width: 100, fontSize: '0.9rem', fontWeight: 700 }}
+                    />
+                    <span style={{ fontSize: '0.82rem', color: 'var(--slate-500)' }}>% required to graduate</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 6 }}>
+                  Candidate Instructions
+                </label>
+                <textarea
+                  value={examInstructions}
+                  onChange={e => setExamInstructions(e.target.value)}
+                  rows={2}
+                  className="input-field"
+                  style={{ width: '100%', fontSize: '0.86rem', resize: 'vertical' }}
                 />
               </div>
 
-              {/* Adaptive HLS Transcoding */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '16px 18px',
-                backgroundColor: 'var(--slate-50)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-color)',
-              }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Sparkles size={16} color="var(--primary)" />
-                    <span>Adaptive Multi-Bitrate Media Delivery</span>
+              {/* Anti-Cheating & Adaptive Media Toggles */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 4 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <ShieldCheck size={15} color="var(--primary)" />
+                      <span>Anti-Cheating Telemetry</span>
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--slate-500)', marginTop: 2 }}>
+                      Enforces tab focus & detects window blur
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--slate-500)', marginTop: 2 }}>
-                    Optimizes video streams for smooth low-bandwidth playback across mobile and regional networks.
-                  </div>
+                  <input
+                    type="checkbox"
+                    checked={antiCheatingEnabled}
+                    onChange={e => setAntiCheatingEnabled(e.target.checked)}
+                    style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={hlsTranscoding}
-                  onChange={e => setHlsTranscoding(e.target.checked)}
-                  style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
-                />
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--navy-950)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Sparkles size={15} color="var(--primary)" />
+                      <span>Adaptive Multi-Bitrate</span>
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--slate-500)', marginTop: 2 }}>
+                      Optimizes bandwidth for low-speed connections
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={hlsTranscoding}
+                    onChange={e => setHlsTranscoding(e.target.checked)}
+                    style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                  />
+                </div>
               </div>
+            </div>
+
+            {/* Questions Section Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 16,
+              flexWrap: 'wrap',
+              gap: 10,
+            }}>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--navy-950)', margin: 0 }}>
+                  Curated Examination Questions ({questions.length})
+                </h3>
+                <p style={{ color: 'var(--slate-500)', fontSize: '0.82rem', margin: '2px 0 0 0' }}>
+                  Mark the correct option radio button for automated grading. Keys remain encrypted on server.
+                </p>
+              </div>
+
+              {/* Add Question Actions */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleAddQuestion('MCQ')}
+                  icon={<Plus size={14} />}
+                >
+                  Add MCQ
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleAddQuestion('TRUE_FALSE')}
+                  icon={<Plus size={14} />}
+                >
+                  Add True/False
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleAddQuestion('ESSAY')}
+                  icon={<Plus size={14} />}
+                >
+                  Add Essay
+                </Button>
+              </div>
+            </div>
+
+            {/* Question Cards List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 28 }}>
+              {questions.map((q, qIdx) => (
+                <div
+                  key={q.id || qIdx}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '20px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    transition: 'border-color 0.15s ease',
+                  }}
+                >
+                  {/* Question Header Bar */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 12,
+                    paddingBottom: 10,
+                    borderBottom: '1px solid var(--border-subtle)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        backgroundColor: 'var(--navy-900)',
+                        color: '#FFFFFF',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                      }}>
+                        Question {qIdx + 1}
+                      </span>
+                      <span style={{
+                        backgroundColor: q.type === 'MCQ' ? '#EFF6FF' : q.type === 'TRUE_FALSE' ? '#F0FDF4' : '#FEF3C7',
+                        color: q.type === 'MCQ' ? '#1D4ED8' : q.type === 'TRUE_FALSE' ? '#15803D' : '#B45309',
+                        fontWeight: 700,
+                        fontSize: '0.74rem',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: `1px solid ${q.type === 'MCQ' ? '#BFDBFE' : q.type === 'TRUE_FALSE' ? '#BBF7D0' : '#FDE68A'}`,
+                      }}>
+                        {q.type === 'MCQ' ? 'Multiple Choice' : q.type === 'TRUE_FALSE' ? 'True / False' : 'Essay Prompt'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--slate-600)' }}>Score Points:</span>
+                        <input
+                          type="number"
+                          value={q.points}
+                          onChange={e => handleUpdateQuestion(qIdx, 'points', Math.max(1, parseInt(e.target.value, 10) || 1))}
+                          min={1}
+                          max={100}
+                          className="input-field"
+                          style={{ width: 58, height: 32, fontSize: '0.84rem', fontWeight: 700, textAlign: 'center', padding: '2px 4px' }}
+                        />
+                      </div>
+
+                      {questions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveQuestion(qIdx)}
+                          title="Remove question"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--slate-400)',
+                            cursor: 'pointer',
+                            padding: 4,
+                            borderRadius: 4,
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Question Prompt Field */}
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 4 }}>
+                      Question Text & Prompt *
+                    </label>
+                    <textarea
+                      value={q.prompt}
+                      onChange={e => handleUpdateQuestion(qIdx, 'prompt', e.target.value)}
+                      placeholder="Type the exact question prompt here..."
+                      rows={2}
+                      className="input-field"
+                      style={{ width: '100%', fontSize: '0.88rem', resize: 'vertical' }}
+                      required
+                    />
+                  </div>
+
+                  {/* MCQ Options Configuration */}
+                  {q.type === 'MCQ' && (
+                    <div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Answer Choices (Select radio button for the correct answer):</span>
+                        {q.options.length < 6 && (
+                          <button
+                            type="button"
+                            onClick={() => handleAddOption(qIdx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--primary)',
+                              fontWeight: 700,
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <Plus size={13} /> Add Choice
+                          </button>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {q.options.map((opt, optIdx) => {
+                          const isCorrect = q.correctAnswerIndex === optIdx;
+                          return (
+                            <div
+                              key={optIdx}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                backgroundColor: isCorrect ? '#F0FDF4' : 'var(--slate-50)',
+                                border: `1px solid ${isCorrect ? '#86EFAC' : 'var(--border-color)'}`,
+                                borderRadius: 'var(--radius-sm)',
+                                padding: '8px 12px',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', margin: 0 }}>
+                                <input
+                                  type="radio"
+                                  name={`correct-ans-${qIdx}`}
+                                  checked={isCorrect}
+                                  onChange={() => handleUpdateQuestion(qIdx, 'correctAnswerIndex', optIdx)}
+                                  style={{ width: 16, height: 16, accentColor: '#16A34A', cursor: 'pointer' }}
+                                />
+                                <span style={{
+                                  fontSize: '0.76rem',
+                                  fontWeight: 800,
+                                  color: isCorrect ? '#166534' : 'var(--slate-600)',
+                                  width: 20,
+                                }}>
+                                  {String.fromCharCode(65 + optIdx)}.
+                                </span>
+                              </label>
+
+                              <input
+                                type="text"
+                                value={opt}
+                                onChange={e => handleUpdateOption(qIdx, optIdx, e.target.value)}
+                                placeholder={`Option ${String.fromCharCode(65 + optIdx)} description...`}
+                                className="input-field"
+                                style={{ flex: 1, height: 34, fontSize: '0.85rem', backgroundColor: '#FFFFFF' }}
+                                required
+                              />
+
+                              {isCorrect && (
+                                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#15803D', whiteSpace: 'nowrap' }}>
+                                  Correct Key ✓
+                                </span>
+                              )}
+
+                              {q.options.length > 2 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveOption(qIdx, optIdx)}
+                                  title="Remove option"
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--slate-400)',
+                                    cursor: 'pointer',
+                                    padding: 2,
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* True / False Configuration */}
+                  {q.type === 'TRUE_FALSE' && (
+                    <div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--navy-950)', marginBottom: 8 }}>
+                        Correct Answer Key:
+                      </div>
+                      <div style={{ display: 'flex', gap: 14 }}>
+                        {['True', 'False'].map((label, optIdx) => {
+                          const isCorrect = q.correctAnswerIndex === optIdx;
+                          return (
+                            <label
+                              key={label}
+                              style={{
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                padding: '10px 16px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: `1px solid ${isCorrect ? '#86EFAC' : 'var(--border-color)'}`,
+                                backgroundColor: isCorrect ? '#F0FDF4' : 'var(--slate-50)',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <input
+                                type="radio"
+                                name={`tf-ans-${qIdx}`}
+                                checked={isCorrect}
+                                onChange={() => handleUpdateQuestion(qIdx, 'correctAnswerIndex', optIdx)}
+                                style={{ width: 16, height: 16, accentColor: '#16A34A', cursor: 'pointer' }}
+                              />
+                              <span style={{ fontSize: '0.88rem', fontWeight: 700, color: isCorrect ? '#166534' : 'var(--navy-950)' }}>
+                                {label} {isCorrect ? '(Correct Key ✓)' : ''}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Essay Configuration Note */}
+                  {q.type === 'ESSAY' && (
+                    <div style={{
+                      backgroundColor: '#FEF3C7',
+                      border: '1px solid #FDE68A',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.82rem',
+                      color: '#92400E',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}>
+                      <HelpCircle size={16} />
+                      <span>Essay and open-ended written responses are held in the grading queue for instructor manual evaluation.</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
 
             <div style={{
@@ -819,7 +1348,7 @@ export const TeacherCourseStudio: React.FC = () => {
           </div>
         )}
 
-        {/* Step 4: Publish */}
+        {/* Step 4: Publish & Review */}
         {currentStep === 4 && (
           <div style={{
             backgroundColor: '#FFFFFF',
@@ -827,23 +1356,23 @@ export const TeacherCourseStudio: React.FC = () => {
             borderRadius: 'var(--radius-lg)',
             padding: '28px',
             boxShadow: 'var(--shadow-xs)',
-            maxWidth: 820,
+            maxWidth: 880,
           }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--navy-950)', marginBottom: 6 }}>
-              4. Review Curriculum Dossier & Publish
+              4. Review Curriculum & Examination Dossier
             </h2>
             <p style={{ color: 'var(--slate-500)', marginBottom: 20, fontSize: '0.86rem' }}>
-              Verify syllabus structure, assessment passing benchmark, and catalog discovery.
+              Verify syllabus structure, assessment passing benchmark, and catalog discovery before publishing.
             </p>
 
             <div style={{
               backgroundColor: 'var(--slate-50)',
-              padding: '20px',
+              padding: '22px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-color)',
               marginBottom: 24,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                 <span style={{ backgroundColor: 'var(--slate-200)', color: 'var(--navy-900)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
                   {category}
                 </span>
@@ -853,32 +1382,70 @@ export const TeacherCourseStudio: React.FC = () => {
                 <span style={{ backgroundColor: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
                   {price === 0 ? 'Free Tuition' : `$${price} USD`}
                 </span>
+                <span style={{ backgroundColor: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', fontWeight: 700 }}>
+                  {examType.replace('_', ' ')}
+                </span>
               </div>
 
-              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--navy-950)', marginBottom: 6 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--navy-950)', marginBottom: 8 }}>
                 {title || 'Untitled Course'}
               </div>
 
-              <p style={{ fontSize: '0.88rem', color: 'var(--slate-600)', marginBottom: 14, lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.88rem', color: 'var(--slate-600)', marginBottom: 16, lineHeight: 1.5 }}>
                 {description || 'No description provided.'}
               </p>
 
+              {/* Curriculum Breakdown */}
               <div style={{
-                display: 'flex',
-                gap: 16,
-                fontSize: '0.82rem',
-                color: 'var(--slate-500)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 12,
                 borderTop: '1px solid var(--border-color)',
-                paddingTop: 12,
-                flexWrap: 'wrap',
+                paddingTop: 16,
+                marginBottom: 16,
               }}>
-                <span><strong>{modules.length}</strong> Modules</span>
-                <span>•</span>
-                <span><strong>{modules.reduce((acc, m) => acc + m.lessons.length, 0)}</strong> Total Lessons</span>
-                <span>•</span>
-                <span>Passing Grade: <strong>{passingGrade}%</strong></span>
-                <span>•</span>
-                <span>Anti-Cheating Telemetry: <strong>{antiCheatingEnabled ? 'Active' : 'Disabled'}</strong></span>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', textTransform: 'uppercase', fontWeight: 700 }}>Curriculum Modules</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--navy-950)' }}>{modules.length} Modules</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', textTransform: 'uppercase', fontWeight: 700 }}>Total Lessons</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--navy-950)' }}>{modules.reduce((acc, m) => acc + m.lessons.length, 0)} Lessons</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', textTransform: 'uppercase', fontWeight: 700 }}>Exam Questions</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--navy-950)' }}>{questions.length} Questions</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', textTransform: 'uppercase', fontWeight: 700 }}>Total Point Value</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--navy-950)' }}>{questions.reduce((sum, q) => sum + (q.points || 0), 0)} Points</div>
+                </div>
+              </div>
+
+              {/* Examination & Certification Credentials Banner */}
+              <div style={{
+                backgroundColor: '#FFFFFF',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 12,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Award size={22} color="var(--primary)" />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--navy-950)' }}>
+                      {examTitle || `${title || 'Course'} Official Certification Exam`}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--slate-500)' }}>
+                      Passing Benchmark: <strong>{passingGrade}%</strong> • Time Limit: <strong>{examDuration} min</strong> • Telemetry: <strong>{antiCheatingEnabled ? 'Active' : 'Disabled'}</strong>
+                    </div>
+                  </div>
+                </div>
+                <Badge variant="verified">SHA-256 Verified Diploma</Badge>
               </div>
             </div>
 
@@ -896,7 +1463,7 @@ export const TeacherCourseStudio: React.FC = () => {
                 onClick={() => setCurrentStep(3)}
                 icon={<ArrowLeft size={15} />}
               >
-                Back: Settings
+                Back: Examination
               </Button>
               <Button
                 type="button"
@@ -906,7 +1473,7 @@ export const TeacherCourseStudio: React.FC = () => {
                 isLoading={isSubmitting}
                 style={{ padding: '10px 28px' }}
               >
-                {isSubmitting ? 'Publishing Course...' : 'Publish Course to Catalog'}
+                {isSubmitting ? 'Publishing Course & Exam...' : 'Publish Course & Examination'}
               </Button>
             </div>
           </div>

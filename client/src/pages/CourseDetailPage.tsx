@@ -161,6 +161,24 @@ export const CourseDetailPage: React.FC = () => {
     }
   };
 
+  const handleLaunchCourseExam = async () => {
+    if (!currentUser) {
+      setCurrentPage('login');
+      return;
+    }
+    if (!course) return;
+    try {
+      const res = await api.getAssessmentByCourse(course.id);
+      if (res?.assessment?.id) {
+        startExam(res.assessment.id);
+        return;
+      }
+    } catch {
+      // fallback
+    }
+    startExam(course.id);
+  };
+
   const totalLessons = course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
 
   return (
@@ -615,13 +633,7 @@ export const CourseDetailPage: React.FC = () => {
                                       <Button
                                         size="sm"
                                         variant="primary"
-                                        onClick={() => {
-                                          if (!currentUser) {
-                                            setCurrentPage('login');
-                                          } else {
-                                            startExam('assessment-1');
-                                          }
-                                        }}
+                                        onClick={handleLaunchCourseExam}
                                       >
                                         Take Exam
                                       </Button>
@@ -907,13 +919,7 @@ export const CourseDetailPage: React.FC = () => {
               </Button>
 
               <Button
-                onClick={() => {
-                  if (!currentUser) {
-                    setCurrentPage('login');
-                  } else {
-                    startExam('assessment-1');
-                  }
-                }}
+                onClick={handleLaunchCourseExam}
                 variant="secondary"
                 size="md"
                 style={{ width: '100%', marginTop: 8, justifyContent: 'center', gap: 6 }}

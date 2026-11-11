@@ -111,6 +111,7 @@ export interface IQuestion {
   type: 'MCQ' | 'TRUE_FALSE' | 'ESSAY';
   prompt: string;
   options?: string[];
+  correctAnswerIndex?: number;
   points: number;
 }
 

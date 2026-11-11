@@ -241,6 +241,13 @@ export class DatabaseRepository {
     return (doc as any) || null;
   }
 
+  async createAssessment(assessmentData: IAssessment): Promise<IAssessment> {
+    this.assertActiveStorage();
+
+    await AssessmentModel.create(assessmentData);
+    return assessmentData;
+  }
+
   async createSubmission(submissionData: ISubmission): Promise<ISubmission> {
     this.assertActiveStorage();
 

@@ -48,6 +48,10 @@ export const transcodeLessonParamsSchema = z.object({
   lessonId: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
 }).strict();
 
+export const courseIdParamsSchema = z.object({
+  courseId: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
+}).strict();
+
 export const courseCatalogQuerySchema = z.object({
   category: z.string().trim().min(1).max(60).optional(),
   search: z.string().trim().max(120).optional(),
@@ -302,6 +306,23 @@ export const tenantStatusSchema = z.object({
     message: 'Invalid status. Must be one of: PENDING_VERIFICATION, VERIFIED, SUSPENDED, REJECTED',
   }),
   remarks: z.string().trim().max(1000).transform(sanitizeHtmlString).optional(),
+}).strict();
+
+export const createAssessmentSchema = z.object({
+  courseId: z.string().trim().min(1, 'Course ID is required').max(128),
+  title: sanitizedString(2, 150),
+  type: z.enum(['QUIZ', 'ASSIGNMENT', 'MIDTERM', 'FINAL_EXAM']).default('MIDTERM'),
+  instructions: z.string().max(2000).transform(sanitizeHtmlString).optional(),
+  durationMinutes: z.number().int().min(5).max(360).default(30),
+  passingScorePct: z.number().int().min(50).max(100).default(75),
+  questions: z.array(z.object({
+    id: z.string().trim().min(1).max(128).optional(),
+    type: z.enum(['MCQ', 'TRUE_FALSE', 'ESSAY']).default('MCQ'),
+    prompt: sanitizedString(2, 1000),
+    options: z.array(z.string().trim().min(1).max(500)).max(10).optional(),
+    correctAnswerIndex: z.number().int().min(0).max(10).optional(),
+    points: z.number().finite().min(1).max(100).default(1),
+  }).strict()).min(1, 'At least one examination question is required').max(100),
 }).strict();
 
 export const assessmentSubmissionSchema = z.object({

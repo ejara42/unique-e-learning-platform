@@ -204,6 +204,23 @@ export const api = {
   async getAssessment(id: string): Promise<{ assessment: IAssessment }> {
     return request(`/assessments/${id}`);
   },
+  async getAssessmentByCourse(courseId: string): Promise<{ assessment: IAssessment | null }> {
+    return request(`/assessments/course/${courseId}`);
+  },
+  async createAssessment(data: {
+    courseId: string;
+    title: string;
+    type?: string;
+    instructions?: string;
+    durationMinutes?: number;
+    passingScorePct?: number;
+    questions: any[];
+  }): Promise<{ assessment: IAssessment; message: string }> {
+    return request('/assessments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
   async submitAssessment(id: string, payload: { answers: any[]; proctoringFlags: any[]; startedAt: string }): Promise<{
     submission: any;
     percentageScore: number;

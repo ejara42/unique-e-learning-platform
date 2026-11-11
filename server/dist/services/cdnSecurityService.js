@@ -15,7 +15,7 @@ class CdnSecurityService {
             throw new Error('[FATAL] CDN_SIGNING_SECRET must contain at least 32 characters in production.');
         }
         this.cdnSecret = signingSecret || crypto_1.default.randomBytes(32).toString('hex');
-        this.cdnHostname = (process.env.CDN_HOSTNAME || 'https://stream.edusphere.io').replace(/\/+$/, '');
+        this.cdnHostname = config_1.config.storagePublicUrl;
     }
     /**
      * Generates a tamper-proof time-bounded HMAC-SHA256 signed playback token

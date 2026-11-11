@@ -632,7 +632,7 @@ export const SecurityTokenSchema = new Schema<ISecurityTokenDocument>({
 }, { timestamps: true });
 
 // ============================================================================
-// 15. PERSISTENT TRANSCODE JOB SCHEMA (MongoDB & BullMQ Worker Status)
+// 15. PERSISTENT TRANSCODE JOB SCHEMA (MongoDB Concurrency-Safe Queue)
 // ============================================================================
 export interface ITranscodeJobDocument extends Document {
   id: string;
@@ -650,6 +650,13 @@ export interface ITranscodeJobDocument extends Document {
   }>;
   errorMessage?: string;
   attempts: number;
+  maxAttempts: number;
+  idempotencyKey?: string | null;
+  activeLockKey?: string | null;
+  nextEligibleAt?: Date | null;
+  lockedBy?: string | null;
+  lockedAt?: Date | null;
+  leaseExpiresAt?: Date | null;
   createdAt: string;
   completedAt?: string;
 }
@@ -675,11 +682,21 @@ export const TranscodeJobSchema = new Schema<ITranscodeJobDocument>({
   }],
   errorMessage: String,
   attempts: { type: Number, default: 0 },
+  maxAttempts: { type: Number, default: 3 },
+  idempotencyKey: { type: String, default: null, index: true },
+  activeLockKey: { type: String, default: null },
+  nextEligibleAt: { type: Date, default: null, index: true },
+  lockedBy: { type: String, default: null, index: true },
+  lockedAt: { type: Date, default: null },
+  leaseExpiresAt: { type: Date, default: null, index: true },
   createdAt: { type: String, default: () => new Date().toISOString() },
   completedAt: String,
 }, { timestamps: true });
 
+// Index for deduplication: only one active (QUEUED or PROCESSING) job per course+lesson
+TranscodeJobSchema.index({ activeLockKey: 1 }, { unique: true, sparse: true });
 TranscodeJobSchema.index({ courseId: 1, lessonId: 1 });
+TranscodeJobSchema.index({ status: 1, nextEligibleAt: 1, createdAt: 1 });
 
 export const FileAssetModel = mongoose.models.FileAsset || mongoose.model<IFileAssetDocument>('FileAsset', FileAssetSchema);
 export const SecurityTokenModel = mongoose.models.SecurityToken || mongoose.model<ISecurityTokenDocument>('SecurityToken', SecurityTokenSchema);

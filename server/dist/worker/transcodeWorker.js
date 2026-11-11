@@ -9,11 +9,13 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
 const crypto_1 = __importDefault(require("crypto"));
+const uuid_1 = require("uuid");
 const child_process_1 = require("child_process");
 const mongoConnection_1 = require("../data/mongoConnection");
 const jobQueue_1 = require("../queue/jobQueue");
 const storageService_1 = require("../services/storageService");
 const models_1 = require("../models");
+const config_1 = require("../config");
 exports.RENDITIONS = [
     { resolution: '1080p', width: 1920, height: 1080, videoBitrate: '4500k', audioBitrate: '128k', bandwidth: 4800000 },
     { resolution: '720p', width: 1280, height: 720, videoBitrate: '2200k', audioBitrate: '128k', bandwidth: 2400000 },
@@ -32,7 +34,7 @@ async function generateHlsEncryptionKeyInfo(courseId, lessonId, outputDir) {
     const iv = crypto_1.default.randomBytes(16); // 128-bit IV
     const keyPath = path_1.default.join(targetDir, 'enc.key');
     fs_1.default.writeFileSync(keyPath, rawKey);
-    const apiBase = (process.env.API_BASE_URL || 'https://api.edusphere.io').replace(/\/+$/, '');
+    const apiBase = config_1.config.apiBaseUrl;
     const keyUri = `${apiBase}/api/media/hls-key/${courseId}/${lessonId}`;
     const keyInfoPath = path_1.default.join(targetDir, 'key_info.txt');
     const keyInfoContent = `${keyUri}\n${keyPath}\n${iv.toString('hex')}\n`;
@@ -61,7 +63,10 @@ async function generateHlsEncryptionKeyInfo(courseId, lessonId, outputDir) {
 class TranscodeWorker {
     isRunning = false;
     activeJobsCount = 0;
-    constructor() { }
+    workerId;
+    constructor() {
+        this.workerId = `worker-${(0, uuid_1.v4)().slice(0, 8)}`;
+    }
     isFfmpegAvailable() {
         try {
             const probe = (0, child_process_1.spawnSync)('ffmpeg', ['-version'], { timeout: 2000 });
@@ -113,15 +118,15 @@ class TranscodeWorker {
     async pollQueue() {
         while (this.isRunning) {
             try {
-                // Find next queued job in MongoDB (FIFO)
-                const job = await models_1.TranscodeJobModel.findOneAndUpdate({ status: 'QUEUED' }, { $set: { status: 'PROCESSING', progressPercentage: 5 } }, { new: true, sort: { createdAt: 1 } });
+                // Atomic claim: Claims next eligible QUEUED job (respecting exponential backoff and lease)
+                const job = await jobQueue_1.jobQueue.claimNextJob(this.workerId, 120000);
                 if (job) {
                     this.activeJobsCount++;
                     await this.processJob(job);
                     this.activeJobsCount--;
                 }
                 else {
-                    // No job in queue; sleep 2 seconds
+                    // No eligible job in queue; sleep 2 seconds
                     await new Promise((r) => setTimeout(r, 2000));
                 }
             }
@@ -138,6 +143,12 @@ class TranscodeWorker {
         const jobId = job.id;
         const tempDir = path_1.default.join(os_1.default.tmpdir(), 'edusphere-transcode', jobId);
         console.log(`[Worker] Processing Job ${jobId} (Course: ${job.courseId}, Lesson: ${job.lessonId})`);
+        // Worker Heartbeat: Keep renewing lease every 20s while this worker is actively processing
+        const heartbeat = setInterval(() => {
+            jobQueue_1.jobQueue.renewLease(jobId, this.workerId, 120000).catch((err) => {
+                console.warn(`[Worker Heartbeat Warning for ${jobId}]`, err?.message);
+            });
+        }, 20000);
         try {
             // 1. Create clean workspace
             if (!fs_1.default.existsSync(tempDir)) {
@@ -199,6 +210,7 @@ class TranscodeWorker {
             await jobQueue_1.jobQueue.markFailed(jobId, err.message);
         }
         finally {
+            clearInterval(heartbeat);
             // 6. Mandatory Cleanup: remove temporary video files to prevent disk leak
             try {
                 if (fs_1.default.existsSync(tempDir)) {
@@ -304,7 +316,7 @@ class TranscodeWorker {
                 }
             }
         }
-        return `https://stream.edusphere.io/${baseKey}/master.m3u8`;
+        return `${config_1.config.storagePublicUrl}/${baseKey}/master.m3u8`;
     }
     /**
      * Graceful Worker Shutdown

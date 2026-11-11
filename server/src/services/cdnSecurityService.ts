@@ -18,7 +18,7 @@ export class CdnSecurityService {
       throw new Error('[FATAL] CDN_SIGNING_SECRET must contain at least 32 characters in production.');
     }
     this.cdnSecret = signingSecret || crypto.randomBytes(32).toString('hex');
-    this.cdnHostname = (process.env.CDN_HOSTNAME || 'https://stream.edusphere.io').replace(/\/+$/, '');
+    this.cdnHostname = config.storagePublicUrl;
   }
 
   /**

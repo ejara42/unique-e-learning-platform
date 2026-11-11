@@ -382,13 +382,13 @@ if (process.env.NODE_ENV !== 'test') {
       try {
         const { mongoChangeStreamWatcher } = await import('./cache/mongoChangeStreamWatcher');
         mongoChangeStreamWatcher.initialize();
-      } catch {}
+      } catch { }
 
       // Initialize Decoupled Faceted Search Engine
       try {
         const { searchService } = await import('./search/searchService');
         await searchService.initialize();
-      } catch {}
+      } catch { }
 
       // Initialize Decoupled Event Bus Subscribers
       try {
@@ -426,7 +426,7 @@ if (process.env.NODE_ENV !== 'test') {
     try {
       const { mongoChangeStreamWatcher } = await import('./cache/mongoChangeStreamWatcher');
       mongoChangeStreamWatcher.stop();
-    } catch {}
+    } catch { }
     try {
       await disconnectMongoDB();
     } catch (err: any) {

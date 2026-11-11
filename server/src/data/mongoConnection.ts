@@ -51,8 +51,8 @@ export async function connectMongoDB(customUri?: string): Promise<boolean> {
     mongoose.set('strictQuery', true);
 
     await mongoose.connect(targetUri, {
-      serverSelectionTimeoutMS: 4000,
-      connectTimeoutMS: 4000,
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
     });
 
     connectionState.isConnected = true;

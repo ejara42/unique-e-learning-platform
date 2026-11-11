@@ -74,12 +74,11 @@ async function runProductionSmokeTests() {
   });
 
   await check('Registration validation rejects missing names, weak passwords, malformed emails, and extra fields', async () => {
-    const email = `smoke-${randomUUID()}@example.invalid`;
     const invalidPayloads = [
-      { email, password: 'StrongPassword2026!', role: 'STUDENT' },
-      { fullName: 'Smoke User', email, password: 'weak', role: 'STUDENT' },
-      { fullName: 'Smoke User', email: 'not-an-email', password: 'StrongPassword2026!', role: 'STUDENT' },
-      { fullName: 'Smoke User', email, password: 'StrongPassword2026!', role: 'STUDENT', isAdmin: true },
+      { email: `smoke-${randomUUID()}@example.invalid`, password: 'StrongPassword2026!', role: 'STUDENT' },
+      { fullName: 'Smoke User', email: `smoke-${randomUUID()}@example.invalid`, password: 'weak', role: 'STUDENT' },
+      { fullName: 'Smoke User', email: `not-an-email-${randomUUID()}`, password: 'StrongPassword2026!', role: 'STUDENT' },
+      { fullName: 'Smoke User', email: `smoke-${randomUUID()}@example.invalid`, password: 'StrongPassword2026!', role: 'STUDENT', isAdmin: true },
     ];
 
     for (const payload of invalidPayloads) {
@@ -88,7 +87,8 @@ async function runProductionSmokeTests() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      assert.strictEqual(res.status, 400, `Invalid registration input must return HTTP 400, got ${res.status}`);
+      const data: any = await res.json();
+      assert.strictEqual(res.status, 400, `Invalid registration input must return HTTP 400, got ${res.status}: ${JSON.stringify(data)}`);
     }
   });
 

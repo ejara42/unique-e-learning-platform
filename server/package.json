@@ -17,6 +17,8 @@
     "test:phase-b": "node ./node_modules/tsx/dist/cli.mjs tests/phase_b_infrastructure.test.ts",
     "test:integration": "node ./node_modules/tsx/dist/cli.mjs tests/integration/mongodb_replica.test.ts",
     "test:api": "node ./node_modules/tsx/dist/cli.mjs tests/api/multi_tenant_http.test.ts",
+    "test:queue": "node ./node_modules/tsx/dist/cli.mjs tests/queue/queue_concurrency.test.ts",
+    "test:drm": "node ./node_modules/tsx/dist/cli.mjs tests/media/drm_playback_lifecycle.test.ts",
     "bootstrap:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/bootstrapAdmin.ts",
     "reset:admin": "node ./node_modules/tsx/dist/cli.mjs src/scripts/resetAdminPassword.ts",
     "verify:dr": "node ./node_modules/tsx/dist/cli.mjs src/scripts/verifyBackupRestore.ts",

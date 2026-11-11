@@ -379,10 +379,20 @@ exports.TranscodeJobSchema = new mongoose_1.Schema({
         }],
     errorMessage: String,
     attempts: { type: Number, default: 0 },
+    maxAttempts: { type: Number, default: 3 },
+    idempotencyKey: { type: String, default: null, index: true },
+    activeLockKey: { type: String, default: null },
+    nextEligibleAt: { type: Date, default: null, index: true },
+    lockedBy: { type: String, default: null, index: true },
+    lockedAt: { type: Date, default: null },
+    leaseExpiresAt: { type: Date, default: null, index: true },
     createdAt: { type: String, default: () => new Date().toISOString() },
     completedAt: String,
 }, { timestamps: true });
+// Index for deduplication: only one active (QUEUED or PROCESSING) job per course+lesson
+exports.TranscodeJobSchema.index({ activeLockKey: 1 }, { unique: true, sparse: true });
 exports.TranscodeJobSchema.index({ courseId: 1, lessonId: 1 });
+exports.TranscodeJobSchema.index({ status: 1, nextEligibleAt: 1, createdAt: 1 });
 exports.FileAssetModel = mongoose_1.default.models.FileAsset || mongoose_1.default.model('FileAsset', exports.FileAssetSchema);
 exports.SecurityTokenModel = mongoose_1.default.models.SecurityToken || mongoose_1.default.model('SecurityToken', exports.SecurityTokenSchema);
 exports.TranscodeJobModel = mongoose_1.default.models.TranscodeJob || mongoose_1.default.model('TranscodeJob', exports.TranscodeJobSchema);

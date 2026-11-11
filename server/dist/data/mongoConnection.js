@@ -43,8 +43,8 @@ async function connectMongoDB(customUri) {
         }
         mongoose_1.default.set('strictQuery', true);
         await mongoose_1.default.connect(targetUri, {
-            serverSelectionTimeoutMS: 4000,
-            connectTimeoutMS: 4000,
+            serverSelectionTimeoutMS: 8000,
+            connectTimeoutMS: 8000,
         });
         exports.connectionState.isConnected = true;
         exports.connectionState.databaseName = mongoose_1.default.connection.name;

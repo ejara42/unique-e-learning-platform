@@ -2,11 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import { spawn, spawnSync } from 'child_process';
 import { connectMongoDB, disconnectMongoDB, connectionState } from '../data/mongoConnection';
 import { jobQueue } from '../queue/jobQueue';
 import { storageService } from '../services/storageService';
 import { TranscodeJobModel, ITranscodeJobDocument, DrmKeyModel } from '../models';
+import { config } from '../config';
 
 export interface RenditionSpec {
   resolution: '1080p' | '720p' | '480p' | '360p';
@@ -54,7 +56,7 @@ export async function generateHlsEncryptionKeyInfo(
   const keyPath = path.join(targetDir, 'enc.key');
   fs.writeFileSync(keyPath, rawKey);
 
-  const apiBase = (process.env.API_BASE_URL || 'https://api.edusphere.io').replace(/\/+$/, '');
+  const apiBase = config.apiBaseUrl;
   const keyUri = `${apiBase}/api/media/hls-key/${courseId}/${lessonId}`;
 
   const keyInfoPath = path.join(targetDir, 'key_info.txt');
@@ -91,8 +93,11 @@ export async function generateHlsEncryptionKeyInfo(
 export class TranscodeWorker {
   private isRunning = false;
   private activeJobsCount = 0;
+  private workerId: string;
 
-  constructor() {}
+  constructor() {
+    this.workerId = `worker-${uuidv4().slice(0, 8)}`;
+  }
 
   public isFfmpegAvailable(): boolean {
     try {
@@ -153,19 +158,15 @@ export class TranscodeWorker {
   private async pollQueue(): Promise<void> {
     while (this.isRunning) {
       try {
-        // Find next queued job in MongoDB (FIFO)
-        const job = await TranscodeJobModel.findOneAndUpdate(
-          { status: 'QUEUED' },
-          { $set: { status: 'PROCESSING', progressPercentage: 5 } },
-          { new: true, sort: { createdAt: 1 } }
-        );
+        // Atomic claim: Claims next eligible QUEUED job (respecting exponential backoff and lease)
+        const job = await jobQueue.claimNextJob(this.workerId, 120000);
 
         if (job) {
           this.activeJobsCount++;
           await this.processJob(job);
           this.activeJobsCount--;
         } else {
-          // No job in queue; sleep 2 seconds
+          // No eligible job in queue; sleep 2 seconds
           await new Promise((r) => setTimeout(r, 2000));
         }
       } catch (err: any) {
@@ -183,6 +184,13 @@ export class TranscodeWorker {
     const tempDir = path.join(os.tmpdir(), 'edusphere-transcode', jobId);
 
     console.log(`[Worker] Processing Job ${jobId} (Course: ${job.courseId}, Lesson: ${job.lessonId})`);
+
+    // Worker Heartbeat: Keep renewing lease every 20s while this worker is actively processing
+    const heartbeat = setInterval(() => {
+      jobQueue.renewLease(jobId, this.workerId, 120000).catch((err: any) => {
+        console.warn(`[Worker Heartbeat Warning for ${jobId}]`, err?.message);
+      });
+    }, 20000);
 
     try {
       // 1. Create clean workspace
@@ -251,6 +259,7 @@ export class TranscodeWorker {
       console.error(`[Worker] Transcode Job ${jobId} failed:`, err.message);
       await jobQueue.markFailed(jobId, err.message);
     } finally {
+      clearInterval(heartbeat);
       // 6. Mandatory Cleanup: remove temporary video files to prevent disk leak
       try {
         if (fs.existsSync(tempDir)) {
@@ -378,7 +387,7 @@ export class TranscodeWorker {
       }
     }
 
-    return `https://stream.edusphere.io/${baseKey}/master.m3u8`;
+    return `${config.storagePublicUrl}/${baseKey}/master.m3u8`;
   }
 
   /**

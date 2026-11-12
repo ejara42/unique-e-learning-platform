@@ -10,7 +10,7 @@ import { interoperabilityService } from '../src/services/interoperabilityService
 import { livekitService } from '../src/services/livekitService';
 import { transcodingService } from '../src/services/transcodingService';
 import { assertSafeTestDatabase } from '../src/scripts/verifyBackupRestore';
-import { requireRole, AuthRequest } from '../src/middleware/auth';
+import { requireRole, requireAuth, AuthRequest } from '../src/middleware/auth';
 import { LtiConsumedNonceModel, LtiStateModel, TenantModel } from '../src/models';
 import { IUser, ICertificate, ICourse, IEnrollment } from '../src/types';
 import { sanitizeMongoInput } from '../src/middleware/mongoSanitize';
@@ -853,6 +853,58 @@ async function runAdversarialSecuritySuite() {
     assert.strictEqual(reviewRes.success, true);
     if (reviewRes.success) {
       assert(!reviewRes.data.comment.includes('<script>'), 'Review comment must have script tags stripped');
+    }
+  });
+
+  // --- [10/10] API Token Security & Header Enforcement ---
+  await runTest('API Token Security: requireAuth middleware rejects tokens passed in URL query parameters', async () => {
+    let statusCode = 0;
+    let jsonBody: any = null;
+    const mockReq: any = {
+      headers: {},
+      query: { token: 'valid.looking.jwt' },
+    };
+    const mockRes: any = {
+      status: (code: number) => {
+        statusCode = code;
+        return {
+          json: (body: any) => { jsonBody = body; }
+        };
+      }
+    };
+    let nextCalled = false;
+    await requireAuth(mockReq, mockRes, () => { nextCalled = true; });
+
+    assert.strictEqual(nextCalled, false, 'requireAuth must not call next() when token is only in query string');
+    assert.strictEqual(statusCode, 401, 'Must reject with 401 Unauthorized');
+    assert.match(jsonBody?.message, /Bearer token required/i);
+  });
+
+  await runTest('API Token Security: requireAuth enforces Authorization: Bearer <token> header', async () => {
+    const token = jwt.sign(
+      { id: 'user-sec-1', email: 'test@sec.io', activeRole: 'STUDENT', tokenVersion: 0 },
+      config.jwtSecret
+    );
+    const origGetVersion = repo.getUserTokenVersion;
+    repo.getUserTokenVersion = async () => 0;
+
+    try {
+      let statusCode = 0;
+      const mockReq: any = {
+        headers: { authorization: `Bearer ${token}` },
+        query: {},
+      };
+      const mockRes: any = {
+        status: (code: number) => { statusCode = code; return mockRes; },
+        json: () => {}
+      };
+      let nextCalled = false;
+      await requireAuth(mockReq, mockRes, () => { nextCalled = true; });
+
+      assert.strictEqual(nextCalled, true, 'requireAuth must call next() for valid Bearer token');
+      assert.strictEqual(mockReq.user?.email, 'test@sec.io');
+    } finally {
+      repo.getUserTokenVersion = origGetVersion;
     }
   });
 

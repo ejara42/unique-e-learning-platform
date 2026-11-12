@@ -19,11 +19,14 @@ test.describe('Instructor Course Studio Workflow', () => {
     await page.goto('/login');
 
     // 2. Perform real login with instructor credentials
+    const instructorEmail = process.env.E2E_INSTRUCTOR_EMAIL || 'test_instructor@edusphere.internal';
+    const instructorPassword = process.env.E2E_INSTRUCTOR_PASSWORD || 'EduSphere#TestInstructor2026';
+
     const [loginResponse] = await Promise.all([
       page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.status() === 200),
       (async () => {
-        await page.fill('input[type="email"]', 'e2e_instructor@edusphere.io');
-        await page.fill('input[type="password"]', 'EduSphere#2026!Instructor');
+        await page.fill('input[type="email"]', instructorEmail);
+        await page.fill('input[type="password"]', instructorPassword);
         await page.click('button[type="submit"]');
       })(),
     ]);

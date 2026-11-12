@@ -694,7 +694,14 @@ export const TranscodeJobSchema = new Schema<ITranscodeJobDocument>({
 }, { timestamps: true });
 
 // Index for deduplication: only one active (QUEUED or PROCESSING) job per course+lesson
-TranscodeJobSchema.index({ activeLockKey: 1 }, { unique: true, sparse: true });
+// Uses partialFilterExpression so that null or non-string activeLockKey values (completed/failed jobs) are completely excluded from the unique index
+TranscodeJobSchema.index(
+  { activeLockKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { activeLockKey: { $type: 'string' } },
+  }
+);
 TranscodeJobSchema.index({ courseId: 1, lessonId: 1 });
 TranscodeJobSchema.index({ status: 1, nextEligibleAt: 1, createdAt: 1 });
 

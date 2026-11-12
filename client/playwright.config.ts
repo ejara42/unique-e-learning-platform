@@ -23,7 +23,7 @@ export default defineConfig({
     actionTimeout: 15000,
     navigationTimeout: 30000,
     launchOptions: {
-      executablePath: process.env.PLAYWRIGHT_CHROME_PATH || 'C:\\Users\\ejara\\AppData\\Local\\ms-playwright\\chromium-1254\\chrome-win64\\chrome.exe',
+      ...(process.env.PLAYWRIGHT_CHROME_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROME_PATH } : {}),
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     },
   },

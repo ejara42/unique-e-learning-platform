@@ -20,16 +20,15 @@ export interface AuthRequest extends Request {
 }
 
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  let token: string | undefined;
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.split(' ')[1];
-  } else if (typeof req.query.token === 'string' && req.query.token.trim()) {
-    token = req.query.token.trim();
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header. Bearer token required.' });
+    return;
   }
 
+  const token = authHeader.split(' ')[1];
   if (!token) {
-    res.status(401).json({ message: 'Unauthorized: Missing or invalid token' });
+    res.status(401).json({ message: 'Unauthorized: Missing Bearer token' });
     return;
   }
 

@@ -144,3 +144,4 @@ Both server and client compile cleanly with zero TypeScript errors:
 server: tsc -> 0 errors (Output in server/dist/)
 client: tsc && vite build -> 0 errors (Output in client/dist/)
 ```
+

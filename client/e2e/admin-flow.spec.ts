@@ -24,9 +24,12 @@ test.describe('Platform & Institution Administrator Workflow', () => {
     await expect(authBarrier.first()).toBeVisible({ timeout: 15000 });
 
     // 2. Perform genuine administrative login
+    const adminEmail = process.env.E2E_ADMIN_EMAIL || 'test_admin@edusphere.internal';
+    const adminPassword = process.env.E2E_ADMIN_PASSWORD || 'EduSphere#TestAdmin2026';
+
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'e2e_admin@edusphere.io');
-    await page.fill('input[type="password"]', 'EduSphere#2026!Admin');
+    await page.fill('input[type="email"]', adminEmail);
+    await page.fill('input[type="password"]', adminPassword);
 
     const [loginResponse] = await Promise.all([
       page.waitForResponse(resp => resp.url().includes('/api/auth/login'), { timeout: 30000 }),

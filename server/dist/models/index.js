@@ -390,7 +390,11 @@ exports.TranscodeJobSchema = new mongoose_1.Schema({
     completedAt: String,
 }, { timestamps: true });
 // Index for deduplication: only one active (QUEUED or PROCESSING) job per course+lesson
-exports.TranscodeJobSchema.index({ activeLockKey: 1 }, { unique: true, sparse: true });
+// Uses partialFilterExpression so that null or non-string activeLockKey values (completed/failed jobs) are completely excluded from the unique index
+exports.TranscodeJobSchema.index({ activeLockKey: 1 }, {
+    unique: true,
+    partialFilterExpression: { activeLockKey: { $type: 'string' } },
+});
 exports.TranscodeJobSchema.index({ courseId: 1, lessonId: 1 });
 exports.TranscodeJobSchema.index({ status: 1, nextEligibleAt: 1, createdAt: 1 });
 exports.FileAssetModel = mongoose_1.default.models.FileAsset || mongoose_1.default.model('FileAsset', exports.FileAssetSchema);

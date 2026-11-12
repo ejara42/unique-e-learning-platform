@@ -1,63 +1,117 @@
 import path from 'path';
 import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { connectMongoDB, disconnectMongoDB } from '../data/mongoConnection';
 import { UserModel } from '../models';
 
+export function assertSafeE2EDatabase(uri: string, nodeEnv?: string): void {
+  const currentEnv = nodeEnv ?? process.env.NODE_ENV;
+  if (currentEnv === 'production') {
+    throw new Error('FATAL SECURITY VIOLATION: E2E user seeding is strictly prohibited when NODE_ENV=production.');
+  }
+
+  if (process.env.ALLOW_E2E_SEED !== 'true') {
+    throw new Error('FATAL SECURITY VIOLATION: E2E seeding requires explicit environment authorization (ALLOW_E2E_SEED=true).');
+  }
+
+  const normalized = (uri || '').toLowerCase();
+  if (
+    normalized.includes('edusphere_production') ||
+    normalized.includes('edusphere_prod') ||
+    normalized.includes('/production') ||
+    normalized.includes('/prod')
+  ) {
+    throw new Error(`FATAL SECURITY VIOLATION: Target database '${uri}' is a production database. E2E seeding refused.`);
+  }
+}
+
 export async function seedE2EUsers(): Promise<void> {
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/edusphere_test';
+  assertSafeE2EDatabase(mongoUri);
+
   console.log('\n===============================================================');
-  console.log('🌱 SEEDING DETERMINISTIC TEST USERS FOR PLAYWRIGHT E2E');
+  console.log('🌱 SEEDING TEST USERS FOR PLAYWRIGHT E2E');
   console.log('===============================================================\n');
 
   await connectMongoDB();
 
-  const testUsers = [
+  // Load passwords strictly from environment variables, or generate secure random credentials
+  const learnerPass = process.env.E2E_LEARNER_PASSWORD || crypto.randomBytes(16).toString('hex') + '!Aa1';
+  const instructorPass = process.env.E2E_INSTRUCTOR_PASSWORD || crypto.randomBytes(16).toString('hex') + '!Aa1';
+  const instAdminPass = process.env.E2E_INSTADMIN_PASSWORD || crypto.randomBytes(16).toString('hex') + '!Aa1';
+
+  // Strict check on Platform Admin seeding: Never allowed in production, and requires explicit opt-in
+  const allowSuperAdmin = process.env.ALLOW_E2E_SUPERADMIN === 'true' && process.env.NODE_ENV !== 'production';
+  const adminPass = allowSuperAdmin
+    ? (process.env.E2E_ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex') + '!Aa1')
+    : null;
+
+  interface E2EUserSeed {
+    id: string;
+    email: string;
+    plainPassword: string;
+    fullName: string;
+    globalRole: 'PLATFORM_SUPERADMIN' | 'STANDARD_USER';
+    activeRole: 'PLATFORM_ADMIN' | 'INSTITUTION_ADMIN' | 'INSTRUCTOR' | 'STUDENT';
+    authorizedRoles: Array<'PLATFORM_ADMIN' | 'INSTITUTION_ADMIN' | 'INSTRUCTOR' | 'STUDENT'>;
+    institutionId: string | null;
+  }
+
+  const testUsers: E2EUserSeed[] = [
     {
       id: 'e2e-user-learner-1',
-      email: 'e2e_learner@edusphere.io',
-      plainPassword: 'EduSphere#2026!Learner',
-      fullName: 'Alice Learner (E2E)',
-      globalRole: 'STANDARD_USER' as const,
-      activeRole: 'STUDENT' as const,
-      authorizedRoles: ['STUDENT' as const],
+      email: process.env.E2E_LEARNER_EMAIL || 'test_learner@edusphere.internal',
+      plainPassword: learnerPass,
+      fullName: 'Alice Learner (E2E Test)',
+      globalRole: 'STANDARD_USER',
+      activeRole: 'STUDENT',
+      authorizedRoles: ['STUDENT'],
       institutionId: null,
     },
     {
       id: 'e2e-user-instructor-1',
-      email: 'e2e_instructor@edusphere.io',
-      plainPassword: 'EduSphere#2026!Instructor',
-      fullName: 'Prof. Marcus Vance (E2E)',
-      globalRole: 'STANDARD_USER' as const,
-      activeRole: 'INSTRUCTOR' as const,
-      authorizedRoles: ['INSTRUCTOR' as const, 'STUDENT' as const],
+      email: process.env.E2E_INSTRUCTOR_EMAIL || 'test_instructor@edusphere.internal',
+      plainPassword: instructorPass,
+      fullName: 'Prof. Marcus Vance (E2E Test)',
+      globalRole: 'STANDARD_USER',
+      activeRole: 'INSTRUCTOR',
+      authorizedRoles: ['INSTRUCTOR', 'STUDENT'],
       institutionId: 'tenant-1',
     },
     {
-      id: 'e2e-user-admin-root',
-      email: 'e2e_admin@edusphere.io',
-      plainPassword: 'EduSphere#2026!Admin',
-      fullName: 'Dr. Katherine SuperAdmin (E2E)',
-      globalRole: 'PLATFORM_SUPERADMIN' as const,
-      activeRole: 'PLATFORM_ADMIN' as const,
-      authorizedRoles: ['PLATFORM_ADMIN' as const, 'INSTITUTION_ADMIN' as const, 'INSTRUCTOR' as const, 'STUDENT' as const],
-      institutionId: null,
-    },
-    {
       id: 'e2e-user-instadmin-1',
-      email: 'e2e_instadmin@edusphere.io',
-      plainPassword: 'EduSphere#2026!InstAdmin',
-      fullName: 'Dean Robert Taylor (E2E)',
-      globalRole: 'STANDARD_USER' as const,
-      activeRole: 'INSTITUTION_ADMIN' as const,
-      authorizedRoles: ['INSTITUTION_ADMIN' as const, 'INSTRUCTOR' as const, 'STUDENT' as const],
+      email: process.env.E2E_INSTADMIN_EMAIL || 'test_instadmin@edusphere.internal',
+      plainPassword: instAdminPass,
+      fullName: 'Dean Robert Taylor (E2E Test)',
+      globalRole: 'STANDARD_USER',
+      activeRole: 'INSTITUTION_ADMIN',
+      authorizedRoles: ['INSTITUTION_ADMIN', 'INSTRUCTOR', 'STUDENT'],
       institutionId: 'tenant-1',
     },
   ];
 
+  if (allowSuperAdmin && adminPass) {
+    testUsers.push({
+      id: 'e2e-user-admin-root',
+      email: process.env.E2E_ADMIN_EMAIL || 'test_admin@edusphere.internal',
+      plainPassword: adminPass,
+      fullName: 'Dr. Platform Admin (E2E Test)',
+      globalRole: 'PLATFORM_SUPERADMIN' as const,
+      activeRole: 'PLATFORM_ADMIN' as const,
+      authorizedRoles: ['PLATFORM_ADMIN' as const, 'INSTITUTION_ADMIN' as const, 'INSTRUCTOR' as const, 'STUDENT' as const],
+      institutionId: null,
+    });
+  } else {
+    console.log('  ℹ️  PLATFORM_SUPERADMIN E2E account skipped (requires ALLOW_E2E_SUPERADMIN=true in non-production)');
+  }
+
   for (const user of testUsers) {
     const salt = bcrypt.genSaltSync(12);
     const passwordHash = bcrypt.hashSync(user.plainPassword, salt);
+
+    const existingUser = await UserModel.findOne({ email: user.email });
 
     await UserModel.findOneAndUpdate(
       { email: user.email },
@@ -71,17 +125,17 @@ export async function seedE2EUsers(): Promise<void> {
           activeRole: user.activeRole,
           authorizedRoles: user.authorizedRoles,
           institutionId: user.institutionId,
-          tokenVersion: 0,
+          tokenVersion: (existingUser?.tokenVersion ?? 0) + 1, // Invalidate any older sessions
           security: { isEmailVerified: true, twoFactorEnabled: false },
           createdAt: new Date().toISOString(),
         },
       },
       { upsert: true, new: true }
     );
-    console.log(`  ✅ Upserted E2E user: ${user.email} [${user.activeRole}]`);
+    console.log(`  ✅ Upserted E2E user: ${user.email} [${user.activeRole}] (Password sourced securely from environment)`);
   }
 
-  console.log('\n✅ All Playwright E2E users seeded successfully.');
+  console.log('\n✅ E2E users seeded successfully.');
   await disconnectMongoDB();
 }
 
@@ -89,7 +143,7 @@ if (process.argv[1]?.endsWith('seedE2EUsers.ts') || process.argv[1]?.endsWith('s
   seedE2EUsers()
     .then(() => process.exit(0))
     .catch(err => {
-      console.error('Fatal E2E user seeding failure:', err);
+      console.error('Fatal E2E user seeding failure:', err.message);
       process.exit(1);
     });
 }

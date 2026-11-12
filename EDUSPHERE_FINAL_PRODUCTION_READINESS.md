@@ -135,3 +135,4 @@ npm --prefix server run bootstrap:admin
 1. **Provision External Cloud Credentials:** Inject genuine production keys for Cloudflare R2 (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`) and Resend (`RESEND_API_KEY`) to unblock file asset uploads and transactional email delivery.
 2. **Deploy Background Transcoder Service:** Provision the Render background worker service running `node server/dist/worker/transcodeWorker.js` with FFmpeg installed.
 3. **Trigger Production Git Push:** Commit and push the finalized baseline to `origin main` to trigger the automated Render and Cloudflare Pages deployment pipelines.
+

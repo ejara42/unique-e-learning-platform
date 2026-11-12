@@ -30,8 +30,11 @@ test.describe('Learner End-to-End Workflow', () => {
     await expect(demoButtons).toHaveCount(0);
 
     // 3. Authenticate with seeded test learner credentials via UI form
-    await page.fill('input[type="email"]', 'e2e_learner@edusphere.io');
-    await page.fill('input[type="password"]', 'EduSphere#2026!Learner');
+    const learnerEmail = process.env.E2E_LEARNER_EMAIL || 'test_learner@edusphere.internal';
+    const learnerPassword = process.env.E2E_LEARNER_PASSWORD || 'EduSphere#TestLearner2026';
+
+    await page.fill('input[type="email"]', learnerEmail);
+    await page.fill('input[type="password"]', learnerPassword);
 
     const [loginResponse] = await Promise.all([
       page.waitForResponse(resp => resp.url().includes('/api/auth/login'), { timeout: 30000 }),
@@ -49,13 +52,13 @@ test.describe('Learner End-to-End Workflow', () => {
 
     // 4. Navigate to Learner Dashboard
     await page.goto('/dashboard');
-    const dashboardElement = page.locator('text=Learner Workspace').or(page.locator('text=My Enrollments')).or(page.locator('h1')).first();
+    const dashboardElement = page.locator('text=Learner Workspace').or(page.locator('text=My Enrollments')).or(page.locator('text=Enrolled Courses')).first();
     await expect(dashboardElement).toBeVisible({ timeout: 15000 });
 
     // 5. Open Course Details (e.g. course-1: Introduction to Programming)
     await page.goto('/courses/course-1');
-    const courseTitle = page.locator('text=Introduction to Programming').or(page.locator('h1')).first();
-    await expect(courseTitle).toBeVisible({ timeout: 15000 });
+    const courseHeading = page.locator('h1, h2').filter({ hasText: /Introduction to Programming|Course Overview/i }).first();
+    await expect(courseHeading).toBeVisible({ timeout: 15000 });
 
     // 6. Verify Enrollment State or Perform Enrollment
     const enrollBtn = page.locator('button').filter({ hasText: /Enroll Now|Go to My Courses/i }).first();

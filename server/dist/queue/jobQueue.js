@@ -1,7 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.jobQueue = exports.PersistentTranscodeQueue = void 0;
 const uuid_1 = require("uuid");
+const mongoose_1 = __importDefault(require("mongoose"));
 const models_1 = require("../models");
 const mongoConnection_1 = require("../data/mongoConnection");
 const config_1 = require("../config");
@@ -14,13 +18,29 @@ class PersistentTranscodeQueue {
         }
     }
     async ensureIndexes() {
-        if (!this.indexesEnsured && mongoConnection_1.connectionState.isConnected) {
+        if (!this.indexesEnsured && mongoConnection_1.connectionState.isConnected && mongoose_1.default.connection.readyState === 1) {
             try {
-                await models_1.TranscodeJobModel.init();
+                if (models_1.TranscodeJobModel.collection && typeof models_1.TranscodeJobModel.collection.indexes === 'function') {
+                    const indexes = await models_1.TranscodeJobModel.collection.indexes().catch(() => []);
+                    const legacyLockIndex = indexes.find((idx) => idx.name === 'activeLockKey_1');
+                    if (legacyLockIndex) {
+                        const hasPartialFilter = legacyLockIndex.partialFilterExpression &&
+                            legacyLockIndex.partialFilterExpression.activeLockKey &&
+                            legacyLockIndex.partialFilterExpression.activeLockKey.$type === 'string';
+                        if (!hasPartialFilter) {
+                            console.log('[Queue Migration] Dropping legacy sparse activeLockKey_1 index in favor of partialFilterExpression index...');
+                            await models_1.TranscodeJobModel.collection.dropIndex('activeLockKey_1');
+                            console.log('[Queue Migration] Successfully dropped legacy sparse activeLockKey_1 index.');
+                        }
+                    }
+                    await models_1.TranscodeJobModel.createIndexes();
+                }
                 this.indexesEnsured = true;
+                console.log('[Queue] TranscodeJob indexes successfully initialized and verified.');
             }
             catch (err) {
-                console.warn('[Queue] Index initialization warning:', err?.message);
+                console.error('[Queue FATAL] TranscodeJob index verification/migration failed:', err);
+                throw new Error(`[FATAL] Failed to initialize TranscodeJob queue indexes: ${err.message}`);
             }
         }
     }

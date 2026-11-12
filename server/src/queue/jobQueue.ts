@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import mongoose from 'mongoose';
 import { TranscodeJobModel } from '../models';
 import { connectionState } from '../data/mongoConnection';
 import { config } from '../config';
@@ -30,12 +31,28 @@ export class PersistentTranscodeQueue {
   }
 
   public async ensureIndexes(): Promise<void> {
-    if (!this.indexesEnsured && connectionState.isConnected) {
+    if (!this.indexesEnsured && connectionState.isConnected && mongoose.connection.readyState === 1) {
       try {
-        await TranscodeJobModel.init();
+        if (TranscodeJobModel.collection && typeof TranscodeJobModel.collection.indexes === 'function') {
+          const indexes = await TranscodeJobModel.collection.indexes().catch(() => []);
+          const legacyLockIndex = indexes.find((idx: any) => idx.name === 'activeLockKey_1');
+          if (legacyLockIndex) {
+            const hasPartialFilter = legacyLockIndex.partialFilterExpression &&
+              legacyLockIndex.partialFilterExpression.activeLockKey &&
+              legacyLockIndex.partialFilterExpression.activeLockKey.$type === 'string';
+            if (!hasPartialFilter) {
+              console.log('[Queue Migration] Dropping legacy sparse activeLockKey_1 index in favor of partialFilterExpression index...');
+              await TranscodeJobModel.collection.dropIndex('activeLockKey_1');
+              console.log('[Queue Migration] Successfully dropped legacy sparse activeLockKey_1 index.');
+            }
+          }
+          await TranscodeJobModel.createIndexes();
+        }
         this.indexesEnsured = true;
+        console.log('[Queue] TranscodeJob indexes successfully initialized and verified.');
       } catch (err: any) {
-        console.warn('[Queue] Index initialization warning:', err?.message);
+        console.error('[Queue FATAL] TranscodeJob index verification/migration failed:', err);
+        throw new Error(`[FATAL] Failed to initialize TranscodeJob queue indexes: ${err.message}`);
       }
     }
   }

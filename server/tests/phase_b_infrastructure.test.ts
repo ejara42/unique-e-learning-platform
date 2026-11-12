@@ -125,10 +125,21 @@ async function runSuite() {
           const j = testTranscodeJobs.get(query.id) || null;
           return Promise.resolve(j);
         }
-        if (query.courseId && query.lessonId) {
+        const activeLockKey = query.activeLockKey || query.$or?.find((q: any) => q.activeLockKey)?.activeLockKey;
+        const courseQuery = query.courseId ? query : query.$or?.find((q: any) => q.courseId);
+        const courseId = courseQuery?.courseId;
+        const lessonId = courseQuery?.lessonId;
+
+        if (activeLockKey) {
           for (const j of testTranscodeJobs.values()) {
-            if (j.courseId === query.courseId && j.lessonId === query.lessonId) {
-              if (!query.status?.$in || query.status.$in.includes(j.status)) {
+            if (j.activeLockKey === activeLockKey) return Promise.resolve(j);
+          }
+        }
+        if (courseId && lessonId) {
+          for (const j of testTranscodeJobs.values()) {
+            if (j.courseId === courseId && j.lessonId === lessonId) {
+              const statusFilter = courseQuery?.status?.$in || query.status?.$in;
+              if (!statusFilter || statusFilter.includes(j.status)) {
                 return Promise.resolve(j);
               }
             }

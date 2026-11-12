@@ -10,16 +10,14 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = require("../config");
 const dbRepository_1 = require("../data/dbRepository");
 async function requireAuth(req, res, next) {
-    let token;
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.split(' ')[1];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header. Bearer token required.' });
+        return;
     }
-    else if (typeof req.query.token === 'string' && req.query.token.trim()) {
-        token = req.query.token.trim();
-    }
+    const token = authHeader.split(' ')[1];
     if (!token) {
-        res.status(401).json({ message: 'Unauthorized: Missing or invalid token' });
+        res.status(401).json({ message: 'Unauthorized: Missing Bearer token' });
         return;
     }
     let decoded;

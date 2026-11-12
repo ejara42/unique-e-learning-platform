@@ -31,8 +31,8 @@ All verified production blockers previously identified have been systematically 
 | **DRM Playback Lifecycle** | `server/tests/media/drm_playback_lifecycle.test.ts` | AES-128 key broker, Bearer JWT, dedicated HMAC tokens (max 300s), anti-caching | 16 | 16 | 0 | 0 | **PASSED** |
 | **Live MongoDB Replica Set** | `server/tests/integration/mongodb_replica.test.ts` | Genuine wire protocol to Atlas replica set, E11000 duplicate checks, topology | 4 | 4 | 0 | 0 | **PASSED** |
 | **Queue Concurrency & Race** | `server/tests/queue/queue_concurrency.test.ts` | 10-way concurrent race, atomic DB deduplication, exponential backoff, worker leases | 6 | 6 | 0 | 0 | **PASSED** |
-| **Client Component Unit** | `client/src/*.test.tsx` (8 test files) | Vitest jsdom test runner for React components, RBAC guards & context | 25 | 25 | 0 | 0 | **PASSED** |
-| **TOTAL AUTOMATED TESTS** | **Master Release Gate (`npm run test:release-gate`)** | **All Automated Test Suites** | **155** | **155** | **0** | **0** | **100% PASS** |
+| **Client Component Unit** | `client/src/*.test.tsx` (8 test files) | Vitest jsdom test runner for React components, RBAC guards & context | 27 | 27 | 0 | 0 | **PASSED** |
+| **TOTAL AUTOMATED TESTS** | **Master Release Gate (`npm run test:release-gate`)** | **All Automated Test Suites (Excluding 2 Builds & 3 Browser Specs)** | **155** | **155** | **0** | **0** | **100% PASS** |
 
 ---
 

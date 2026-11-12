@@ -145,4 +145,29 @@ describe('AuthPage', () => {
 
     expect(await screen.findByText('Name must be at least 2 characters in length')).toBeInTheDocument();
   });
+
+  it('provides show/hide password toggle button during registration', () => {
+    renderAuth('signup');
+
+    const passwordInput = screen.getByPlaceholderText(/At least 12 characters with upper\/lowercase, number & symbol/i);
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    const toggleBtn = screen.getByRole('button', { name: /Show password/i });
+    expect(toggleBtn).toBeInTheDocument();
+
+    // Click toggle to reveal password
+    fireEvent.click(toggleBtn);
+    expect(passwordInput).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: /Hide password/i })).toBeInTheDocument();
+
+    // Click toggle again to conceal password
+    fireEvent.click(screen.getByRole('button', { name: /Hide password/i }));
+    expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('ensures static "Verified" badge is completely absent from the auth header', () => {
+    renderAuth('signup');
+    // Asserts that no static fake "Verified" badge is rendered next to the form title
+    expect(screen.queryByText(/^Verified$/i)).not.toBeInTheDocument();
+  });
 });

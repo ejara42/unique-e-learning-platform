@@ -2,6 +2,7 @@ import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import mongoose from 'mongoose';
 import { storageService } from '../src/services/storageService';
 import { emailService } from '../src/services/emailService';
 import { redisClient } from '../src/queue/redisClient';
@@ -177,6 +178,8 @@ async function runSuite() {
           then: (resolve: any) => Promise.resolve(results).then(resolve),
         };
       };
+      (SecurityTokenModel as any).deleteMany = async () => ({ deletedCount: 0 });
+      (TranscodeJobModel as any).deleteMany = async () => ({ deletedCount: 0 });
     }
 
     process.env.R2_PUBLIC_DOMAIN = 'https://storage.edusphere.io';
@@ -475,11 +478,17 @@ async function runSuite() {
     console.log(`📊 PHASE B SUITE RESULT: ${passedTests} OF ${totalTests} TESTS PASSED (100%)`);
     console.log('========================================================================\n');
 
-    if (connectionState.isConnected) {
-      await SecurityTokenModel.deleteMany({ userId: testUserId });
-      await TranscodeJobModel.deleteMany({ courseId: { $in: ['course-alpha', 'course-stuck', 'course-worker-test'] } });
+    if (mongoose.connection.readyState === 1) {
+      try {
+        await SecurityTokenModel.deleteMany({ userId: testUserId });
+        await TranscodeJobModel.deleteMany({ courseId: { $in: ['course-alpha', 'course-stuck', 'course-worker-test'] } });
+      } catch (cleanErr) {
+        // Ignore test cleanup error on disconnected DB
+      }
     }
-    await disconnectMongoDB();
+    if (mongoose.connection.readyState !== 0) {
+      await disconnectMongoDB();
+    }
     process.exit(0);
   } catch (err: any) {
     fail('Unhandled exception in Phase B test suite', err);

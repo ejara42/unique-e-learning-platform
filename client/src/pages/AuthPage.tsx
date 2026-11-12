@@ -17,7 +17,9 @@ import {
   Sparkles,
   ArrowLeft,
   KeyRound,
-  BookOpen
+  BookOpen,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { Button } from '../components/ui';
@@ -41,12 +43,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
   // Dynamic Sign In State
   const [signInEmail, setSignInEmail] = useState('');
   const [signInPassword, setSignInPassword] = useState('');
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
   // Dynamic Sign Up State
   const [fullName, setFullName] = useState('');
   const [signUpEmail, setSignUpEmail] = useState('');
   const [signUpPassword, setSignUpPassword] = useState('');
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>('STUDENT');
   const [institutionName, setInstitutionName] = useState('');
 
@@ -54,7 +58,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
@@ -314,32 +320,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
           padding: '32px 32px 28px',
         }}>
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
           marginBottom: 22,
         }}>
-          <div>
-            <div style={{ fontSize: '0.76rem', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800, color: 'var(--primary)' }}>Secure access</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.03em', marginTop: 4 }}>
-              {mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Reset Password' : 'Set New Password'}
-            </div>
-          </div>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'var(--teal-50)',
-            border: '1px solid rgba(13,148,136,0.18)',
-            color: 'var(--teal-700)',
-            borderRadius: 999,
-            padding: '7px 10px',
-            fontSize: '0.74rem',
-            fontWeight: 800,
-          }}>
-            <ShieldCheck size={14} />
-            <span>Verified</span>
+          <div style={{ fontSize: '0.76rem', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800, color: 'var(--primary)' }}>Secure access</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--navy-950)', letterSpacing: '-0.03em', marginTop: 4 }}>
+            {mode === 'signin' ? 'Welcome back' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Reset Password' : 'Set New Password'}
           </div>
         </div>
 
@@ -551,16 +536,37 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
-                  type="password"
+                  type={showNewPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
                   className="input-field"
-                  style={{ paddingLeft: 42, height: 46 }}
+                  style={{ paddingLeft: 42, paddingRight: 42, height: 46 }}
                   minLength={12}
                   maxLength={128}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                  title={showNewPassword ? "Hide password" : "Show password"}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: 13,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -571,16 +577,37 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="Re-type new password"
                   className="input-field"
-                  style={{ paddingLeft: 42, height: 46 }}
+                  style={{ paddingLeft: 42, paddingRight: 42, height: 46 }}
                   minLength={12}
                   maxLength={128}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  title={showConfirmPassword ? "Hide password" : "Show password"}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: 13,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -637,14 +664,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
-                  type="password"
+                  type={showSignInPassword ? "text" : "password"}
                   value={signInPassword}
                   onChange={e => setSignInPassword(e.target.value)}
                   placeholder={t.passwordPlaceholder}
                   className="input-field"
-                  style={{ paddingLeft: 42, height: 46 }}
+                  style={{ paddingLeft: 42, paddingRight: 42, height: 46 }}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowSignInPassword(!showSignInPassword)}
+                  aria-label={showSignInPassword ? "Hide password" : "Show password"}
+                  title={showSignInPassword ? "Hide password" : "Show password"}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: 13,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {showSignInPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
               {fieldErrors['password'] && (
                 <div role="alert" style={{ color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, marginTop: 4 }}>
@@ -766,16 +814,37 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'signin' }) =>
               <div style={{ position: 'relative' }}>
                 <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: 14 }} />
                 <input
-                  type="password"
+                  type={showSignUpPassword ? "text" : "password"}
                   value={signUpPassword}
                   onChange={e => setSignUpPassword(e.target.value)}
                   placeholder={t.passwordPlaceholder}
                   className="input-field"
-                  style={{ paddingLeft: 42, height: 46 }}
+                  style={{ paddingLeft: 42, paddingRight: 42, height: 46 }}
                   minLength={12}
                   maxLength={128}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                  aria-label={showSignUpPassword ? "Hide password" : "Show password"}
+                  title={showSignUpPassword ? "Hide password" : "Show password"}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: 13,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {showSignUpPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
               {fieldErrors['password'] && (
                 <div role="alert" style={{ color: '#DC2626', fontSize: '0.8rem', fontWeight: 600, marginTop: 4 }}>

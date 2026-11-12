@@ -14,11 +14,16 @@ import { cdnSecurityService } from '../../src/services/cdnSecurityService';
  * ==============================================================================
  * Validates:
  * 1. Bearer JWT authentication for HLS AES-128 key delivery.
- * 2. Query param ?token=<jwt> authentication (required for standard HLS players).
- * 3. Time-bounded HMAC-SHA256 CDN signed playback tokens.
- * 4. Strict enrollment barriers (403 for unenrolled learners).
- * 5. Instructor & Platform Administrator privileged access.
- * 6. Cryptographic anti-caching HTTP response headers.
+ * 2. Strict rejection of normal user JWT in query parameter (?token=<jwt>).
+ * 3. Dedicated time-bounded HMAC-SHA256 playback token verification (?token=<hmac>).
+ * 4. Missing database user rejection (deleted user session).
+ * 5. Suspended / inactive user rejection.
+ * 6. Revoked session rejection (tokenVersion mismatch).
+ * 7. Token expiration and 300s maximum lifetime enforcement.
+ * 8. Strict enrollment & cross-tenant barrier enforcement.
+ * 9. Instructor & Platform Administrator privileged access.
+ * 10. Strict anti-caching HTTP response headers and Referrer-Policy: no-referrer.
+ * 11. Playback token & Playback URL issuance endpoints.
  * ==============================================================================
  */
 
@@ -41,7 +46,7 @@ function generateToken(payload: {
 
 async function runDrmPlaybackLifecycleSuite() {
   console.log('\n===============================================================');
-  console.log('🔒 DRM PLAYBACK LIFECYCLE & HLS KEY SECURITY SUITE');
+  console.log('🔒 SECURE DRM PLAYBACK LIFECYCLE & HLS KEY SECURITY SUITE');
   console.log('===============================================================\n');
 
   let passed = 0;
@@ -90,18 +95,73 @@ async function runDrmPlaybackLifecycleSuite() {
     createdAt: new Date(),
   });
 
-  // Seed users
-  mockUsers.set('user-enrolled-student', { id: 'user-enrolled-student', tokenVersion: 0 });
-  mockUsers.set('user-unenrolled-student', { id: 'user-unenrolled-student', tokenVersion: 0 });
-  mockUsers.set('user-inst-drm', { id: 'user-inst-drm', tokenVersion: 0 });
-  mockUsers.set('user-platform-admin', { id: 'user-platform-admin', tokenVersion: 0 });
+  // Seed users in mock store
+  mockUsers.set('user-enrolled-student', {
+    id: 'user-enrolled-student',
+    email: 'alice@student.org',
+    fullName: 'Alice Enrolled',
+    globalRole: 'STANDARD_USER',
+    activeRole: 'STUDENT',
+    tokenVersion: 0,
+    isSuspended: false,
+  });
 
-  // Seed enrollment for student
+  mockUsers.set('user-unenrolled-student', {
+    id: 'user-unenrolled-student',
+    email: 'bob@student.org',
+    fullName: 'Bob Unenrolled',
+    globalRole: 'STANDARD_USER',
+    activeRole: 'STUDENT',
+    tokenVersion: 0,
+    isSuspended: false,
+  });
+
+  mockUsers.set('user-suspended-student', {
+    id: 'user-suspended-student',
+    email: 'charlie@suspended.org',
+    fullName: 'Charlie Suspended',
+    globalRole: 'STANDARD_USER',
+    activeRole: 'STUDENT',
+    tokenVersion: 0,
+    isSuspended: true,
+    status: 'SUSPENDED',
+  });
+
+  mockUsers.set('user-inst-drm', {
+    id: 'user-inst-drm',
+    email: 'prof.smith@inst.edu',
+    fullName: 'Prof. Smith',
+    globalRole: 'STANDARD_USER',
+    activeRole: 'INSTRUCTOR',
+    tokenVersion: 0,
+    isSuspended: false,
+  });
+
+  mockUsers.set('user-platform-admin', {
+    id: 'user-platform-admin',
+    email: 'admin@edusphere.io',
+    fullName: 'Platform Superadmin',
+    globalRole: 'PLATFORM_SUPERADMIN',
+    activeRole: 'PLATFORM_ADMIN',
+    tokenVersion: 0,
+    isSuspended: false,
+  });
+
+  // Seed enrollments
   mockEnrollments.push({
     id: 'enr-1',
     courseId: TEST_COURSE_ID,
     learnerId: 'user-enrolled-student',
     userId: 'user-enrolled-student',
+    status: 'ENROLLED',
+    tenantId: 'tenant-drm-edu',
+  });
+
+  mockEnrollments.push({
+    id: 'enr-suspended',
+    courseId: TEST_COURSE_ID,
+    learnerId: 'user-suspended-student',
+    userId: 'user-suspended-student',
     status: 'ENROLLED',
     tenantId: 'tenant-drm-edu',
   });
@@ -194,7 +254,7 @@ async function runDrmPlaybackLifecycleSuite() {
     console.error('  ❌ [TEST 1] FAILED:', err.message);
   }
 
-  // TEST 2: Invalid / forged token should be rejected with 401
+  // TEST 2: Invalid / forged Bearer token should be rejected with 401
   total++;
   try {
     const res = await request(app)
@@ -238,21 +298,141 @@ async function runDrmPlaybackLifecycleSuite() {
     console.error('  ❌ [TEST 4] FAILED:', err.message);
   }
 
-  // TEST 5: Enrolled student with ?token=<jwt> query parameter should receive 200 (HLS player compatibility)
+  // TEST 5: Normal user JWT passed in ?token=<jwt> query parameter MUST BE REJECTED with 401
   total++;
   try {
     const res = await request(app)
       .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${enrolledToken}`);
-    assert.strictEqual(res.status, 200, 'Should return 200 for query param token');
-    assert.strictEqual(res.headers['content-type'], 'application/octet-stream');
-    assert.deepStrictEqual(Buffer.from(res.body), TEST_KEY_BUFFER);
-    console.log('  ✅ [TEST 5] Delivers 16-byte AES-128 key via ?token=<jwt> for HLS video player');
+    assert.strictEqual(res.status, 401, 'Should reject normal JWT passed in query string');
+    assert.match(res.body.message, /General JWT query tokens are not permitted/i);
+    console.log('  ✅ [TEST 5] Strictly rejects normal JWT passed in URL query parameters with 401');
     passed++;
   } catch (err: any) {
     console.error('  ❌ [TEST 5] FAILED:', err.message);
   }
 
-  // TEST 6: Course author (instructor) should have access without enrollment
+  // TEST 6: Dedicated short-lived HMAC playback token for enrolled student should receive 200
+  total++;
+  try {
+    const hmacToken = cdnSecurityService.generatePlaybackToken(
+      TEST_COURSE_ID,
+      TEST_LESSON_ID,
+      300,
+      'user-enrolled-student',
+      0
+    );
+    const res = await request(app)
+      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${hmacToken}`);
+    assert.strictEqual(res.status, 200, 'Should accept valid HMAC playback token');
+    assert.strictEqual(res.headers['content-type'], 'application/octet-stream');
+    assert.deepStrictEqual(Buffer.from(res.body), TEST_KEY_BUFFER);
+    console.log('  ✅ [TEST 6] Delivers 16-byte key via dedicated HMAC-SHA256 playback token in ?token=<hmac>');
+    passed++;
+  } catch (err: any) {
+    console.error('  ❌ [TEST 6] FAILED:', err.message);
+  }
+
+  // TEST 7: Missing database user (deleted user) must always result in rejection
+  total++;
+  try {
+    const deletedUserToken = cdnSecurityService.generatePlaybackToken(
+      TEST_COURSE_ID,
+      TEST_LESSON_ID,
+      300,
+      'user-deleted-id-999',
+      0
+    );
+    const res = await request(app)
+      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${deletedUserToken}`);
+    assert.strictEqual(res.status, 401, 'Deleted user should be rejected');
+    assert.match(res.body.message, /User account not found or has been deleted/i);
+    console.log('  ✅ [TEST 7] Missing database user strictly results in rejection with 401');
+    passed++;
+  } catch (err: any) {
+    console.error('  ❌ [TEST 7] FAILED:', err.message);
+  }
+
+  // TEST 8: Suspended / inactive user must be rejected with 403 Forbidden
+  total++;
+  try {
+    const suspendedToken = cdnSecurityService.generatePlaybackToken(
+      TEST_COURSE_ID,
+      TEST_LESSON_ID,
+      300,
+      'user-suspended-student',
+      0
+    );
+    const res = await request(app)
+      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${suspendedToken}`);
+    assert.strictEqual(res.status, 403, 'Suspended user should be forbidden');
+    assert.match(res.body.message, /User account is inactive or suspended/i);
+    console.log('  ✅ [TEST 8] Suspended/inactive user is rejected with 403 Forbidden');
+    passed++;
+  } catch (err: any) {
+    console.error('  ❌ [TEST 8] FAILED:', err.message);
+  }
+
+  // TEST 9: Session tokenVersion mismatch (revoked session) must be rejected with 401
+  total++;
+  try {
+    const revokedToken = cdnSecurityService.generatePlaybackToken(
+      TEST_COURSE_ID,
+      TEST_LESSON_ID,
+      300,
+      'user-enrolled-student',
+      99 // Token has version 99 while DB has version 0
+    );
+    const res = await request(app)
+      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${revokedToken}`);
+    assert.strictEqual(res.status, 401, 'Revoked token version should be rejected');
+    assert.match(res.body.message, /Playback session has been revoked/i);
+    console.log('  ✅ [TEST 9] Revoked tokenVersion session is rejected with 401');
+    passed++;
+  } catch (err: any) {
+    console.error('  ❌ [TEST 9] FAILED:', err.message);
+  }
+
+  // TEST 10: Expired HMAC playback token must be rejected with 401
+  total++;
+  try {
+    // Generate expired token (-10s)
+    const expiredToken = cdnSecurityService.generatePlaybackToken(
+      TEST_COURSE_ID,
+      TEST_LESSON_ID,
+      -10,
+      'user-enrolled-student',
+      0
+    );
+    const res = await request(app)
+      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${expiredToken}`);
+    assert.strictEqual(res.status, 401, 'Expired token should fail verification');
+    console.log('  ✅ [TEST 10] Expired HMAC playback token is rejected with 401');
+    passed++;
+  } catch (err: any) {
+    console.error('  ❌ [TEST 10] FAILED:', err.message);
+  }
+
+  // TEST 11: Cross-tenant / Unenrolled student with valid HMAC token must be rejected with 403
+  total++;
+  try {
+    const unenrolledHmac = cdnSecurityService.generatePlaybackToken(
+      TEST_COURSE_ID,
+      TEST_LESSON_ID,
+      300,
+      'user-unenrolled-student',
+      0
+    );
+    const res = await request(app)
+      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${unenrolledHmac}`);
+    assert.strictEqual(res.status, 403, 'Unenrolled student should be rejected with 403');
+    assert.match(res.body.message, /Enrollment or resource ownership is required/i);
+    console.log('  ✅ [TEST 11] Unenrolled/cross-tenant student with HMAC token is denied with 403 Forbidden');
+    passed++;
+  } catch (err: any) {
+    console.error('  ❌ [TEST 11] FAILED:', err.message);
+  }
+
+  // TEST 12: Course author (instructor) access via Bearer JWT
   total++;
   try {
     const res = await request(app)
@@ -260,13 +440,13 @@ async function runDrmPlaybackLifecycleSuite() {
       .set('Authorization', `Bearer ${instructorToken}`);
     assert.strictEqual(res.status, 200, 'Course instructor should receive 200');
     assert.deepStrictEqual(Buffer.from(res.body), TEST_KEY_BUFFER);
-    console.log('  ✅ [TEST 6] Grants key access to course author (instructor ownership)');
+    console.log('  ✅ [TEST 12] Grants key access to course author (instructor ownership)');
     passed++;
   } catch (err: any) {
-    console.error('  ❌ [TEST 6] FAILED:', err.message);
+    console.error('  ❌ [TEST 12] FAILED:', err.message);
   }
 
-  // TEST 7: Platform Superadmin should have global access
+  // TEST 13: Platform Superadmin access via Bearer JWT
   total++;
   try {
     const res = await request(app)
@@ -274,41 +454,13 @@ async function runDrmPlaybackLifecycleSuite() {
       .set('Authorization', `Bearer ${superAdminToken}`);
     assert.strictEqual(res.status, 200, 'Platform superadmin should receive 200');
     assert.deepStrictEqual(Buffer.from(res.body), TEST_KEY_BUFFER);
-    console.log('  ✅ [TEST 7] Grants key access to verified PLATFORM_SUPERADMIN');
+    console.log('  ✅ [TEST 13] Grants key access to verified PLATFORM_SUPERADMIN');
     passed++;
   } catch (err: any) {
-    console.error('  ❌ [TEST 7] FAILED:', err.message);
+    console.error('  ❌ [TEST 13] FAILED:', err.message);
   }
 
-  // TEST 8: Time-bounded CDN signed playback token via query parameter
-  total++;
-  try {
-    const cdnToken = cdnSecurityService.generatePlaybackToken(TEST_COURSE_ID, TEST_LESSON_ID, 30);
-    const res = await request(app)
-      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${cdnToken}`);
-    assert.strictEqual(res.status, 200, 'Should accept valid CDN HMAC-SHA256 playback token');
-    assert.deepStrictEqual(Buffer.from(res.body), TEST_KEY_BUFFER);
-    console.log('  ✅ [TEST 8] Validates time-bounded HMAC-SHA256 CDN signed playback token');
-    passed++;
-  } catch (err: any) {
-    console.error('  ❌ [TEST 8] FAILED:', err.message);
-  }
-
-  // TEST 9: Tampered or expired CDN signed playback token should be rejected
-  total++;
-  try {
-    const cdnToken = cdnSecurityService.generatePlaybackToken(TEST_COURSE_ID, TEST_LESSON_ID, 30);
-    const tamperedToken = '000000' + cdnToken.slice(6);
-    const res = await request(app)
-      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${tamperedToken}`);
-    assert.strictEqual(res.status, 401, 'Tampered CDN token should fail verification');
-    console.log('  ✅ [TEST 9] Rejects tampered/invalid CDN token with 401');
-    passed++;
-  } catch (err: any) {
-    console.error('  ❌ [TEST 9] FAILED:', err.message);
-  }
-
-  // TEST 10: Verify strict anti-caching HTTP response headers
+  // TEST 14: Strict anti-caching HTTP response headers and Referrer-Policy: no-referrer
   total++;
   try {
     const res = await request(app)
@@ -318,13 +470,36 @@ async function runDrmPlaybackLifecycleSuite() {
     assert.strictEqual(res.headers['cache-control'], 'no-store, no-cache, must-revalidate, proxy-revalidate, private');
     assert.strictEqual(res.headers['pragma'], 'no-cache');
     assert.strictEqual(res.headers['expires'], '0');
-    console.log('  ✅ [TEST 10] Enforces strict anti-caching headers (no-store, Pragma: no-cache, Expires: 0)');
+    assert.strictEqual(res.headers['referrer-policy'], 'no-referrer');
+    console.log('  ✅ [TEST 14] Enforces anti-caching (no-store, Expires: 0) and Referrer-Policy: no-referrer');
     passed++;
   } catch (err: any) {
-    console.error('  ❌ [TEST 10] FAILED:', err.message);
+    console.error('  ❌ [TEST 14] FAILED:', err.message);
   }
 
-  // TEST 11: Playback URL generation endpoint with authorization & CDN integration
+  // TEST 15: Dedicated /api/media/playback-token endpoint issues 300s token
+  total++;
+  try {
+    const res = await request(app)
+      .get(`/api/media/playback-token/${TEST_COURSE_ID}/${TEST_LESSON_ID}`)
+      .set('Authorization', `Bearer ${enrolledToken}`);
+    assert.strictEqual(res.status, 200);
+    assert(res.body.playbackToken, 'Response should contain playbackToken');
+    assert.strictEqual(res.body.expiresInSeconds, 300);
+    assert.strictEqual(res.headers['referrer-policy'], 'no-referrer');
+
+    // Verify issued token can immediately unlock HLS key
+    const keyRes = await request(app)
+      .get(`/api/media/hls-key/${TEST_COURSE_ID}/${TEST_LESSON_ID}?token=${res.body.playbackToken}`);
+    assert.strictEqual(keyRes.status, 200);
+    assert.deepStrictEqual(Buffer.from(keyRes.body), TEST_KEY_BUFFER);
+    console.log('  ✅ [TEST 15] Issues dedicated short-lived HMAC playback token via /playback-token');
+    passed++;
+  } catch (err: any) {
+    console.error('  ❌ [TEST 15] FAILED:', err.message);
+  }
+
+  // TEST 16: Playback URL generation endpoint with authorization & 5-minute expiry
   total++;
   try {
     // Unenrolled request to playback-url should fail
@@ -340,10 +515,10 @@ async function runDrmPlaybackLifecycleSuite() {
     assert.strictEqual(allowedRes.status, 200, 'Enrolled student receives signed playback URL');
     assert.ok(allowedRes.body.playbackUrl, 'Response includes playbackUrl');
     assert.match(allowedRes.body.playbackUrl, /token=/);
-    console.log('  ✅ [TEST 11] Validates /playback-url generation and access barrier');
+    console.log('  ✅ [TEST 16] Validates /playback-url generation with access barriers');
     passed++;
   } catch (err: any) {
-    console.error('  ❌ [TEST 11] FAILED:', err.message);
+    console.error('  ❌ [TEST 16] FAILED:', err.message);
   }
 
   console.log('\n---------------------------------------------------------------');

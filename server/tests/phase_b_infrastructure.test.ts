@@ -50,7 +50,7 @@ async function runSuite() {
       (FileAssetModel as any).create = async (doc: any) => {
         const asset = {
           ...doc,
-          save: async function() {
+          save: async function () {
             testFileAssets.set(this.id, this);
             return this;
           }
@@ -92,7 +92,7 @@ async function runSuite() {
         }
         const doc = {
           ...found,
-          save: async function() {
+          save: async function () {
             testSecurityTokens.set(this.tokenHash, { ...this });
             return this;
           }
@@ -162,6 +162,14 @@ async function runSuite() {
           if (query.status && j.status !== query.status) continue;
           if (query.courseId && j.courseId !== query.courseId) continue;
           if (query.updatedAt?.$lt && !(new Date(j.updatedAt) < query.updatedAt.$lt)) continue;
+          if (query.$or) {
+            const matchesOr = query.$or.some((clause: any) => {
+              if (clause.leaseExpiresAt?.$lt && new Date(j.leaseExpiresAt) < clause.leaseExpiresAt.$lt) return true;
+              if (clause.updatedAt?.$lt && new Date(j.updatedAt) < clause.updatedAt.$lt) return true;
+              return false;
+            });
+            if (!matchesOr) continue;
+          }
           results.push(j);
         }
         return {
@@ -328,7 +336,7 @@ async function runSuite() {
     pass('Email Security: Replay protection blocks reuse of already-consumed password reset token');
 
     // Test 9: Expired Token Rejection
-    const expiredRaw = 'expired-token-string-test-999';
+    const { rawToken: expiredRaw } = emailService.generateToken();
     await emailService.createSecurityToken(testUserId, expiredRaw, 'PASSWORD_RESET', -5000); // Expired 5s ago
 
     const expiredCheck = await emailService.verifySecurityToken(expiredRaw, 'PASSWORD_RESET');
@@ -405,8 +413,19 @@ async function runSuite() {
       tenantId: 'tenant-alpha',
     });
     await jobQueue.updateProgress({ jobId: stuckJob.id, progressPercentage: 45 });
-    // Simulate staleness by setting updatedAt into the past
-    stuckJob.updatedAt = new Date(Date.now() - 10 * 60 * 1000);
+    // Simulate staleness by updating status to PROCESSING and lease/updatedAt into the past
+    await TranscodeJobModel.findOneAndUpdate(
+      { id: stuckJob.id },
+      {
+        $set: {
+          status: 'PROCESSING',
+          lockedBy: 'worker-crashed',
+          lockedAt: new Date(Date.now() - 10 * 60 * 1000),
+          leaseExpiresAt: new Date(Date.now() - 5 * 60 * 1000),
+          updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+        },
+      }
+    );
 
     const recoveredCount = await jobQueue.recoverStalledJobs(5 * 60 * 1000);
     assert(recoveredCount >= 1, 'Expected at least 1 stalled job to be recovered');
@@ -456,6 +475,10 @@ async function runSuite() {
     console.log(`📊 PHASE B SUITE RESULT: ${passedTests} OF ${totalTests} TESTS PASSED (100%)`);
     console.log('========================================================================\n');
 
+    if (connectionState.isConnected) {
+      await SecurityTokenModel.deleteMany({ userId: testUserId });
+      await TranscodeJobModel.deleteMany({ courseId: { $in: ['course-alpha', 'course-stuck', 'course-worker-test'] } });
+    }
     await disconnectMongoDB();
     process.exit(0);
   } catch (err: any) {

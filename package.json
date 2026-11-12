@@ -17,6 +17,7 @@
     "test:drm": "npm --prefix server run test:drm",
     "test:client": "npm --prefix client test",
     "test:e2e": "npm --prefix client run test:e2e",
+    "test:release-gate": "node scripts/releaseGate.mjs",
     "test:all": "npm --prefix server run test:all"
   },
   "engines": {

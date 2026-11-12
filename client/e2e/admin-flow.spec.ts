@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { getRequiredE2ECredential, getE2EEmail } from './e2eCredentials';
 
 /**
  * ==============================================================================
@@ -24,8 +25,8 @@ test.describe('Platform & Institution Administrator Workflow', () => {
     await expect(authBarrier.first()).toBeVisible({ timeout: 15000 });
 
     // 2. Perform genuine administrative login
-    const adminEmail = process.env.E2E_ADMIN_EMAIL || 'test_admin@edusphere.internal';
-    const adminPassword = process.env.E2E_ADMIN_PASSWORD || 'EduSphere#TestAdmin2026';
+    const adminEmail = getE2EEmail('E2E_ADMIN_EMAIL', 'test_admin@edusphere.internal');
+    const adminPassword = getRequiredE2ECredential('E2E_ADMIN_PASSWORD', 'Administrator');
 
     await page.goto('/login');
     await page.fill('input[type="email"]', adminEmail);

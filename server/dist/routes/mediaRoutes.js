@@ -36,48 +36,140 @@ async function hasMediaAccess(req, courseId, lessonId) {
     const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(user.id);
     return enrollments.some(enrollment => enrollment.courseId === courseId && enrollment.status === 'ENROLLED');
 }
-// DRM Key Access Broker: supports Bearer JWT, dedicated short-lived HMAC playback tokens, and legacy query tokens
+/**
+ * Strict DRM Key Access Broker:
+ * 1. Standard JWT is strictly permitted ONLY via Authorization: Bearer <token> header.
+ * 2. Query parameter (?token=...) is strictly restricted to dedicated short-lived HMAC playback tokens.
+ * 3. Normal JWT passed in query string is strictly rejected.
+ * 4. Missing database user always rejects with 401.
+ * 5. Inactive or suspended user always rejects with 403.
+ * 6. Revoked tokenVersion always rejects with 401.
+ * 7. Missing or expired enrollment always rejects with 403.
+ */
 async function authenticateDrmKeyRequest(req, res, next) {
     const authHeader = req.headers.authorization;
-    const token = (authHeader && authHeader.startsWith('Bearer '))
-        ? authHeader.slice(7)
-        : (typeof req.query.token === 'string' ? req.query.token : undefined);
-    if (!token) {
-        res.status(401).json({ message: 'Unauthorized: Missing encryption key token' });
-        return;
-    }
+    const queryToken = typeof req.query.token === 'string' ? req.query.token.trim() : undefined;
     const courseId = req.params.courseId;
     const lessonId = req.params.lessonId;
-    // 1. Check time-bounded HMAC-SHA256 signed playback token (Max 300s TTL)
-    const playbackVerification = cdnSecurityService_1.cdnSecurityService.verifyPlaybackToken(courseId, lessonId, token);
-    if (playbackVerification) {
-        if (typeof playbackVerification === 'object' && playbackVerification.uId) {
-            const claims = playbackVerification;
-            if (claims.uId && claims.tv !== undefined) {
-                const currentTv = await dbRepository_1.repo.getUserTokenVersion(claims.uId);
-                if (currentTv !== null && currentTv !== claims.tv) {
-                    res.status(401).json({ message: 'Unauthorized: Playback session has been revoked' });
-                    return;
-                }
-            }
+    // --------------------------------------------------------------------------
+    // BRANCH 1: Standard JWT via Authorization: Bearer <token> Header
+    // --------------------------------------------------------------------------
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const bearerToken = authHeader.slice(7).trim();
+        if (!bearerToken) {
+            res.status(401).json({ message: 'Unauthorized: Missing Bearer token' });
+            return;
         }
-        return next();
-    }
-    // 2. Fallback: Verify standard user JWT session token
-    try {
-        const decoded = jsonwebtoken_1.default.verify(token, config_1.config.jwtSecret);
+        let decoded;
+        try {
+            decoded = jsonwebtoken_1.default.verify(bearerToken, config_1.config.jwtSecret);
+        }
+        catch {
+            res.status(401).json({ message: 'Unauthorized: Token expired or invalid' });
+            return;
+        }
+        if (!decoded || !decoded.id) {
+            res.status(401).json({ message: 'Unauthorized: Invalid token payload' });
+            return;
+        }
+        // Verify user exists in database (A missing database user must always result in rejection)
+        const userDoc = await dbRepository_1.repo.getUserById(decoded.id);
+        if (!userDoc) {
+            res.status(401).json({ message: 'Unauthorized: User account not found or has been deleted' });
+            return;
+        }
+        // Reject inactive or suspended users
+        if (userDoc.isSuspended || userDoc.status === 'SUSPENDED') {
+            res.status(403).json({ message: 'Forbidden: User account is inactive or suspended' });
+            return;
+        }
+        // Reject if session tokenVersion has changed
+        const currentTv = await dbRepository_1.repo.getUserTokenVersion(userDoc.id);
+        if (currentTv === null || (decoded.tokenVersion ?? 0) !== currentTv) {
+            res.status(401).json({ message: 'Unauthorized: Session is no longer valid' });
+            return;
+        }
         req.user = decoded;
         if (!await hasMediaAccess(req, courseId, lessonId)) {
             res.status(403).json({ message: 'Forbidden: Enrollment or resource ownership is required for media access.' });
             return;
         }
-        next();
+        return next();
     }
-    catch {
-        res.status(401).json({ message: 'Unauthorized: Token expired or invalid' });
+    // --------------------------------------------------------------------------
+    // BRANCH 2: Video-Player Query Token (?token=...)
+    // Strictly permits dedicated short-lived HMAC playback tokens.
+    // Standard user JWTs in URL query parameters are strictly forbidden!
+    // --------------------------------------------------------------------------
+    if (queryToken) {
+        // 1. Validate cryptographic HMAC-SHA256 signature and resource binding
+        const isValidHmac = cdnSecurityService_1.cdnSecurityService.verifyPlaybackToken(courseId, lessonId, queryToken);
+        if (!isValidHmac) {
+            res.status(401).json({
+                message: 'Unauthorized: Invalid or expired HMAC playback token. General JWT query tokens are not permitted.',
+            });
+            return;
+        }
+        // 2. Extract and inspect mandatory HMAC claims
+        const claims = cdnSecurityService_1.cdnSecurityService.extractPlaybackClaims(queryToken);
+        if (!claims || !claims.cId || !claims.lId || !claims.uId || claims.tv === undefined || !claims.exp) {
+            res.status(401).json({ message: 'Unauthorized: Missing mandatory playback token claims' });
+            return;
+        }
+        // 3. Reject if token has expired or lifetime exceeds 300s
+        const now = Math.floor(Date.now() / 1000);
+        if (claims.exp <= now) {
+            res.status(401).json({ message: 'Unauthorized: Playback token has expired' });
+            return;
+        }
+        const lifetime = claims.iat ? (claims.exp - claims.iat) : 300;
+        if (lifetime > 300) {
+            res.status(401).json({ message: 'Unauthorized: Playback token lifetime exceeds 300 seconds limit' });
+            return;
+        }
+        // 4. Reject if course or lesson does not match
+        if (claims.cId !== courseId || claims.lId !== lessonId) {
+            res.status(403).json({ message: 'Forbidden: Playback token is not valid for requested media resource' });
+            return;
+        }
+        // 5. Query user from database: A missing database user must always result in rejection!
+        const userDoc = await dbRepository_1.repo.getUserById(claims.uId);
+        if (!userDoc) {
+            res.status(401).json({ message: 'Unauthorized: User account not found or has been deleted' });
+            return;
+        }
+        // 6. Reject if user is inactive or suspended
+        if (userDoc.isSuspended || userDoc.status === 'SUSPENDED') {
+            res.status(403).json({ message: 'Forbidden: User account is inactive or suspended' });
+            return;
+        }
+        // 7. Reject if session tokenVersion has changed
+        const currentTv = await dbRepository_1.repo.getUserTokenVersion(userDoc.id);
+        if (currentTv === null || claims.tv !== currentTv) {
+            res.status(401).json({ message: 'Unauthorized: Playback session has been revoked' });
+            return;
+        }
+        // 8. Reject if enrollment is revoked or cross-tenant access is attempted
+        req.user = {
+            id: userDoc.id,
+            email: userDoc.email,
+            fullName: userDoc.fullName,
+            activeRole: userDoc.activeRole,
+            globalRole: userDoc.globalRole,
+            authorizedRoles: userDoc.authorizedRoles,
+            institutionId: userDoc.institutionId,
+            tokenVersion: userDoc.tokenVersion,
+        };
+        if (!await hasMediaAccess(req, courseId, lessonId)) {
+            res.status(403).json({ message: 'Forbidden: Enrollment or resource ownership is required for media access.' });
+            return;
+        }
+        return next();
     }
+    // Missing credentials
+    res.status(401).json({ message: 'Unauthorized: Missing encryption key token' });
 }
-// POST/GET /api/media/playback-token/:courseId/:lessonId - Issues dedicated short-lived HMAC playback token (Max 300s)
+// GET /api/media/playback-token/:courseId/:lessonId - Issues dedicated short-lived HMAC playback token (Max 300s)
 router.get('/playback-token/:courseId/:lessonId', auth_1.requireAuth, (0, validate_1.validateParams)(mediaParamsSchema), async (req, res) => {
     try {
         const courseId = req.params.courseId;
@@ -86,9 +178,19 @@ router.get('/playback-token/:courseId/:lessonId', auth_1.requireAuth, (0, valida
             res.status(403).json({ message: 'Forbidden: Enrollment or resource ownership is required for media access.' });
             return;
         }
-        const tokenVersion = req.user?.id ? await dbRepository_1.repo.getUserTokenVersion(req.user.id) : 0;
-        const playbackToken = cdnSecurityService_1.cdnSecurityService.generatePlaybackToken(courseId, lessonId, 5, // 5 minutes (300 seconds)
-        req.user?.id, tokenVersion ?? 0);
+        const userId = req.user.id;
+        const userDoc = await dbRepository_1.repo.getUserById(userId);
+        if (!userDoc) {
+            res.status(401).json({ message: 'Unauthorized: User account not found' });
+            return;
+        }
+        if (userDoc.isSuspended || userDoc.status === 'SUSPENDED') {
+            res.status(403).json({ message: 'Forbidden: User account is inactive or suspended' });
+            return;
+        }
+        const tokenVersion = userDoc.tokenVersion ?? 0;
+        const playbackToken = cdnSecurityService_1.cdnSecurityService.generatePlaybackToken(courseId, lessonId, 300, // 300 seconds max
+        userId, tokenVersion);
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         res.setHeader('Referrer-Policy', 'no-referrer');
         res.json({
@@ -141,7 +243,7 @@ router.get('/playback-url/:courseId/:lessonId', auth_1.requireAuth, (0, validate
         const signedUrl = cdnSecurityService_1.cdnSecurityService.generateSignedPlaybackUrl({
             courseId,
             lessonId,
-            validMinutes: 180, // 3 hours
+            validMinutes: 5, // 5 minutes max
         });
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
         res.setHeader('Referrer-Policy', 'no-referrer');
@@ -149,7 +251,7 @@ router.get('/playback-url/:courseId/:lessonId', auth_1.requireAuth, (0, validate
             courseId,
             lessonId,
             playbackUrl: signedUrl,
-            expiresInMinutes: 180,
+            expiresInMinutes: 5,
         });
     }
     catch (err) {

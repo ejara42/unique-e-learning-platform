@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { getRequiredE2ECredential, getE2EEmail } from './e2eCredentials';
 
 /**
  * ==============================================================================
@@ -19,8 +20,8 @@ test.describe('Instructor Course Studio Workflow', () => {
     await page.goto('/login');
 
     // 2. Perform real login with instructor credentials
-    const instructorEmail = process.env.E2E_INSTRUCTOR_EMAIL || 'test_instructor@edusphere.internal';
-    const instructorPassword = process.env.E2E_INSTRUCTOR_PASSWORD || 'EduSphere#TestInstructor2026';
+    const instructorEmail = getE2EEmail('E2E_INSTRUCTOR_EMAIL', 'test_instructor@edusphere.internal');
+    const instructorPassword = getRequiredE2ECredential('E2E_INSTRUCTOR_PASSWORD', 'Instructor');
 
     const [loginResponse] = await Promise.all([
       page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.status() === 200),

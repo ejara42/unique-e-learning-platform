@@ -31,22 +31,38 @@ export async function seedE2EUsers(): Promise<void> {
   const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/edusphere_test';
   assertSafeE2EDatabase(mongoUri);
 
+  // Load passwords strictly from mandatory environment variables (fail closed if missing)
+  const learnerPass = process.env.E2E_LEARNER_PASSWORD?.trim();
+  const instructorPass = process.env.E2E_INSTRUCTOR_PASSWORD?.trim();
+  const instAdminPass = process.env.E2E_INSTADMIN_PASSWORD?.trim();
+
+  if (!learnerPass || !instructorPass || !instAdminPass) {
+    const missing: string[] = [];
+    if (!learnerPass) missing.push('E2E_LEARNER_PASSWORD');
+    if (!instructorPass) missing.push('E2E_INSTRUCTOR_PASSWORD');
+    if (!instAdminPass) missing.push('E2E_INSTADMIN_PASSWORD');
+
+    throw new Error(
+      `[FATAL CONFIGURATION ERROR] Missing required E2E credentials: ${missing.join(', ')}. ` +
+      `E2E seeding and Playwright tests must share the same environment credentials. ` +
+      `Configure these environment variables in your test runner or secrets before executing.`
+    );
+  }
+
+  // Strict check on Platform Admin seeding: Never allowed in production, and requires explicit opt-in
+  const allowSuperAdmin = process.env.ALLOW_E2E_SUPERADMIN === 'true' && process.env.NODE_ENV !== 'production';
+  const adminPass = allowSuperAdmin ? process.env.E2E_ADMIN_PASSWORD?.trim() : null;
+  if (allowSuperAdmin && !adminPass) {
+    throw new Error(
+      `[FATAL CONFIGURATION ERROR] ALLOW_E2E_SUPERADMIN=true was requested but E2E_ADMIN_PASSWORD is not set.`
+    );
+  }
+
   console.log('\n===============================================================');
   console.log('🌱 SEEDING TEST USERS FOR PLAYWRIGHT E2E');
   console.log('===============================================================\n');
 
   await connectMongoDB();
-
-  // Load passwords strictly from environment variables, or generate secure random credentials
-  const learnerPass = process.env.E2E_LEARNER_PASSWORD || crypto.randomBytes(16).toString('hex') + '!Aa1';
-  const instructorPass = process.env.E2E_INSTRUCTOR_PASSWORD || crypto.randomBytes(16).toString('hex') + '!Aa1';
-  const instAdminPass = process.env.E2E_INSTADMIN_PASSWORD || crypto.randomBytes(16).toString('hex') + '!Aa1';
-
-  // Strict check on Platform Admin seeding: Never allowed in production, and requires explicit opt-in
-  const allowSuperAdmin = process.env.ALLOW_E2E_SUPERADMIN === 'true' && process.env.NODE_ENV !== 'production';
-  const adminPass = allowSuperAdmin
-    ? (process.env.E2E_ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex') + '!Aa1')
-    : null;
 
   interface E2EUserSeed {
     id: string;

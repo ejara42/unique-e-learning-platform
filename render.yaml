@@ -41,7 +41,7 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
-        value: "EduSphere Platform <noreply@yourdomain.com>"
+        value: "EduSphere Platform <notifications@edusphere.io>"
       - key: FRONTEND_URL
         sync: false
       - key: R2_ACCESS_KEY_ID

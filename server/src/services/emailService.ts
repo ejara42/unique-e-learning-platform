@@ -43,7 +43,7 @@ export class TransactionalEmailService {
 
   constructor() {
     this.apiKey = process.env.RESEND_API_KEY || '';
-    this.fromEmail = process.env.EMAIL_FROM || 'EduSphere Platform <noreply@edusphere.io>';
+    this.fromEmail = process.env.EMAIL_FROM || 'EduSphere Platform <notifications@edusphere.io>';
     this.frontendUrl = process.env.FRONTEND_URL || 'https://unique-e-learning-platform.pages.dev';
   }
 

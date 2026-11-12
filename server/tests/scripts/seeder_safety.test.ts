@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { assertSafeE2EDatabase } from '../../src/scripts/seedE2EUsers';
+import { assertSafeE2EDatabase, seedE2EUsers } from '../../src/scripts/seedE2EUsers';
 
 async function runSeederSafetySuite() {
   console.log('\n===============================================================');
@@ -9,10 +9,10 @@ async function runSeederSafetySuite() {
   let passed = 0;
   let total = 0;
 
-  function test(name: string, fn: () => void) {
+  async function test(name: string, fn: () => void | Promise<void>) {
     total++;
     try {
-      fn();
+      await fn();
       console.log(`  ✅ [PASS] ${total}. ${name}`);
       passed++;
     } catch (err: any) {
@@ -26,7 +26,7 @@ async function runSeederSafetySuite() {
 
   try {
     // 1. Refusal when NODE_ENV=production
-    test('Refuses execution when NODE_ENV=production', () => {
+    await test('Refuses execution when NODE_ENV=production', () => {
       process.env.ALLOW_E2E_SEED = 'true';
       assert.throws(
         () => assertSafeE2EDatabase('mongodb://localhost:27017/edusphere_test', 'production'),
@@ -35,7 +35,7 @@ async function runSeederSafetySuite() {
     });
 
     // 2. Refusal when ALLOW_E2E_SEED is missing or not 'true'
-    test('Refuses execution when ALLOW_E2E_SEED is not explicitly true', () => {
+    await test('Refuses execution when ALLOW_E2E_SEED is not explicitly true', () => {
       delete process.env.ALLOW_E2E_SEED;
       assert.throws(
         () => assertSafeE2EDatabase('mongodb://localhost:27017/edusphere_test', 'test'),
@@ -50,7 +50,7 @@ async function runSeederSafetySuite() {
     });
 
     // 3. Refusal when database URI targets a production database
-    test('Refuses execution when target database name contains production or prod', () => {
+    await test('Refuses execution when target database name contains production or prod', () => {
       process.env.ALLOW_E2E_SEED = 'true';
 
       assert.throws(
@@ -70,13 +70,26 @@ async function runSeederSafetySuite() {
     });
 
     // 4. Acceptance when in authorized test environment with isolated test database
-    test('Accepts valid non-production configuration with explicit ALLOW_E2E_SEED=true', () => {
+    await test('Accepts valid non-production configuration with explicit ALLOW_E2E_SEED=true', () => {
       process.env.ALLOW_E2E_SEED = 'true';
       assert.doesNotThrow(
         () => assertSafeE2EDatabase('mongodb://localhost:27017/edusphere_test', 'test')
       );
       assert.doesNotThrow(
         () => assertSafeE2EDatabase('mongodb://mongo-local:27017/edusphere_e2e_ci', 'development')
+      );
+    });
+
+    // 5. Credential Barrier: Throws clear configuration error if mandatory E2E credentials are missing
+    await test('Refuses seeding if mandatory E2E credentials are missing from environment', async () => {
+      process.env.ALLOW_E2E_SEED = 'true';
+      delete process.env.E2E_LEARNER_PASSWORD;
+      delete process.env.E2E_INSTRUCTOR_PASSWORD;
+      delete process.env.E2E_INSTADMIN_PASSWORD;
+
+      await assert.rejects(
+        async () => seedE2EUsers(),
+        /Missing required E2E credentials/
       );
     });
 
@@ -91,3 +104,4 @@ async function runSeederSafetySuite() {
 runSeederSafetySuite()
   .then(() => process.exit(0))
   .catch(() => process.exit(1));
+

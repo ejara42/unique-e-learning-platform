@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { getRequiredE2ECredential, getE2EEmail } from './e2eCredentials';
 
 /**
  * ==============================================================================
@@ -30,8 +31,8 @@ test.describe('Learner End-to-End Workflow', () => {
     await expect(demoButtons).toHaveCount(0);
 
     // 3. Authenticate with seeded test learner credentials via UI form
-    const learnerEmail = process.env.E2E_LEARNER_EMAIL || 'test_learner@edusphere.internal';
-    const learnerPassword = process.env.E2E_LEARNER_PASSWORD || 'EduSphere#TestLearner2026';
+    const learnerEmail = getE2EEmail('E2E_LEARNER_EMAIL', 'test_learner@edusphere.internal');
+    const learnerPassword = getRequiredE2ECredential('E2E_LEARNER_PASSWORD', 'Learner');
 
     await page.fill('input[type="email"]', learnerEmail);
     await page.fill('input[type="password"]', learnerPassword);

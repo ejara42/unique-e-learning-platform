@@ -9,11 +9,12 @@ export interface CdnSignedUrlOptions {
 }
 
 export interface PlaybackClaims {
-  cId: string;
-  lId: string;
-  uId?: string;
-  tv?: number;
-  exp: number;
+  cId: string; // courseId
+  lId: string; // lessonId
+  uId: string; // userId
+  tv: number;  // tokenVersion
+  iat: number; // issued at (unix timestamp seconds)
+  exp: number; // expires at (unix timestamp seconds, max 300s lifetime)
 }
 
 export class CdnSecurityService {
@@ -30,23 +31,25 @@ export class CdnSecurityService {
   }
 
   /**
-   * Generates a tamper-proof time-bounded HMAC-SHA256 signed playback token (Max 300s TTL)
-   * Encodes minimal claims: courseId (cId), lessonId (lId), userId (uId), tokenVersion (tv), exp
+   * Generates a tamper-proof time-bounded HMAC-SHA256 signed playback token (Strict Max 300s TTL)
+   * Encodes mandatory claims: courseId (cId), lessonId (lId), userId (uId), tokenVersion (tv), iat, exp
    */
   public generatePlaybackToken(
     courseId: string,
     lessonId: string,
-    validMinutes = 5,
-    userId?: string,
-    tokenVersion?: number
+    validSeconds = 300,
+    userId = 'anonymous',
+    tokenVersion = 0
   ): string {
-    const validSeconds = Math.min(Math.max(validMinutes * 60, 30), 300); // 30s to 300s max
-    const exp = Math.floor(Date.now() / 1000) + validSeconds;
+    const clampedSeconds = validSeconds <= 0 ? validSeconds : Math.min(Math.max(validSeconds, 1), 300);
+    const now = Math.floor(Date.now() / 1000);
+    const exp = now + clampedSeconds;
     const claims: PlaybackClaims = {
       cId: courseId,
       lId: lessonId,
       uId: userId,
       tv: tokenVersion,
+      iat: now,
       exp,
     };
     const claimsB64 = Buffer.from(JSON.stringify(claims)).toString('base64url');
@@ -58,8 +61,9 @@ export class CdnSecurityService {
   }
 
   /**
-   * Verifies a standalone signed playback token against course and lesson context
-   * Returns boolean (true/false) for strict equality compatibility
+   * Verifies an incoming HMAC-SHA256 signed playback token against course and lesson context
+   * Strictly enforces cryptographic signature, claim completeness, maximum 300s lifetime, and non-expiration.
+   * Returns boolean (true/false).
    */
   public verifyPlaybackToken(courseId: string, lessonId: string, token: string): boolean {
     if (!token || !token.includes('.')) return false;
@@ -68,7 +72,6 @@ export class CdnSecurityService {
 
     const [part1, part2] = parts;
 
-    // Check for Structured Claims Token (part1 is base64url JSON)
     try {
       const expectedSig = crypto
         .createHmac('sha256', this.cdnSecret)
@@ -76,33 +79,40 @@ export class CdnSecurityService {
         .digest('base64url');
 
       if (
-        part2.length === expectedSig.length &&
-        crypto.timingSafeEqual(Buffer.from(part2), Buffer.from(expectedSig))
+        part2.length !== expectedSig.length ||
+        !crypto.timingSafeEqual(Buffer.from(part2), Buffer.from(expectedSig))
       ) {
-        const decodedStr = Buffer.from(part1, 'base64url').toString('utf8');
-        const claims = JSON.parse(decodedStr) as PlaybackClaims;
-        const now = Math.floor(Date.now() / 1000);
-
-        if (claims.exp <= now || claims.exp > now + 3600) return false;
-        if (claims.cId !== courseId || claims.lId !== lessonId) return false;
-        return true;
+        return false;
       }
-    } catch {
-      // Fall through to legacy format
-    }
 
-    // Fallback: Legacy simple format: ${hmac}.${expires}
-    const [hmac, expiresStr] = parts;
-    const expires = parseInt(expiresStr, 10);
-    if (isNaN(expires)) return false;
-    const now = Math.floor(Date.now() / 1000);
-    if (expires <= now || expires > now + 24 * 60 * 60) return false;
-    const path = `/hls/${courseId}/${lessonId}/master.m3u8`;
-    return this.verifySignedUrl(path, hmac, expires);
+      const decodedStr = Buffer.from(part1, 'base64url').toString('utf8');
+      const claims = JSON.parse(decodedStr) as PlaybackClaims;
+      const now = Math.floor(Date.now() / 1000);
+
+      // Must possess all mandatory claims
+      if (!claims.cId || !claims.lId || !claims.uId || claims.tv === undefined || !claims.exp) {
+        return false;
+      }
+
+      // Must not be expired
+      if (claims.exp <= now) return false;
+
+      // Must not exceed 300 seconds total token lifetime
+      const lifetime = claims.iat ? (claims.exp - claims.iat) : (claims.exp - now);
+      if (lifetime > 300 || lifetime <= 0) return false;
+
+      // Course and lesson must match requested context
+      if (claims.cId !== courseId || claims.lId !== lessonId) return false;
+
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
-   * Extracts and verifies claims from structured HMAC playback token
+   * Extracts and cryptographically verifies claims from structured HMAC playback token.
+   * Returns PlaybackClaims or null if invalid/expired/tampered.
    */
   public extractPlaybackClaims(token: string): PlaybackClaims | null {
     if (!token || !token.includes('.')) return null;
@@ -117,27 +127,32 @@ export class CdnSecurityService {
         .digest('base64url');
 
       if (
-        part2.length === expectedSig.length &&
-        crypto.timingSafeEqual(Buffer.from(part2), Buffer.from(expectedSig))
+        part2.length !== expectedSig.length ||
+        !crypto.timingSafeEqual(Buffer.from(part2), Buffer.from(expectedSig))
       ) {
-        return JSON.parse(Buffer.from(part1, 'base64url').toString('utf8')) as PlaybackClaims;
+        return null;
       }
+
+      const claims = JSON.parse(Buffer.from(part1, 'base64url').toString('utf8')) as PlaybackClaims;
+      if (!claims.cId || !claims.lId || !claims.uId || claims.tv === undefined || !claims.exp) {
+        return null;
+      }
+
+      return claims;
     } catch {
       return null;
     }
-    return null;
   }
 
   /**
    * Generates a tamper-proof time-bounded HMAC-SHA256 signed playback URL for HLS playlists
-   * Compatible with Cloudflare Token Authentication / Edge Worker URL Validation
    */
   public generateSignedPlaybackUrl(options: CdnSignedUrlOptions): string {
-    const { courseId, lessonId, validMinutes = 120 } = options;
-    const expires = Math.floor(Date.now() / 1000) + validMinutes * 60;
+    const { courseId, lessonId, validMinutes = 5 } = options;
+    const validSec = Math.min(Math.max(validMinutes * 60, 30), 300);
+    const expires = Math.floor(Date.now() / 1000) + validSec;
     const path = `/hls/${courseId}/${lessonId}/master.m3u8`;
 
-    // String to sign: path + expires
     const stringToSign = `${path}${expires}`;
     const token = crypto
       .createHmac('sha256', this.cdnSecret)
@@ -153,7 +168,7 @@ export class CdnSecurityService {
   public verifySignedUrl(path: string, token: string, expires: number): boolean {
     const now = Math.floor(Date.now() / 1000);
     if (now > expires) {
-      return false; // Token has expired
+      return false;
     }
 
     const stringToSign = `${path}${expires}`;

@@ -31,8 +31,8 @@ All verified production blockers previously identified have been systematically 
 | **DRM Playback Lifecycle** | `server/tests/media/drm_playback_lifecycle.test.ts` | AES-128 key broker, Bearer JWT, dedicated HMAC tokens (max 300s), anti-caching | 16 | 16 | 0 | 0 | **PASSED** |
 | **Live MongoDB Replica Set** | `server/tests/integration/mongodb_replica.test.ts` | Genuine wire protocol to Atlas replica set, E11000 duplicate checks, topology | 4 | 4 | 0 | 0 | **PASSED** |
 | **Queue Concurrency & Race** | `server/tests/queue/queue_concurrency.test.ts` | 10-way concurrent race, atomic DB deduplication, exponential backoff, worker leases | 6 | 6 | 0 | 0 | **PASSED** |
-| **Client Component Unit** | `client/src/*.test.tsx` (8 test files) | Vitest jsdom test runner for React components, RBAC guards & context | 27 | 27 | 0 | 0 | **PASSED** |
-| **TOTAL AUTOMATED TESTS** | **Master Release Gate (`npm run test:release-gate`)** | **All Automated Test Suites (Excluding 2 Builds & 3 Browser Specs)** | **155** | **155** | **0** | **0** | **100% PASS** |
+| **Client Component Unit** | `client/src/*.test.tsx` (8 test files) | Vitest jsdom test runner for React components, RBAC guards, strict name regex & context | 28 | 28 | 0 | 0 | **PASSED** |
+| **TOTAL AUTOMATED TESTS** | **Master Release Gate (`npm run test:release-gate`)** | **All Automated Test Suites (Excluding 2 Builds & 3 Browser Specs)** | **156** | **156** | **0** | **0** | **100% PASS** |
 
 ---
 
@@ -45,21 +45,23 @@ Previously, Playwright specifications contained hardcoded fallback passwords and
 - **Strict Environment Credential Resolver (`client/e2e/e2eCredentials.ts`):** Created `getRequiredE2ECredential(envVar, roleName)` which immediately aborts with an explicit configuration error if `E2E_*_PASSWORD` is not provided.
 - **Zero Fallback Passwords:** All specifications (`auth-learner-flow.spec.ts`, `instructor-flow.spec.ts`, `admin-flow.spec.ts`) strictly require runtime environment variables (`E2E_LEARNER_PASSWORD`, `E2E_INSTRUCTOR_PASSWORD`, `E2E_ADMIN_PASSWORD`).
 - **Real UI Form Authentication:** Every Playwright test loads `/login`, populates the form input fields, dispatches the `POST /api/auth/login` request, asserts an authentic HTTP 200 response with genuine server-signed JWT, and relies on the client application's natural storage in `localStorage.setItem('edusphere_token', token)`.
-- **Learner Flow (`client/e2e/auth-learner-flow.spec.ts`):**
+- **Learner Flow (`client/e2e/auth-learner-flow.spec.ts`):** **PASSED (17.9s)**
   - Visits `/login`, enters credentials, receives valid JWT.
   - Navigates to `/dashboard` (Learner Workspace).
   - Opens `/courses/course-1` (Introduction to Programming).
   - Triggers enrollment via real API endpoint `/api/courses/course-1/enroll`.
   - Verifies credential verification interface on `/verify-certificate`.
-- **Instructor Flow (`client/e2e/instructor-flow.spec.ts`):**
+- **Instructor Flow (`client/e2e/instructor-flow.spec.ts`):** **PASSED (16.8s)**
   - Authenticates as instructor through UI form.
   - Passes `RoleGuard` barrier into `/teacher-studio`.
   - Interacts with Course Authoring Studio wizard, inputs course metadata and verifies curriculum navigation.
-- **Administrator Flow (`client/e2e/admin-flow.spec.ts`):**
+- **Administrator Flow (`client/e2e/admin-flow.spec.ts`):** **PASSED (23.1s)**
   - Verifies unauthenticated role barrier on `/admin`.
   - Authenticates as Platform SuperAdmin through real UI login form.
   - Validates Administration Console metrics.
   - Navigates between `Institutions`, `Student Admissions Queue`, and `Security Audit Telemetry` tabs with verified DOM persistence.
+
+**Live Staging Result:** All 3 browser specifications passed in 1.1m against `https://unique-e-learning-platform.pages.dev` and `https://unique-e-learning-platform.onrender.com`.
 
 ---
 
@@ -133,4 +135,4 @@ A unified release gate script is configured in root `package.json`:
 ```bash
 npm run test:release-gate
 ```
-This single command builds both client and server, runs all 11 test suites in fail-closed sequence, prints the authoritative test execution matrix, and exits with code 0 only when all 155 tests pass.
+This single command builds both client and server, runs all 11 test suites in fail-closed sequence, prints the authoritative test execution matrix, and exits with code 0 only when all 156 automated tests and 2 builds pass.

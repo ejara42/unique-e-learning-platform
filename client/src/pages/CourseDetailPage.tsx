@@ -26,7 +26,7 @@ import { Button, Badge, ToastViewport, useToast } from '../components/ui';
 
 export const CourseDetailPage: React.FC = () => {
   const { courseId: routeCourseId } = useParams<{ courseId?: string }>();
-  const { selectedCourseId: contextCourseId, setCurrentPage, startExam, openLesson, currentUser } = useApp();
+  const { selectedCourseId: contextCourseId, setCurrentPage, startExam, openLesson, currentUser, setCurrentUser } = useApp();
   const effectiveCourseId = routeCourseId || contextCourseId;
   const { toast, showToast, dismissToast } = useToast();
   const [course, setCourse] = useState<ICourse | null>(null);
@@ -130,7 +130,19 @@ export const CourseDetailPage: React.FC = () => {
   }
 
   const handleEnroll = async () => {
-    if (!currentUser) {
+    let activeUser = currentUser;
+    if (!activeUser && localStorage.getItem('edusphere_token')) {
+      try {
+        const meRes = await api.getMe();
+        if (meRes?.user) {
+          activeUser = meRes.user;
+          setCurrentUser(activeUser);
+        }
+      } catch {
+        // session token invalid
+      }
+    }
+    if (!activeUser) {
       setCurrentPage('login');
       return;
     }
@@ -162,7 +174,19 @@ export const CourseDetailPage: React.FC = () => {
   };
 
   const handleLaunchCourseExam = async () => {
-    if (!currentUser) {
+    let activeUser = currentUser;
+    if (!activeUser && localStorage.getItem('edusphere_token')) {
+      try {
+        const meRes = await api.getMe();
+        if (meRes?.user) {
+          activeUser = meRes.user;
+          setCurrentUser(activeUser);
+        }
+      } catch {
+        // session token invalid
+      }
+    }
+    if (!activeUser) {
       setCurrentPage('login');
       return;
     }

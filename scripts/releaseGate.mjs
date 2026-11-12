@@ -16,7 +16,7 @@
  * 10. DRM Playback Lifecycle & HLS Key Broker Suite (16 tests)
  * 11. Live MongoDB Replica-Set Integration Suite (4 tests)
  * 12. Queue Concurrency, Deduplication & Lease Suite (6 tests)
- * 13. Frontend Vitest Component & State Suite (27 tests)
+ * 13. Frontend Vitest Component & State Suite (28 tests)
  * 14. Playwright End-to-End Browser Workflows (3 specifications)
  *
  * Produces separate totals for:
@@ -152,7 +152,7 @@ const SUITES = [
     name: 'Client Vitest Components & State',
     command: 'npm',
     args: ['--prefix', 'client', 'test'],
-    expectedUnits: 27,
+    expectedUnits: 28,
   },
 ];
 

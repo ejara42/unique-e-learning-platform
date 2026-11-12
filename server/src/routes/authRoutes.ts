@@ -102,7 +102,7 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
     const salt = bcrypt.genSaltSync(12);
     const passwordHash = bcrypt.hashSync(password, salt);
     const newUserRole: UserRole = role === 'INSTRUCTOR' ? 'INSTRUCTOR' : 'STUDENT';
-    const authorizedRoles: UserRole[] = newUserRole === 'INSTRUCTOR' ? ['INSTRUCTOR', 'STUDENT'] : ['STUDENT'];
+    const authorizedRoles: UserRole[] = [newUserRole];
 
     const newUser = {
       id: `user-${uuidv4().slice(0, 8)}`,

@@ -84,7 +84,7 @@ router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema),
         const salt = bcryptjs_1.default.genSaltSync(12);
         const passwordHash = bcryptjs_1.default.hashSync(password, salt);
         const newUserRole = role === 'INSTRUCTOR' ? 'INSTRUCTOR' : 'STUDENT';
-        const authorizedRoles = newUserRole === 'INSTRUCTOR' ? ['INSTRUCTOR', 'STUDENT'] : ['STUDENT'];
+        const authorizedRoles = [newUserRole];
         const newUser = {
             id: `user-${(0, uuid_1.v4)().slice(0, 8)}`,
             email: email.toLowerCase().trim(),

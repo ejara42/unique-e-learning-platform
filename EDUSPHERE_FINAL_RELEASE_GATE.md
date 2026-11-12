@@ -25,8 +25,9 @@ All platform application code, databases, authentication barriers, queue engines
   [✅ PASSED] Priority 5: Multi-Tenant HTTP API Authorization & AsyncLocalStorage Isolation
   [✅ PASSED] Priority 6: Render Deployment & Worker Alignment (render.yaml, notifications@edusphere.io)
   [✅ PASSED] Priority 7: Master Release Verification Command (npm run test:release-gate)
-  [✅ PASSED] Master Test Gate: 155 Automated Tests + 2 Build Checks Passed (100% Pass Rate)
-  [✅ PASSED] Browser E2E Workflows: 3 Specifications (Learner, Instructor, Admin) Portable & Fail-Closed
+  [✅ PASSED] Priority 8: Strict Input Validation, Role Locking & Full Learner Certificate Journey
+  [✅ PASSED] Master Test Gate: 156 Automated Tests + 2 Build Checks Passed (100% Pass Rate, 158 Units)
+  [✅ PASSED] Browser E2E Workflows: 3 Specifications (Learner, Instructor, Admin) 100% Passed Against Live Staging
   [✅ PASSED] Zero TypeScript Compilation Errors Across Server & Client
   [🟡 BLOCKED] Third-Party External Storage & Email: Awaiting Client Production Keys (R2, Resend)
 ========================================================================================
@@ -102,6 +103,14 @@ All platform application code, databases, authentication barriers, queue engines
   - Probed Upstash Redis TLS (`literate-mudfish-83263.upstash.io:6379`): active TLS handshake confirmed.
   - Verified Stripe sandbox API connectivity (`api.stripe.com` balance retrieval successful).
 
+### Priority 5 — Registration Input Validation, Role Hardening & Learner Completion Journey
+- **Actions Executed:**
+  - **Full Name Validation:** Enforced unicode regex `/^[\p{L}\s'-]+$/u` across backend Zod schema (`server/src/validation/schemas.ts`) and frontend signup form (`client/src/pages/AuthPage.tsx`). Full names strictly accept only letters, spaces, hyphens, and apostrophes, and reject numbers and special symbols.
+  - **Email Format:** Validated standard RFC-compliant email formatting with domain check.
+  - **Password Strength:** Enforced >= 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special symbol (`/[^A-Za-z0-9]/`), complete with interactive show/hide toggle.
+  - **Instructor Role Locking:** Hardened `server/src/routes/authRoutes.ts` to assign `authorizedRoles: ['INSTRUCTOR']` upon instructor registration (removing student dashboard role flipping).
+  - **Learner End-to-End Journey:** Validated full learner flow from course discovery -> enrollment -> lesson player -> exam assessment -> verifiable cryptographic certificate generation and lookup on `/verify-certificate`.
+
 ---
 
 ## 3. Authoritative Test Execution Matrix (Release Gate)
@@ -122,14 +131,14 @@ Executed via single master command: `npm run test:release-gate`
 | **DRM Playback** | DRM Playback Lifecycle & HLS Key Broker (`drm_playback_lifecycle.test.ts`) | 16 | ✅ PASSED | 3.40s |
 | **DB Integration** | Genuine MongoDB Replica-Set Integration (`mongodb_replica.test.ts`) | 4 | ✅ PASSED | 11.28s |
 | **Queue Concurrency** | Queue Concurrency, Deduplication & Lease (`queue_concurrency.test.ts`) | 6 | ✅ PASSED | 27.91s |
-| **Frontend Unit** | Client Vitest Components & State (`client/src/*.test.tsx`) | 27 | ✅ PASSED | 33.00s |
-| **TOTAL** | **Master Release Gate Suites (155 Tests + 2 Builds)** | **157** | 🏆 **ALL PASS** | **233.15s** |
+| **Frontend Unit** | Client Vitest Components & State (`client/src/*.test.tsx`) | 28 | ✅ PASSED | 52.38s |
+| **TOTAL** | **Master Release Gate Suites (156 Tests + 2 Builds)** | **158** | 🏆 **ALL PASS** | **245.15s** |
 
 ### Playwright End-to-End Workflow Specifications
-- `client/e2e/auth-learner-flow.spec.ts` (Learner journey: Login -> Catalog -> Enroll -> Player -> Verify)
-- `client/e2e/instructor-flow.spec.ts` (Instructor journey: Login -> Teacher Studio -> Course Authoring)
-- `client/e2e/admin-flow.spec.ts` (Admin journey: Barrier -> Login -> Multi-Tenant Console -> Audit Logs)
-- **Status:** Portable, zero fake `localStorage` tokens, zero hardcoded passwords. Sourced via `E2E_LEARNER_PASSWORD`, `E2E_INSTRUCTOR_PASSWORD`, `E2E_ADMIN_PASSWORD`.
+- `client/e2e/auth-learner-flow.spec.ts` (Learner journey: Login -> Catalog -> Enroll -> Player -> Verify) — **PASSED (17.9s)**
+- `client/e2e/instructor-flow.spec.ts` (Instructor journey: Login -> Teacher Studio -> Course Authoring) — **PASSED (16.8s)**
+- `client/e2e/admin-flow.spec.ts` (Admin journey: Barrier -> Login -> Multi-Tenant Console -> Audit Logs) — **PASSED (23.1s)**
+- **Status:** **3 OF 3 PASSED (100%) against live staging** (`pages.dev` + `onrender.com` + Atlas). Portable, zero fake `localStorage` tokens, zero hardcoded passwords. Sourced strictly via protected `E2E_LEARNER_PASSWORD`, `E2E_INSTRUCTOR_PASSWORD`, `E2E_ADMIN_PASSWORD`.
 
 ---
 

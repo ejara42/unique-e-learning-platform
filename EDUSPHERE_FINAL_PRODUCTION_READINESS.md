@@ -20,7 +20,7 @@ EduSphere has undergone exhaustive remediation and verification across architect
 | **3. Database & Persistence** | **100%** | MongoDB Atlas 3-node replica set (`atlas-aokxax-shard-0`), compound unique indexes, unique partial indexes on jobs, fail-closed database unavailability handling (HTTP 503), runtime recovery. | Configure automated daily Atlas snapshot backup schedules. |
 | **4. Transcoding & Queue** | **100%** | Atomic database deduplication via unique partial index `activeLockKey` with `{ $type: 'string' }`, exponential backoff (`nextEligibleAt`), worker lease renewal (heartbeat), and stalled job recovery. | Deploy dedicated background worker service (`npm run worker:prod`). |
 | **5. DRM & Video Delivery** | **100%** | HLS AES-128 envelope encryption, dedicated time-bounded HMAC-SHA256 playback token broker (max 300s TTL), strict rejection of normal JWT in query parameters (HTTP 401), strict anti-caching response headers. | Inject production `R2_ACCESS_KEY_ID` and `CDN_SIGNING_SECRET` into production runtime. |
-| **6. Testing Integrity** | **100%** | 155 of 155 automated tests passing across 13 test and build suites (`npm run test:release-gate`). Playwright E2E browser tests execute with genuine authentication without fabricated localStorage tokens or hardcoded passwords. | Run `npm run test:release-gate` in CI pipeline prior to merging. |
+| **6. Testing Integrity** | **100%** | 156 of 156 automated tests passing across 11 automated test suites and 2 build checks (`npm run test:release-gate`). Playwright E2E browser tests execute with genuine authentication without fabricated localStorage tokens or hardcoded passwords (3/3 passed). | Run `npm run test:release-gate` in CI pipeline prior to merging. |
 | **7. External Integrations** | **85%** | Stripe sandbox verified; Upstash Redis TLS verified; LiveKit WebRTC tokens verified; LTI 1.3 RS256 verified; SCORM runtime verified. R2 & Resend classified transparently as BLOCKED due to absent credentials. | Add production API keys for Cloudflare R2 and Resend. |
 
 ---
@@ -45,7 +45,7 @@ EduSphere has undergone exhaustive remediation and verification across architect
 ### Blocker 4: Reconciled Test Matrix & Release Verification Command
 - **Status:** **RESOLVED & VERIFIED**
 - **Remediation:** Unified all test suites under a single authoritative runner: `npm run test:release-gate`.
-- **Verification Evidence:** All 155 automated tests pass (100% pass rate).
+- **Verification Evidence:** All 156 automated tests pass across 11 test suites and 2 build checks (100% pass rate). All 3 Playwright browser workflows passed against live staging in 1.1m.
 
 ---
 

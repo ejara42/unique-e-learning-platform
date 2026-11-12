@@ -13,7 +13,7 @@ Before starting:
 - [ ] `client/package-lock.json` exists (confirmed ✅)
 - [ ] `server/package-lock.json` exists (confirmed ✅)
 - [ ] Local builds clean: `npm --prefix server run build` and `npm --prefix client run build` both exit 0
-- [ ] All test suites pass: `npm run test:release-gate` (155 automated tests across 13 suites, 100% pass rate)
+- [ ] All test suites pass: `npm run test:release-gate` (156 automated tests across 11 suites + 2 build checks, 100% pass rate; 3/3 Playwright browser E2E workflows pass)
 - [ ] No real credentials in any tracked file — `server/.env.example` uses only placeholders
 
 ---

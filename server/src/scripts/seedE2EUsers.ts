@@ -34,13 +34,13 @@ export async function seedE2EUsers(): Promise<void> {
   // Load passwords strictly from mandatory environment variables (fail closed if missing)
   const learnerPass = process.env.E2E_LEARNER_PASSWORD?.trim();
   const instructorPass = process.env.E2E_INSTRUCTOR_PASSWORD?.trim();
-  const instAdminPass = process.env.E2E_INSTADMIN_PASSWORD?.trim();
+  const instAdminPass = process.env.E2E_INSTADMIN_PASSWORD?.trim() || process.env.E2E_ADMIN_PASSWORD?.trim();
 
   if (!learnerPass || !instructorPass || !instAdminPass) {
     const missing: string[] = [];
     if (!learnerPass) missing.push('E2E_LEARNER_PASSWORD');
     if (!instructorPass) missing.push('E2E_INSTRUCTOR_PASSWORD');
-    if (!instAdminPass) missing.push('E2E_INSTADMIN_PASSWORD');
+    if (!instAdminPass) missing.push('E2E_INSTADMIN_PASSWORD or E2E_ADMIN_PASSWORD');
 
     throw new Error(
       `[FATAL CONFIGURATION ERROR] Missing required E2E credentials: ${missing.join(', ')}. ` +
@@ -93,7 +93,7 @@ export async function seedE2EUsers(): Promise<void> {
       fullName: 'Prof. Marcus Vance (E2E Test)',
       globalRole: 'STANDARD_USER',
       activeRole: 'INSTRUCTOR',
-      authorizedRoles: ['INSTRUCTOR', 'STUDENT'],
+      authorizedRoles: ['INSTRUCTOR'],
       institutionId: 'tenant-1',
     },
     {

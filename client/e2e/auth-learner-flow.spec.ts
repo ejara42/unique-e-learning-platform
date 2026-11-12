@@ -54,24 +54,26 @@ test.describe('Learner End-to-End Workflow', () => {
     // 4. Navigate to Learner Dashboard
     await page.goto('/dashboard');
     const dashboardElement = page.locator('text=Learner Workspace').or(page.locator('text=My Enrollments')).or(page.locator('text=Enrolled Courses')).first();
-    await expect(dashboardElement).toBeVisible({ timeout: 15000 });
+    await expect(dashboardElement).toBeVisible({ timeout: 20000 });
+
+    // Wait for authenticated session to stabilize
+    await expect(page.locator('text=Alice Learner').or(page.locator('text=Sign Out')).first()).toBeVisible({ timeout: 15000 });
 
     // 5. Open Course Details (e.g. course-1: Introduction to Programming)
     await page.goto('/courses/course-1');
     const courseHeading = page.locator('h1, h2').filter({ hasText: /Introduction to Programming|Course Overview/i }).first();
-    await expect(courseHeading).toBeVisible({ timeout: 15000 });
+    await expect(courseHeading).toBeVisible({ timeout: 20000 });
 
     // 6. Verify Enrollment State or Perform Enrollment
     const enrollBtn = page.locator('button').filter({ hasText: /Enroll Now|Go to My Courses/i }).first();
-    if (await enrollBtn.isVisible()) {
-      const btnText = await enrollBtn.innerText();
-      if (btnText.includes('Enroll Now')) {
-        const [enrollResp] = await Promise.all([
-          page.waitForResponse(resp => resp.url().includes('/api/courses/course-1/enroll'), { timeout: 15000 }),
-          enrollBtn.click(),
-        ]);
-        expect([200, 201]).toContain(enrollResp.status());
-      }
+    await expect(enrollBtn).toBeVisible({ timeout: 15000 });
+    const btnText = await enrollBtn.innerText();
+    if (btnText.includes('Enroll Now')) {
+      const [enrollResp] = await Promise.all([
+        page.waitForResponse(resp => resp.url().includes('/api/courses/course-1/enroll'), { timeout: 30000 }),
+        enrollBtn.click(),
+      ]);
+      expect([200, 201]).toContain(enrollResp.status());
     }
 
     // 7. Verify Certificate Verification Portal

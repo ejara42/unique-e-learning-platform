@@ -27,7 +27,7 @@ const sanitizedString = (min = 1, max = 2000) =>
     .transform(sanitizeHtmlString);
 
 const strongPassword = z.string()
-  .min(12, 'Password must be at least 12 characters in length')
+  .min(8, 'Password must be at least 8 characters in length')
   .max(128, 'Password must not exceed 128 characters')
   .regex(/[a-z]/, 'Password must include a lowercase letter')
   .regex(/[A-Z]/, 'Password must include an uppercase letter')
@@ -83,7 +83,7 @@ export const searchCoursesQuerySchema = z.object({
   value.minPrice === undefined ||
   value.maxPrice === undefined ||
   value.minPrice <= value.maxPrice,
-{ message: 'minPrice must not exceed maxPrice' });
+  { message: 'minPrice must not exceed maxPrice' });
 export const certificateCodeParamsSchema = z.object({
   code: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/),
 }).strict();
@@ -163,7 +163,7 @@ export const loginSchema = z.object({
 }).strict();
 
 export const registerSchema = z.object({
-  fullName: z.string().trim().min(2, 'Name must be at least 2 characters in length').max(100),
+  fullName: z.string().trim().min(2, 'Name must be at least 2 characters in length').max(100).regex(/^[\p{L}\s'-]+$/u, 'Full name must contain only letters and cannot include numbers or symbols'),
   email: z.string().trim().email('A valid email address is required').max(255).toLowerCase(),
   password: strongPassword,
   role: z.enum(['STUDENT', 'INDEPENDENT_LEARNER', 'INSTRUCTOR'], {

@@ -459,20 +459,20 @@ export const Header: React.FC = () => {
                 style={
                   key === 'verify'
                     ? {
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        padding: '8px 14px',
-                        borderRadius: 10,
-                        fontSize: '0.88rem',
-                        fontWeight: isActive ? 700 : 600,
-                        color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                        border: isActive ? '1px solid rgba(29, 78, 216, 0.18)' : '1px solid var(--border-color)',
-                        backgroundColor: isActive ? 'var(--primary-light)' : '#FFFFFF',
-                        boxShadow: isActive ? '0 10px 18px -14px rgba(29, 78, 216, 0.6)' : '0 1px 1px rgba(15, 23, 42, 0.02)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 14px',
+                      borderRadius: 10,
+                      fontSize: '0.88rem',
+                      fontWeight: isActive ? 700 : 600,
+                      color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                      border: isActive ? '1px solid rgba(29, 78, 216, 0.18)' : '1px solid var(--border-color)',
+                      backgroundColor: isActive ? 'var(--primary-light)' : '#FFFFFF',
+                      boxShadow: isActive ? '0 10px 18px -14px rgba(29, 78, 216, 0.6)' : '0 1px 1px rgba(15, 23, 42, 0.02)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }
                     : navItemClass(isActive)
                 }
               >
@@ -535,7 +535,13 @@ export const Header: React.FC = () => {
                   style={{ padding: '8px 16px', fontSize: '0.88rem', fontWeight: 700, borderRadius: 8 }}
                 >
                   <LayoutDashboard size={15} />
-                  <span>{t.myDashboard}</span>
+                  <span>
+                    {currentUser.activeRole === 'INSTRUCTOR'
+                      ? 'Teacher Studio'
+                      : currentUser.activeRole === 'PLATFORM_ADMIN' || currentUser.activeRole === 'INSTITUTION_ADMIN'
+                        ? 'Admin Console'
+                        : t.myDashboard}
+                  </span>
                 </button>
 
                 <button

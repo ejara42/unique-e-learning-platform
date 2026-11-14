@@ -7,7 +7,7 @@ import { EmptyState, Button, LoadingState, ErrorState } from '../components/ui';
 import { BookOpen, CheckCircle, Play, Award, Compass, Search } from 'lucide-react';
 
 export const MyCoursesPage: React.FC = () => {
-  const { openCourse, openVerification, setCurrentPage } = useApp();
+  const { currentUser, openCourse, openVerification, setCurrentPage } = useApp();
   const [enrollments, setEnrollments] = useState<IEnrollment[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'in-progress'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,18 +30,22 @@ export const MyCoursesPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (currentUser?.activeRole === 'INSTRUCTOR') {
+      setCurrentPage('teacher-studio');
+      return;
+    }
     loadEnrollments();
-  }, []);
+  }, [currentUser, setCurrentPage]);
 
   const completedList = enrollments.filter(e => e.status === 'COMPLETED' || e.progressPercentage === 100);
   const inProgressList = enrollments.filter(e => e.status !== 'COMPLETED' && (e.progressPercentage || 0) < 100);
 
-  const baseList = 
+  const baseList =
     activeTab === 'completed' ? completedList :
-    activeTab === 'in-progress' ? inProgressList :
-    enrollments;
+      activeTab === 'in-progress' ? inProgressList :
+        enrollments;
 
-  const filteredList = searchQuery.trim() 
+  const filteredList = searchQuery.trim()
     ? baseList.filter(e => e.course?.title?.toLowerCase().includes(searchQuery.toLowerCase()))
     : baseList;
 
@@ -73,7 +77,7 @@ export const MyCoursesPage: React.FC = () => {
             </p>
           </div>
 
-          <Button 
+          <Button
             variant="secondary"
             size="md"
             onClick={() => setCurrentPage('landing')}
@@ -190,8 +194,8 @@ export const MyCoursesPage: React.FC = () => {
               const pct = Math.min(100, Math.max(0, enr.progressPercentage || 0));
 
               return (
-                <div 
-                  key={enr.id} 
+                <div
+                  key={enr.id}
                   style={{
                     backgroundColor: '#FFFFFF',
                     border: '1px solid var(--border-color)',
@@ -243,29 +247,29 @@ export const MyCoursesPage: React.FC = () => {
                         <span>{pct}%</span>
                       </div>
                       <div style={{ width: '100%', height: 6, backgroundColor: 'var(--slate-100)', borderRadius: 999, overflow: 'hidden' }}>
-                        <div 
+                        <div
                           style={{
                             width: `${pct}%`,
                             height: '100%',
                             backgroundColor: isCompleted ? '#10B981' : 'var(--primary)',
                             borderRadius: 999,
                             transition: 'width 0.4s ease',
-                          }} 
+                          }}
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Actions Area */}
-                  <div style={{ 
-                    display: 'flex', 
+                  <div style={{
+                    display: 'flex',
                     alignItems: 'center',
-                    gap: 8, 
+                    gap: 8,
                     marginLeft: 'auto',
                   }}>
                     {isCompleted ? (
                       <>
-                        <Button 
+                        <Button
                           variant="secondary"
                           size="sm"
                           onClick={() => openVerification(enr.certificateId || '')}
@@ -273,7 +277,7 @@ export const MyCoursesPage: React.FC = () => {
                         >
                           Certificate
                         </Button>
-                        <Button 
+                        <Button
                           variant="secondary"
                           size="sm"
                           onClick={() => openCourse(course.id)}
@@ -282,7 +286,7 @@ export const MyCoursesPage: React.FC = () => {
                         </Button>
                       </>
                     ) : (
-                      <Button 
+                      <Button
                         variant="primary"
                         size="md"
                         onClick={() => openCourse(course.id)}

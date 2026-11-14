@@ -3,16 +3,16 @@ import { useApp } from '../context/AppContext';
 import { api } from '../api';
 import { Sidebar } from '../components/Sidebar';
 import { IEnrollment, ICourse, ILiveSession, ICertificate } from '../types';
-import { 
-  BookOpen, 
-  CheckCircle2, 
-  Award, 
-  Play, 
-  Star, 
-  ArrowRight, 
-  Clock, 
-  Video, 
-  ShieldCheck, 
+import {
+  BookOpen,
+  CheckCircle2,
+  Award,
+  Play,
+  Star,
+  ArrowRight,
+  Clock,
+  Video,
+  ShieldCheck,
   Calendar,
   Lock,
   Compass,
@@ -29,13 +29,22 @@ export const LearnerDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (currentUser?.activeRole === 'INSTRUCTOR') {
+      setCurrentPage('teacher-studio');
+      return;
+    }
+    if (currentUser?.activeRole === 'PLATFORM_ADMIN' || currentUser?.activeRole === 'INSTITUTION_ADMIN') {
+      setCurrentPage('admin-dashboard');
+      return;
+    }
+
     Promise.all([
       api.getMyCourses().then(res => setEnrollments(res.enrollments || [])).catch(() => setEnrollments([])),
       api.getLiveSessions().then(res => setLiveSessions(res.sessions || [])).catch(() => setLiveSessions([])),
       api.getCertificates().then(res => setCertificates(res.certificates || [])).catch(() => setCertificates([])),
       api.getCourses().then(res => setRecommended((res.courses || []).slice(0, 3))).catch(() => setRecommended([])),
     ]).finally(() => setIsLoading(false));
-  }, []);
+  }, [currentUser, setCurrentPage]);
 
   const enrolledCount = enrollments.length;
   const completedCount = enrollments.filter(e => e.status === 'COMPLETED' || (e.progressPercentage || 0) >= 100).length;
@@ -184,7 +193,7 @@ export const LearnerDashboard: React.FC = () => {
         }}>
           {/* Main Learning Track Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-            
+
             {/* Continue Learning Section */}
             <section style={{
               backgroundColor: '#FFFFFF',
@@ -282,7 +291,7 @@ export const LearnerDashboard: React.FC = () => {
                     const pct = Math.min(100, Math.max(0, enr.progressPercentage || 0));
 
                     return (
-                      <div 
+                      <div
                         key={enr.id}
                         style={{
                           border: '1px solid var(--border-color)',
@@ -391,7 +400,7 @@ export const LearnerDashboard: React.FC = () => {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {liveSessions.map(sess => (
-                    <div 
+                    <div
                       key={sess.id}
                       style={{
                         border: '1px solid var(--border-color)',
@@ -485,7 +494,7 @@ export const LearnerDashboard: React.FC = () => {
                   gap: 16,
                 }}>
                   {recommended.map(course => (
-                    <div 
+                    <div
                       key={course.id}
                       onClick={() => openCourse(course.id)}
                       style={{
@@ -498,8 +507,8 @@ export const LearnerDashboard: React.FC = () => {
                       onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--slate-400)')}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}
                     >
-                      <img 
-                        src={course.thumbnailUrl} 
+                      <img
+                        src={course.thumbnailUrl}
                         alt={course.title}
                         style={{ width: '100%', height: 110, objectFit: 'cover' }}
                       />
@@ -529,7 +538,7 @@ export const LearnerDashboard: React.FC = () => {
 
           {/* Right Rail: Credentials & Compliance Dossier */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            
+
             {/* Verifiable Credentials Dossier */}
             <div style={{
               backgroundColor: '#FFFFFF',
@@ -563,7 +572,7 @@ export const LearnerDashboard: React.FC = () => {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {certificates.map(cert => (
-                    <div 
+                    <div
                       key={cert.id}
                       style={{
                         backgroundColor: 'var(--slate-50)',

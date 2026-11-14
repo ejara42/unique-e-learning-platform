@@ -81,7 +81,7 @@ export const App: React.FC = () => {
                 path="/dashboard"
                 element={
                   <RoleGuard
-                    allowedRoles={['STUDENT', 'INDEPENDENT_LEARNER', 'INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN']}
+                    allowedRoles={['STUDENT', 'INDEPENDENT_LEARNER']}
                     workspaceName="Student Learning Workspace"
                     description="Access your enrolled courses, active learning progress, upcoming live sessions, and earned credentials."
                   >
@@ -97,7 +97,7 @@ export const App: React.FC = () => {
                 path="/my-courses"
                 element={
                   <RoleGuard
-                    allowedRoles={['STUDENT', 'INDEPENDENT_LEARNER', 'INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN']}
+                    allowedRoles={['STUDENT', 'INDEPENDENT_LEARNER']}
                     workspaceName="My Course Portfolio"
                     description="View and continue your enrolled programs and completed certifications."
                   >

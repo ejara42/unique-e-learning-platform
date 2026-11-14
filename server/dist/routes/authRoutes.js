@@ -33,13 +33,18 @@ router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async
             res.status(401).json({ message: 'Invalid credentials. Incorrect password.' });
             return;
         }
+        const sanitizedAuthorizedRoles = user.activeRole === 'INSTRUCTOR'
+            ? ['INSTRUCTOR']
+            : user.activeRole === 'STUDENT'
+                ? ['STUDENT']
+                : user.authorizedRoles || [user.activeRole];
         const tokenPayload = {
             id: user.id,
             email: user.email,
             fullName: user.fullName,
             globalRole: user.globalRole,
             activeRole: user.activeRole,
-            authorizedRoles: user.authorizedRoles || [user.activeRole],
+            authorizedRoles: sanitizedAuthorizedRoles,
             institutionId: user.institutionId,
             tokenVersion: user.tokenVersion ?? 0,
         };
@@ -53,7 +58,7 @@ router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async
                 fullName: user.fullName,
                 avatarUrl: user.avatarUrl,
                 activeRole: user.activeRole,
-                authorizedRoles: user.authorizedRoles || [user.activeRole],
+                authorizedRoles: sanitizedAuthorizedRoles,
                 institutionId: user.institutionId,
                 bio: user.bio,
             },
@@ -135,6 +140,11 @@ router.get('/me', auth_1.requireAuth, (0, validate_1.validateQuery)(schemas_1.em
             res.status(404).json({ message: 'User not found' });
             return;
         }
+        const sanitizedAuthorizedRoles = user.activeRole === 'INSTRUCTOR'
+            ? ['INSTRUCTOR']
+            : user.activeRole === 'STUDENT'
+                ? ['STUDENT']
+                : user.authorizedRoles || [user.activeRole];
         res.json({
             user: {
                 id: user.id,
@@ -142,7 +152,7 @@ router.get('/me', auth_1.requireAuth, (0, validate_1.validateQuery)(schemas_1.em
                 fullName: user.fullName,
                 avatarUrl: user.avatarUrl,
                 activeRole: user.activeRole,
-                authorizedRoles: user.authorizedRoles || [user.activeRole],
+                authorizedRoles: sanitizedAuthorizedRoles,
                 institutionId: user.institutionId,
                 tokenVersion: user.tokenVersion ?? 0,
                 bio: user.bio,
@@ -274,6 +284,15 @@ router.post('/switch-role', auth_1.requireAuth, (0, validate_1.validateBody)(sch
                 res.status(403).json({ message: `Forbidden: Role '${newRole}' is not authorized for this account.` });
                 return;
             }
+        }
+        // Role Escalation Barrier 4: Instructors and Students cannot switch between Instructor and Student dashboards
+        if (user.activeRole === 'INSTRUCTOR' && newRole === 'STUDENT') {
+            res.status(403).json({ message: 'Forbidden: Faculty Instructor accounts cannot switch to a student dashboard.' });
+            return;
+        }
+        if (user.activeRole === 'STUDENT' && newRole === 'INSTRUCTOR') {
+            res.status(403).json({ message: 'Forbidden: Student accounts cannot switch to an instructor dashboard.' });
+            return;
         }
         const updatedUser = await dbRepository_1.repo.updateUserRole(user.id, newRole);
         if (!updatedUser) {

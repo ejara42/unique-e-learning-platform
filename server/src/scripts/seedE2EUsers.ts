@@ -103,7 +103,7 @@ export async function seedE2EUsers(): Promise<void> {
       fullName: 'Dean Robert Taylor (E2E Test)',
       globalRole: 'STANDARD_USER',
       activeRole: 'INSTITUTION_ADMIN',
-      authorizedRoles: ['INSTITUTION_ADMIN', 'INSTRUCTOR', 'STUDENT'],
+      authorizedRoles: ['INSTITUTION_ADMIN'],
       institutionId: 'tenant-1',
     },
   ];

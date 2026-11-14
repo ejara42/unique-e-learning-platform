@@ -1,22 +1,22 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Logo } from './Logo';
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  Compass, 
-  Settings, 
-  LogOut, 
-  PlusCircle, 
-  Building2, 
-  Award, 
-  Video, 
+import {
+  LayoutDashboard,
+  BookOpen,
+  Compass,
+  Settings,
+  LogOut,
+  PlusCircle,
+  Building2,
+  Award,
+  Video,
   ShieldCheck,
   GraduationCap
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { currentPage, setCurrentPage, currentUser, logoutUser, switchUserRole } = useApp();
+  const { currentPage, setCurrentPage, currentUser, logoutUser } = useApp();
   const role = currentUser?.activeRole || 'STUDENT';
 
   const isTeacher = role === 'INSTRUCTOR';
@@ -53,15 +53,15 @@ export const Sidebar: React.FC = () => {
     <aside className="app-sidebar">
       <div>
         {/* Brand Header */}
-        <div 
-          onClick={() => setCurrentPage('landing')} 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 10, 
-            marginBottom: 24, 
-            cursor: 'pointer', 
-            padding: '4px 6px' 
+        <div
+          onClick={() => setCurrentPage('landing')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            marginBottom: 24,
+            cursor: 'pointer',
+            padding: '4px 6px'
           }}
           title="Go to Homepage"
         >
@@ -82,22 +82,22 @@ export const Sidebar: React.FC = () => {
 
           {isAdmin ? (
             <>
-              <button 
-                onClick={() => setCurrentPage('admin-dashboard')} 
+              <button
+                onClick={() => setCurrentPage('admin-dashboard')}
                 style={navItemStyle(currentPage === 'admin-dashboard')}
               >
                 <LayoutDashboard size={18} />
                 <span>Admin Console</span>
               </button>
-              <button 
-                onClick={() => setCurrentPage('institution-register')} 
+              <button
+                onClick={() => setCurrentPage('institution-register')}
                 style={navItemStyle(currentPage === 'institution-register')}
               >
                 <Building2 size={18} />
                 <span>Onboard Institution</span>
               </button>
-              <button 
-                onClick={() => setCurrentPage('teacher-studio')} 
+              <button
+                onClick={() => setCurrentPage('teacher-studio')}
                 style={navItemStyle(currentPage === 'teacher-studio')}
               >
                 <BookOpen size={18} />
@@ -106,22 +106,29 @@ export const Sidebar: React.FC = () => {
             </>
           ) : isTeacher ? (
             <>
-              <button 
-                onClick={() => setCurrentPage('teacher-studio')} 
+              <button
+                onClick={() => setCurrentPage('teacher-studio')}
                 style={navItemStyle(currentPage === 'teacher-studio')}
               >
                 <BookOpen size={18} />
-                <span>My Curriculum</span>
+                <span>Teacher Studio</span>
               </button>
-              <button 
-                onClick={() => setCurrentPage('teacher-studio')} 
+              <button
+                onClick={() => setCurrentPage('teacher-studio')}
                 style={navItemStyle(false)}
               >
                 <PlusCircle size={18} />
                 <span>Create Course</span>
               </button>
-              <button 
-                onClick={() => setCurrentPage('live-classroom')} 
+              <button
+                onClick={() => setCurrentPage('landing')}
+                style={navItemStyle(false)}
+              >
+                <Compass size={18} />
+                <span>Course Catalog</span>
+              </button>
+              <button
+                onClick={() => setCurrentPage('live-classroom')}
                 style={navItemStyle(currentPage === 'live-classroom')}
               >
                 <Video size={18} />
@@ -130,29 +137,29 @@ export const Sidebar: React.FC = () => {
             </>
           ) : (
             <>
-              <button 
-                onClick={() => setCurrentPage('learner-dashboard')} 
+              <button
+                onClick={() => setCurrentPage('learner-dashboard')}
                 style={navItemStyle(currentPage === 'learner-dashboard')}
               >
                 <LayoutDashboard size={18} />
                 <span>Learner Dashboard</span>
               </button>
-              <button 
-                onClick={() => setCurrentPage('my-courses')} 
+              <button
+                onClick={() => setCurrentPage('my-courses')}
                 style={navItemStyle(currentPage === 'my-courses')}
               >
                 <BookOpen size={18} />
                 <span>My Courses</span>
               </button>
-              <button 
-                onClick={() => setCurrentPage('landing')} 
+              <button
+                onClick={() => setCurrentPage('landing')}
                 style={navItemStyle(false)}
               >
                 <Compass size={18} />
                 <span>Course Catalog</span>
               </button>
-              <button 
-                onClick={() => setCurrentPage('live-classroom')} 
+              <button
+                onClick={() => setCurrentPage('live-classroom')}
                 style={navItemStyle(currentPage === 'live-classroom')}
               >
                 <Video size={18} />
@@ -163,8 +170,8 @@ export const Sidebar: React.FC = () => {
 
           <div style={sectionLabelStyle}>Credentials & Verification</div>
 
-          <button 
-            onClick={() => setCurrentPage('certificate-verify')} 
+          <button
+            onClick={() => setCurrentPage('certificate-verify')}
             style={navItemStyle(currentPage === 'certificate-verify')}
           >
             <ShieldCheck size={18} color={currentPage === 'certificate-verify' ? '#FFFFFF' : '#14B8A6'} />
@@ -203,46 +210,27 @@ export const Sidebar: React.FC = () => {
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {currentUser.fullName}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#818CF8', fontWeight: 600 }}>
-                  {currentUser.activeRole.replace('_', ' ')}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <span style={{
+                    fontSize: '0.66rem',
+                    color: isTeacher ? '#6EE7B7' : isAdmin ? '#FCD34D' : '#A5B4FC',
+                    backgroundColor: isTeacher ? 'rgba(16, 185, 129, 0.15)' : isAdmin ? 'rgba(245, 158, 11, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                  }}>
+                    {isTeacher ? 'Faculty Instructor' : isAdmin ? 'Administrator' : 'Student'}
+                  </span>
                 </div>
               </div>
             </div>
-
-            {/* Role Switcher for Multi-Role Accounts */}
-            {currentUser.authorizedRoles && currentUser.authorizedRoles.length > 1 && (
-              <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <div style={{ fontSize: '0.66rem', color: '#94A3B8', marginBottom: 4, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Switch Active Role:
-                </div>
-                <select
-                  value={currentUser.activeRole}
-                  onChange={(e) => switchUserRole(e.target.value as any)}
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#0F172A',
-                    color: '#FFFFFF',
-                    border: '1px solid #334155',
-                    borderRadius: 6,
-                    padding: '5px 8px',
-                    fontSize: '0.76rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {currentUser.authorizedRoles.map(r => (
-                    <option key={r} value={r}>
-                      {r.replace('_', ' ')}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
         ) : null}
 
-        <button 
-          onClick={logoutUser} 
+        <button
+          onClick={logoutUser}
           style={{
             ...navItemStyle(false),
             color: '#F87171',

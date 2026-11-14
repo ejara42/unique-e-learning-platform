@@ -291,6 +291,12 @@ export const api = {
       method: 'POST',
     });
   },
+  async toggleRecording(id: string, action: 'START' | 'STOP'): Promise<{ message: string; recordingActive: boolean; recordingUrl?: string }> {
+    return request(`/live-sessions/${id}/recording`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    });
+  },
 
   // Certificates
   async getCertificates(): Promise<{ certificates: ICertificate[] }> {

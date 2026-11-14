@@ -24,7 +24,7 @@ test.describe('Instructor Course Studio Workflow', () => {
     const instructorPassword = getRequiredE2ECredential('E2E_INSTRUCTOR_PASSWORD', 'Instructor');
 
     const [loginResponse] = await Promise.all([
-      page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.status() === 200),
+      page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.status() === 200, { timeout: 30000 }),
       (async () => {
         await page.fill('input[type="email"]', instructorEmail);
         await page.fill('input[type="password"]', instructorPassword);

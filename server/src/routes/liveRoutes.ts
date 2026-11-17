@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { repo } from '../data/dbRepository';
 import { livekitService } from '../services/livekitService';
-import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
+import { optionalAuth, requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { ILiveSession } from '../types';
 import { validateBody, validateParams, validateQuery } from '../middleware/validate';
 import { emptyBodySchema, identifierParamsSchema, liveRecordingSchema, liveSessionQuerySchema } from '../validation/schemas';
@@ -30,8 +30,29 @@ async function mayJoinSession(session: ILiveSession, req: AuthRequest): Promise<
   );
 }
 
+async function mayViewSession(session: ILiveSession, req: AuthRequest): Promise<boolean> {
+  const course = await repo.getCourseById(session.courseId);
+  if (!course) return false;
+
+  if (course.visibility === 'PUBLIC' && course.isPublished) return true;
+  if (!req.user) return false;
+  if (req.user.globalRole === 'PLATFORM_SUPERADMIN') return true;
+  if (session.instructorId === req.user.id) return true;
+  if (req.user.activeRole === 'INSTITUTION_ADMIN' && req.user.institutionId === course.tenantId) return true;
+
+  if (req.user.id) {
+    const enrollments = await repo.getEnrollmentsByLearner(req.user.id);
+    return enrollments.some(enrollment =>
+      enrollment.courseId === session.courseId &&
+      (enrollment.status === 'ENROLLED' || enrollment.status === 'COMPLETED')
+    );
+  }
+
+  return false;
+}
+
 // GET /api/live-sessions - List live sessions
-router.get('/', validateQuery(liveSessionQuerySchema), async (req: Request, res: Response) => {
+router.get('/', optionalAuth, validateQuery(liveSessionQuerySchema), async (req: AuthRequest, res: Response) => {
   try {
     const { courseId, status } = req.query;
     let sessions = await repo.getLiveSessions();
@@ -43,18 +64,27 @@ router.get('/', validateQuery(liveSessionQuerySchema), async (req: Request, res:
       sessions = sessions.filter(s => s.status === (status as string).toUpperCase());
     }
 
-    res.json({ sessions });
+    const visibleSessions: ILiveSession[] = [];
+    for (const session of sessions) {
+      if (await mayViewSession(session, req)) visibleSessions.push(session);
+    }
+
+    res.json({ sessions: visibleSessions });
   } catch (err: any) {
     res.status(500).json({ message: 'Error retrieving live sessions', error: err.message });
   }
 });
 
 // GET /api/live-sessions/:id - Get session details
-router.get('/:id', validateParams(identifierParamsSchema), async (req: Request, res: Response) => {
+router.get('/:id', optionalAuth, validateParams(identifierParamsSchema), async (req: AuthRequest, res: Response) => {
   try {
     const session = await repo.getLiveSessionById(req.params.id as string);
     if (!session) {
       res.status(404).json({ message: 'Live session not found' });
+      return;
+    }
+    if (!await mayViewSession(session, req)) {
+      res.status(403).json({ message: 'Live session is restricted to authorized course participants.' });
       return;
     }
     res.json({ session });

@@ -4,7 +4,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import { app } from '../../src/server';
 import { config } from '../../src/config';
-import { UserModel, CourseModel } from '../../src/models';
+import { UserModel, CourseModel, LiveSessionModel } from '../../src/models';
 import { connectionState } from '../../src/data/mongoConnection';
 
 /**
@@ -64,6 +64,49 @@ async function runMultiTenantHttpSuite() {
       lean: async () => [],
       then: (resolve: any) => Promise.resolve([]).then(resolve),
     });
+
+    (CourseModel as any).findOne = (query: any) => {
+      const requestedId = query?.$or?.find((candidate: any) => candidate.id)?.id || null;
+      const restrictedCourse = requestedId === 'restricted-course'
+        ? {
+            id: 'restricted-course',
+            slug: 'restricted-course',
+            tenantId: 'tenant-alpha-college',
+            visibility: 'INSTITUTION_RESTRICTED',
+            isPublished: true,
+          }
+        : null;
+      return {
+        lean: async () => restrictedCourse,
+        then: (resolve: any) => Promise.resolve(restrictedCourse).then(resolve),
+      };
+    };
+
+    (LiveSessionModel as any).find = () => ({
+      lean: async () => [],
+      then: (resolve: any) => Promise.resolve([]).then(resolve),
+    });
+
+    (LiveSessionModel as any).findOne = (query: any) => {
+      const restrictedSession = query.id === 'restricted-live-session'
+        ? {
+            id: 'restricted-live-session',
+            courseId: 'restricted-course',
+            courseTitle: 'Restricted Course',
+            instructorId: 'instructor-alpha',
+            instructorName: 'Instructor Alpha',
+            title: 'Restricted Live Session',
+            scheduledStartTime: '2026-11-18T10:00:00.000Z',
+            durationMinutes: 60,
+            status: 'SCHEDULED',
+            attendanceCount: 0,
+          }
+        : null;
+      return {
+        lean: async () => restrictedSession,
+        then: (resolve: any) => Promise.resolve(restrictedSession).then(resolve),
+      };
+    };
   }
 
   async function test(name: string, fn: () => Promise<void>) {
@@ -159,6 +202,11 @@ async function runMultiTenantHttpSuite() {
   await test('Public Endpoint: GET /api/courses is accessible without authentication', async () => {
     const res = await request(app).get('/api/courses');
     assert([200, 503].includes(res.status), `Expected 200 or 503 depending on DB state, got ${res.status}`);
+  });
+
+  await test('Tenant Barrier: Restricted live-session detail is hidden without authorization', async () => {
+    const res = await request(app).get('/api/live-sessions/restricted-live-session');
+    assert.strictEqual(res.status, 403, `Restricted live-session detail must return HTTP 403, got ${res.status}`);
   });
 
   // 5. Authentication Barrier

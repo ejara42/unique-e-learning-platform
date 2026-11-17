@@ -201,6 +201,41 @@ export function useAssignments() {
   });
 }
 
+export function useAssessmentSubmissions(assessmentId?: string) {
+  return useQuery({
+    queryKey: ['assessments', assessmentId, 'submissions'],
+    queryFn: async () => {
+      if (!assessmentId) return { submissions: [], count: 0 };
+      return api.getAssessmentSubmissions(assessmentId);
+    },
+    enabled: Boolean(assessmentId),
+    staleTime: 15_000,
+    retry: 1,
+  });
+}
+
+export function useGradeSubmission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ submissionId, payload }: {
+      submissionId: string;
+      payload: {
+        feedback?: string;
+        gradedAnswers?: Array<{
+          questionId: string;
+          awardedPoints: number;
+          instructorFeedback?: string;
+        }>;
+      };
+    }) => {
+      return api.gradeAssessmentSubmission(submissionId, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assessments'] });
+    },
+  });
+}
+
 export function useNotifications() {
   return useQuery({
     queryKey: queryKeys.notifications,

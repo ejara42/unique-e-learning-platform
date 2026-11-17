@@ -115,6 +115,37 @@ export interface IQuestion {
   points: number;
 }
 
+export interface ISubmissionAnswer {
+  questionId: string;
+  selectedOptionIndex?: number;
+  essayAnswer?: string;
+  isCorrect?: boolean;
+  awardedPoints?: number;
+  maxPoints?: number;
+  instructorFeedback?: string;
+}
+
+export interface IAssessmentSubmission {
+  id: string;
+  assessmentId: string;
+  learnerId: string;
+  tenantId?: string;
+  answers: ISubmissionAnswer[];
+  totalScore: number;
+  maxPossibleScore: number;
+  percentageScore: number;
+  passed: boolean;
+  proctoringFlags?: Array<{
+    type: string;
+    timestamp: string;
+    details?: string;
+  }>;
+  feedback?: string;
+  gradedBy?: string;
+  gradedAt?: string;
+  submittedAt: string;
+}
+
 export interface IAssessment {
   id: string;
   courseId: string;
@@ -140,6 +171,8 @@ export interface ICertificate {
   qrCodeData: string;
   status: 'VALID' | 'REVOKED';
   revocationReason?: string;
+  type?: 'COMPLETION' | 'ACHIEVEMENT';
+  achievementTitle?: string | null;
 }
 
 export interface ILiveSession {

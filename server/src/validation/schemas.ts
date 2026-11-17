@@ -339,6 +339,15 @@ export const assessmentSubmissionSchema = z.object({
   startedAt: z.string().datetime().optional(),
 }).strict();
 
+export const manualGradingSchema = z.object({
+  questionGrades: z.array(z.object({
+    questionId: z.string().trim().min(1).max(128),
+    scoreAwarded: z.number().finite().nonnegative().max(1000),
+    feedback: z.string().trim().max(1000).optional(),
+  }).strict()).min(1).max(200),
+  overallFeedback: z.string().trim().max(2000).optional(),
+}).strict();
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type CreateCourseInput = z.infer<typeof createCourseSchema>;

@@ -59,6 +59,8 @@ interface AppContextType {
   setFontScale: (scale: number) => void;
   highContrast: boolean;
   toggleHighContrast: () => void;
+  lowBandwidthMode: boolean;
+  toggleLowBandwidthMode: () => void;
   isRTL: boolean;
 }
 
@@ -151,6 +153,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
   });
+  const [lowBandwidthMode, setLowBandwidthMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('edusphere_low_bandwidth');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // Directly adjust root html font-size so EVERY element using rem units instantly resizes in real-time
   useEffect(() => {
@@ -173,6 +183,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // ignore
     }
   }, [highContrast]);
+
+  // Low bandwidth / data saver mode toggle
+  useEffect(() => {
+    document.documentElement.classList.toggle('low-bandwidth-mode', lowBandwidthMode);
+    try {
+      localStorage.setItem('edusphere_low_bandwidth', String(lowBandwidthMode));
+    } catch {
+      // ignore
+    }
+  }, [lowBandwidthMode]);
 
   useEffect(() => {
     // Check saved language
@@ -231,6 +251,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const toggleHighContrast = () => {
     setHighContrast(prev => !prev);
+  };
+
+  const toggleLowBandwidthMode = () => {
+    setLowBandwidthMode(prev => !prev);
   };
 
   // Dynamic Login
@@ -391,6 +415,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setFontScale,
         highContrast,
         toggleHighContrast,
+        lowBandwidthMode,
+        toggleLowBandwidthMode,
         isRTL,
       }}
     >

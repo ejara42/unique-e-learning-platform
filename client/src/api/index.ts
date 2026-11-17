@@ -1,4 +1,4 @@
-import { IUser, ICourse, ITenant, IEnrollment, IAssessment, ICertificate, ILiveSession, IAuditLog, UserRole } from '../types';
+import { IUser, ICourse, ITenant, IEnrollment, IAssessment, IAssessmentSubmission, ICertificate, ILiveSession, IAuditLog, UserRole } from '../types';
 
 export class ApiError extends Error {
   status?: number;
@@ -236,6 +236,22 @@ export const api = {
     return request(`/assessments/${assessmentId}/telemetry`, {
       method: 'POST',
       body: JSON.stringify({ eventType, details }),
+    });
+  },
+  async getAssessmentSubmissions(assessmentId: string): Promise<{ submissions: IAssessmentSubmission[]; count: number }> {
+    return request(`/assessments/${assessmentId}/submissions`);
+  },
+  async gradeAssessmentSubmission(submissionId: string, payload: {
+    feedback?: string;
+    gradedAnswers?: Array<{
+      questionId: string;
+      awardedPoints: number;
+      instructorFeedback?: string;
+    }>;
+  }): Promise<{ submission: IAssessmentSubmission; percentageScore: number; passed: boolean; certificate?: ICertificate; message: string }> {
+    return request(`/assessments/submissions/${submissionId}/grade`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
     });
   },
 

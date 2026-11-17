@@ -221,7 +221,8 @@ exports.SubmissionSchema = new mongoose_1.Schema({
             questionId: String,
             selectedOption: Number,
             textAnswer: String,
-            scoreAwarded: Number
+            scoreAwarded: Number,
+            feedback: String
         }],
     totalScoreEarned: Number,
     totalScoreMax: Number,
@@ -232,7 +233,10 @@ exports.SubmissionSchema = new mongoose_1.Schema({
             timestamp: String,
             details: String
         }],
-    status: { type: String, enum: ['GRADED', 'NEEDS_MANUAL_REVIEW'], default: 'GRADED' }
+    status: { type: String, enum: ['GRADED', 'NEEDS_MANUAL_REVIEW'], default: 'GRADED' },
+    feedback: String,
+    gradedBy: String,
+    gradedAt: String
 }, { timestamps: true });
 exports.SubmissionSchema.index({ assessmentId: 1, learnerId: 1 });
 exports.CertificateSchema = new mongoose_1.Schema({
@@ -249,7 +253,9 @@ exports.CertificateSchema = new mongoose_1.Schema({
     gradePercentage: { type: Number, required: true },
     qrCodeData: { type: String, required: true },
     status: { type: String, enum: ['VALID', 'REVOKED'], default: 'VALID', index: true },
-    revocationReason: String
+    revocationReason: String,
+    type: { type: String, enum: ['COMPLETION', 'ACHIEVEMENT'], default: 'COMPLETION', index: true },
+    achievementTitle: { type: String, default: null }
 }, { timestamps: true });
 exports.AdmissionSchema = new mongoose_1.Schema({
     id: { type: String, required: true, unique: true, index: true },

@@ -116,7 +116,7 @@ const SUITES = [
     name: 'Multi-Tenant HTTP API Authorization',
     command: 'node',
     args: ['./server/node_modules/tsx/dist/cli.mjs', 'server/tests/api/multi_tenant_http.test.ts'],
-    expectedUnits: 12,
+    expectedUnits: 13,
   },
   {
     id: 'drm-playback',

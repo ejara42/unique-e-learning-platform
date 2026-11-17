@@ -330,6 +330,7 @@ export interface ISubmissionDocument extends Document {
     selectedOption?: number;
     textAnswer?: string;
     scoreAwarded?: number;
+    feedback?: string;
   }>;
   totalScoreEarned: number;
   totalScoreMax: number;
@@ -341,6 +342,9 @@ export interface ISubmissionDocument extends Document {
     details?: string;
   }>;
   status: 'GRADED' | 'NEEDS_MANUAL_REVIEW';
+  feedback?: string;
+  gradedBy?: string;
+  gradedAt?: string;
 }
 
 export const SubmissionSchema = new Schema<ISubmissionDocument>({
@@ -354,7 +358,8 @@ export const SubmissionSchema = new Schema<ISubmissionDocument>({
     questionId: String,
     selectedOption: Number,
     textAnswer: String,
-    scoreAwarded: Number
+    scoreAwarded: Number,
+    feedback: String
   }],
   totalScoreEarned: Number,
   totalScoreMax: Number,
@@ -365,7 +370,10 @@ export const SubmissionSchema = new Schema<ISubmissionDocument>({
     timestamp: String,
     details: String
   }],
-  status: { type: String, enum: ['GRADED', 'NEEDS_MANUAL_REVIEW'], default: 'GRADED' }
+  status: { type: String, enum: ['GRADED', 'NEEDS_MANUAL_REVIEW'], default: 'GRADED' },
+  feedback: String,
+  gradedBy: String,
+  gradedAt: String
 }, { timestamps: true });
 
 SubmissionSchema.index({ assessmentId: 1, learnerId: 1 });
@@ -388,6 +396,8 @@ export interface ICertificateDocument extends Document {
   qrCodeData: string;
   status: 'VALID' | 'REVOKED';
   revocationReason?: string;
+  type?: 'COMPLETION' | 'ACHIEVEMENT';
+  achievementTitle?: string | null;
 }
 
 export const CertificateSchema = new Schema<ICertificateDocument>({
@@ -404,7 +414,9 @@ export const CertificateSchema = new Schema<ICertificateDocument>({
   gradePercentage: { type: Number, required: true },
   qrCodeData: { type: String, required: true },
   status: { type: String, enum: ['VALID', 'REVOKED'], default: 'VALID', index: true },
-  revocationReason: String
+  revocationReason: String,
+  type: { type: String, enum: ['COMPLETION', 'ACHIEVEMENT'], default: 'COMPLETION', index: true },
+  achievementTitle: { type: String, default: null }
 }, { timestamps: true });
 
 // ============================================================================

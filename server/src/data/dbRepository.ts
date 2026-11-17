@@ -208,14 +208,23 @@ export class DatabaseRepository {
   async updateProgress(courseId: string, learnerId: string, lessonId: string): Promise<IEnrollment | null> {
     this.assertActiveStorage();
 
+    const course = await CourseModel.findOne({ id: courseId }).lean() as any;
+    const totalLessons = course?.modules?.reduce((acc: number, m: any) => acc + (m.lessons?.length || 0), 0) || 0;
+
     const doc = await EnrollmentModel.findOne({ courseId, learnerId });
     if (doc) {
       if (!doc.completedLessonIds.includes(lessonId)) {
         doc.completedLessonIds.push(lessonId);
-        doc.progressPercentage = Math.min(100, doc.progressPercentage + 20);
-        if (doc.progressPercentage >= 100) {
+        const completedCount = doc.completedLessonIds.length;
+
+        doc.progressPercentage = totalLessons > 0
+          ? Math.min(100, Math.round((completedCount / totalLessons) * 100))
+          : Math.min(100, doc.progressPercentage + 20);
+
+        if (doc.progressPercentage >= 100 || (totalLessons > 0 && completedCount >= totalLessons)) {
           doc.status = 'COMPLETED';
-          doc.completedAt = new Date().toISOString();
+          doc.progressPercentage = 100;
+          doc.completedAt = doc.completedAt || new Date().toISOString();
         }
         await doc.save();
       }

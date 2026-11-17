@@ -60,6 +60,7 @@ export class EnterpriseSearchService implements ISearchProvider {
             tags: c.learningOutcomes || [],
             isPublished: c.isPublished,
             tenantId: c.tenantId || null,
+            visibility: (c as any).visibility || 'PUBLIC',
           });
         }
       }
@@ -103,6 +104,17 @@ export class EnterpriseSearchService implements ISearchProvider {
     const queryTokens = rawQuery.split(/\s+/).filter(Boolean);
 
     let candidates = Array.from(this.indexedCourses.values());
+
+    // 0. Tenant Visibility Isolation
+    const requestingTenantId = options.tenantId || null;
+    candidates = candidates.filter(c => {
+      const visibility = c.visibility || 'PUBLIC';
+      if (visibility === 'PUBLIC') return true;
+      if (visibility === 'INSTITUTION_RESTRICTED') {
+        return requestingTenantId !== null && c.tenantId === requestingTenantId;
+      }
+      return false;
+    });
 
     // 1. Facet Filtering
     if (options.category) {

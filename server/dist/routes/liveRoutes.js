@@ -30,8 +30,29 @@ async function mayJoinSession(session, req) {
     const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(req.user.id);
     return enrollments.some(enrollment => enrollment.courseId === session.courseId && enrollment.status === 'ENROLLED');
 }
+async function mayViewSession(session, req) {
+    const course = await dbRepository_1.repo.getCourseById(session.courseId);
+    if (!course)
+        return false;
+    if (course.visibility === 'PUBLIC' && course.isPublished)
+        return true;
+    if (!req.user)
+        return false;
+    if (req.user.globalRole === 'PLATFORM_SUPERADMIN')
+        return true;
+    if (session.instructorId === req.user.id)
+        return true;
+    if (req.user.activeRole === 'INSTITUTION_ADMIN' && req.user.institutionId === course.tenantId)
+        return true;
+    if (req.user.id) {
+        const enrollments = await dbRepository_1.repo.getEnrollmentsByLearner(req.user.id);
+        return enrollments.some(enrollment => enrollment.courseId === session.courseId &&
+            (enrollment.status === 'ENROLLED' || enrollment.status === 'COMPLETED'));
+    }
+    return false;
+}
 // GET /api/live-sessions - List live sessions
-router.get('/', (0, validate_1.validateQuery)(schemas_1.liveSessionQuerySchema), async (req, res) => {
+router.get('/', auth_1.optionalAuth, (0, validate_1.validateQuery)(schemas_1.liveSessionQuerySchema), async (req, res) => {
     try {
         const { courseId, status } = req.query;
         let sessions = await dbRepository_1.repo.getLiveSessions();
@@ -41,18 +62,27 @@ router.get('/', (0, validate_1.validateQuery)(schemas_1.liveSessionQuerySchema),
         if (status) {
             sessions = sessions.filter(s => s.status === status.toUpperCase());
         }
-        res.json({ sessions });
+        const visibleSessions = [];
+        for (const session of sessions) {
+            if (await mayViewSession(session, req))
+                visibleSessions.push(session);
+        }
+        res.json({ sessions: visibleSessions });
     }
     catch (err) {
         res.status(500).json({ message: 'Error retrieving live sessions', error: err.message });
     }
 });
 // GET /api/live-sessions/:id - Get session details
-router.get('/:id', (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), async (req, res) => {
+router.get('/:id', auth_1.optionalAuth, (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), async (req, res) => {
     try {
         const session = await dbRepository_1.repo.getLiveSessionById(req.params.id);
         if (!session) {
             res.status(404).json({ message: 'Live session not found' });
+            return;
+        }
+        if (!await mayViewSession(session, req)) {
+            res.status(403).json({ message: 'Live session is restricted to authorized course participants.' });
             return;
         }
         res.json({ session });

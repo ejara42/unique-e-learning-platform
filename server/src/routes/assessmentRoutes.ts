@@ -3,10 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { repo } from '../data/dbRepository';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 import { ISubmission, ICertificate, IAssessment } from '../types';
+import { SubmissionModel, CertificateModel } from '../models';
 import { validateBody, validateParams } from '../middleware/validate';
 import {
   assessmentSubmissionSchema,
   assessmentTelemetrySchema,
+  manualGradingSchema,
   identifierParamsSchema,
   createAssessmentSchema,
   courseIdParamsSchema,
@@ -266,38 +268,55 @@ router.post('/:id/submit', requireAuth, validateParams(identifierParamsSchema), 
 
     await repo.createSubmission(submission);
 
-    // If passed, auto-issue digital certificate with SHA-256 seal
+    // If passed, auto-issue digital certificate with SHA-256 seal (or reuse existing valid credential)
     let certificate: ICertificate | undefined;
     if (passed) {
-      const certNumber = `EDU-${new Date().getFullYear()}-${uuidv4().slice(0, 4).toUpperCase()}-${uuidv4().slice(0, 4).toUpperCase()}`;
-      const verificationHash = require('crypto')
-        .createHash('sha256')
-        .update(`${learnerId}-${assessment.courseId}-${certNumber}-edusphere-salt-2026`)
-        .digest('hex');
-
-      certificate = {
-        id: `cert-${uuidv4().slice(0, 8)}`,
-        certificateNumber: certNumber,
-        verificationHash,
-        tenantId: course?.tenantId || null,
-        learnerId,
-        learnerName: req.user.fullName,
+      const existingCert = await CertificateModel.findOne({
         courseId: assessment.courseId,
-        courseTitle: course.title,
-        institutionName: course.institutionName,
-        issueDate: new Date().toISOString(),
-        gradePercentage: percentageScore,
-        qrCodeData: `https://edusphere.io/verify/${certNumber}`,
+        learnerId,
         status: 'VALID',
-      };
+      }).lean() as any;
 
-      if (certificate) {
-        await repo.createCertificate(certificate);
+      if (existingCert) {
+        certificate = existingCert;
+      } else {
+        const isDistinction = percentageScore >= 90;
+        const certNumber = `EDU-${new Date().getFullYear()}-${uuidv4().slice(0, 4).toUpperCase()}-${uuidv4().slice(0, 4).toUpperCase()}`;
+        const verificationHash = require('crypto')
+          .createHash('sha256')
+          .update(`${learnerId}-${assessment.courseId}-${certNumber}-edusphere-salt-2026`)
+          .digest('hex');
+
+        certificate = {
+          id: `cert-${uuidv4().slice(0, 8)}`,
+          certificateNumber: certNumber,
+          verificationHash,
+          tenantId: course?.tenantId || null,
+          learnerId,
+          learnerName: req.user.fullName,
+          courseId: assessment.courseId,
+          courseTitle: course.title,
+          institutionName: course.institutionName,
+          issueDate: new Date().toISOString(),
+          gradePercentage: percentageScore,
+          qrCodeData: `https://edusphere.io/verify/${certNumber}`,
+          status: 'VALID',
+          type: isDistinction ? 'ACHIEVEMENT' : 'COMPLETION',
+          achievementTitle: isDistinction ? 'Certificate of Academic Excellence with Distinction' : undefined,
+        };
+
+        if (certificate) {
+          await repo.createCertificate(certificate);
+        }
       }
     }
 
     res.json({
-      message: passed ? 'Assessment graded: PASSED! Digital diploma issued.' : 'Assessment graded: Result below passing threshold.',
+      message: passed
+        ? (certificate?.type === 'ACHIEVEMENT'
+            ? 'Assessment graded: PASSED WITH DISTINCTION! Achievement certificate awarded.'
+            : 'Assessment graded: PASSED! Course completion certificate issued.')
+        : 'Assessment graded: Result below passing threshold.',
       submission,
       percentageScore,
       passed,
@@ -305,6 +324,136 @@ router.post('/:id/submit', requireAuth, validateParams(identifierParamsSchema), 
     });
   } catch (err: any) {
     res.status(500).json({ message: 'Submission failed', error: err.message });
+  }
+});
+
+// GET /api/assessments/:id/submissions - Retrieve submissions for grading (Instructor/Admin only)
+router.get('/:id/submissions', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateParams(identifierParamsSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const assessment = await repo.getAssessmentById(req.params.id as string);
+    if (!assessment) {
+      res.status(404).json({ message: 'Assessment not found' });
+      return;
+    }
+    const course = await repo.getCourseById(assessment.courseId);
+    if (!course) {
+      res.status(404).json({ message: 'Assessment course not found' });
+      return;
+    }
+    const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
+    const isInstitutionAdmin = req.user?.activeRole === 'INSTITUTION_ADMIN' && req.user.institutionId === course.tenantId;
+    const isInstructor = req.user?.activeRole === 'INSTRUCTOR' && (course.instructorId === req.user.id || !course.instructorId);
+
+    if (!isPlatformAdmin && !isInstitutionAdmin && !isInstructor) {
+      res.status(403).json({ message: 'Forbidden: You do not have permission to review submissions for this course.' });
+      return;
+    }
+
+    const submissions = await SubmissionModel.find({ assessmentId: assessment.id }).sort({ submittedAt: -1 }).lean();
+    res.json({ submissions, count: submissions.length });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to retrieve assessment submissions', error: err.message });
+  }
+});
+
+// PATCH /api/assessments/submissions/:id/grade - Instructor manual evaluation & grading
+router.patch('/submissions/:id/grade', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateParams(identifierParamsSchema), validateBody(manualGradingSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const submission = await SubmissionModel.findOne({ id: req.params.id as string });
+    if (!submission) {
+      res.status(404).json({ message: 'Submission record not found' });
+      return;
+    }
+    const assessment = await repo.getAssessmentById(submission.assessmentId);
+    if (!assessment) {
+      res.status(404).json({ message: 'Assessment definition not found' });
+      return;
+    }
+    const course = await repo.getCourseById(submission.courseId);
+    const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
+    const isInstitutionAdmin = req.user?.activeRole === 'INSTITUTION_ADMIN' && req.user.institutionId === course?.tenantId;
+    const isInstructor = req.user?.activeRole === 'INSTRUCTOR' && (course?.instructorId === req.user?.id || !course?.instructorId);
+
+    if (!isPlatformAdmin && !isInstitutionAdmin && !isInstructor) {
+      res.status(403).json({ message: 'Forbidden: You do not have permission to grade this submission.' });
+      return;
+    }
+
+    const { questionGrades, overallFeedback } = req.body;
+    let totalScoreEarned = 0;
+
+    submission.answers = submission.answers.map((ans: any) => {
+      const gradeItem = questionGrades.find((g: any) => g.questionId === ans.questionId);
+      if (gradeItem) {
+        ans.scoreAwarded = gradeItem.scoreAwarded;
+        ans.feedback = gradeItem.feedback;
+      }
+      totalScoreEarned += (ans.scoreAwarded || 0);
+      return ans;
+    });
+
+    submission.totalScoreEarned = totalScoreEarned;
+    submission.percentageScore = submission.totalScoreMax > 0
+      ? Math.round((totalScoreEarned / submission.totalScoreMax) * 100)
+      : 0;
+    submission.passed = submission.percentageScore >= assessment.passingScorePct;
+    submission.status = 'GRADED';
+    submission.feedback = overallFeedback || submission.feedback;
+    submission.gradedBy = req.user?.fullName;
+    submission.gradedAt = new Date().toISOString();
+
+    await submission.save();
+
+    // Auto-issue digital certificate if passing criteria are now satisfied
+    let certificate: ICertificate | undefined;
+    if (submission.passed) {
+      const existingCert = await CertificateModel.findOne({
+        courseId: submission.courseId,
+        learnerId: submission.learnerId,
+        status: 'VALID',
+      }).lean() as any;
+
+      if (existingCert) {
+        certificate = existingCert;
+      } else {
+        const isDistinction = submission.percentageScore >= 90;
+        const certNumber = `EDU-${new Date().getFullYear()}-${uuidv4().slice(0, 4).toUpperCase()}-${uuidv4().slice(0, 4).toUpperCase()}`;
+        const verificationHash = require('crypto')
+          .createHash('sha256')
+          .update(`${submission.learnerId}-${submission.courseId}-${certNumber}-edusphere-salt-2026`)
+          .digest('hex');
+
+        certificate = {
+          id: `cert-${uuidv4().slice(0, 8)}`,
+          certificateNumber: certNumber,
+          verificationHash,
+          tenantId: course?.tenantId || null,
+          learnerId: submission.learnerId,
+          learnerName: req.user?.fullName || 'Academic Scholar',
+          courseId: submission.courseId,
+          courseTitle: course?.title || 'Certified Course',
+          institutionName: course?.institutionName,
+          issueDate: new Date().toISOString(),
+          gradePercentage: submission.percentageScore,
+          qrCodeData: `https://edusphere.io/verify/${certNumber}`,
+          status: 'VALID',
+          type: isDistinction ? 'ACHIEVEMENT' : 'COMPLETION',
+          achievementTitle: isDistinction ? 'Certificate of Academic Excellence with Distinction' : undefined,
+        };
+
+        await repo.createCertificate(certificate);
+      }
+    }
+
+    res.json({
+      message: 'Submission successfully evaluated and graded.',
+      submission: submission.toObject(),
+      passed: submission.passed,
+      percentageScore: submission.percentageScore,
+      certificate,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to record grade evaluation', error: err.message });
   }
 });
 

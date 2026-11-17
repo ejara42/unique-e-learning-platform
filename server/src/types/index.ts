@@ -154,6 +154,7 @@ export interface ISubmission {
     selectedOption?: number;
     textAnswer?: string;
     scoreAwarded?: number;
+    feedback?: string;
   }>;
   totalScoreEarned: number;
   totalScoreMax: number;
@@ -165,6 +166,9 @@ export interface ISubmission {
     details?: string;
   }>;
   status: 'GRADED' | 'NEEDS_MANUAL_REVIEW';
+  feedback?: string;
+  gradedBy?: string;
+  gradedAt?: string;
 }
 
 export interface ILiveSession {
@@ -197,6 +201,8 @@ export interface ICertificate {
   qrCodeData: string;
   status: 'VALID' | 'REVOKED';
   revocationReason?: string;
+  type?: 'COMPLETION' | 'ACHIEVEMENT';
+  achievementTitle?: string | null;
 }
 
 export interface IAuditLog {

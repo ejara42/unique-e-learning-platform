@@ -13,7 +13,6 @@ import {
   BookOpen,
   ShieldCheck,
   CheckCircle2,
-  Lock,
   Video,
   FileCheck2,
   Building2,
@@ -24,7 +23,7 @@ import { Button, ErrorState, LoadingState } from '../components/ui';
 import { CourseCatalog } from '../components/catalog/CourseCatalog';
 
 export const LandingPage: React.FC = () => {
-  const { openCourse, setCurrentPage, openVerification, t } = useApp();
+  const { openCourse, setCurrentPage, t } = useApp();
   const [courses, setCourses] = useState<ICourse[]>([]);
   const [tenants, setTenants] = useState<ITenant[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -249,27 +248,6 @@ export const LandingPage: React.FC = () => {
                 >
                   Register Institution
                 </Button>
-                <button
-                  onClick={() => openVerification('')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--slate-600)',
-                    fontSize: '0.88rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-md)',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--slate-600)')}
-                >
-                  <Lock size={14} />
-                  <span>Verify Credential</span>
-                </button>
               </div>
 
               {/* Trust Badges */}

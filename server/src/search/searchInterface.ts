@@ -13,6 +13,7 @@ export interface CourseSearchDocument {
   tags: string[];
   isPublished: boolean;
   tenantId: string | null;
+  visibility?: 'PUBLIC' | 'INSTITUTION_RESTRICTED';
 }
 
 export interface SearchQueryOptions {

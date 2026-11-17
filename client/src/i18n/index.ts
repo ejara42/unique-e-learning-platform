@@ -7,6 +7,7 @@ export interface TranslationDict {
   accessibility: string;
   fontSize: string;
   highContrast: string;
+  dataSaver: string;
   hotline: string;
 
   // Header Navigation
@@ -93,6 +94,7 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     accessibility: 'Accessibility Tools',
     fontSize: 'Text Size',
     highContrast: 'High Contrast',
+    dataSaver: 'Data Saver',
     hotline: 'Academic Hotline: +251 11 551 7200',
 
     home: 'Home',
@@ -174,6 +176,7 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     accessibility: 'የተደራሽነት መሣሪያዎች',
     fontSize: 'የፊደል መጠን',
     highContrast: 'ከፍተኛ ንፅፅር',
+    dataSaver: 'ዳታ ቆጣቢ',
     hotline: 'የአካዳሚክ የስልክ መስመር: 011 551 7200',
 
     home: 'ዋና ገጽ',
@@ -255,6 +258,7 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     accessibility: 'Meeshaalee Dhaqqabamummaa',
     fontSize: 'Guddina Barreeffamaa',
     highContrast: 'Garaagarummaa Ol’aanaa',
+    dataSaver: 'Qusannaa Daataa',
     hotline: 'Sarara Hootlaayinii: 011 551 7200',
 
     home: 'Fuula Duraa',
@@ -336,6 +340,7 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     accessibility: 'أدوات الوصول وذوي الإعاقة',
     fontSize: 'حجم الخط',
     highContrast: 'تباين عالي',
+    dataSaver: 'توفير البيانات',
     hotline: 'الخط الساخن الأكاديمي: 7200 551 11 251+',
 
     home: 'الرئيسية',
@@ -417,6 +422,7 @@ export const translations: Record<LanguageCode, TranslationDict> = {
     accessibility: 'Outils d\'Accessibilité',
     fontSize: 'Taille du Texte',
     highContrast: 'Contraste Élevé',
+    dataSaver: 'Économiseur de Données',
     hotline: 'Assistance Académique : +251 11 551 7200',
 
     home: 'Accueil',

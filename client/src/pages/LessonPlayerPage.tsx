@@ -20,6 +20,7 @@ import {
   Share2,
   Volume2,
   Award,
+  WifiOff,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { api } from '../api';
@@ -34,6 +35,7 @@ export const LessonPlayerPage: React.FC = () => {
     setSelectedLessonId,
     setCurrentPage,
     startExam,
+    lowBandwidthMode,
   } = useApp();
 
   const [completedLessons, setCompletedLessons] = useState<Record<string, boolean>>({});
@@ -206,6 +208,22 @@ export const LessonPlayerPage: React.FC = () => {
         >
           {/* Main Media Player & Tab Panel */}
           <div className={cn(isTheaterMode ? 'w-full' : 'lg:col-span-2', 'space-y-6')}>
+            {lowBandwidthMode && (
+              <div className="flex items-center justify-between p-3 px-4 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-xs font-medium">
+                <div className="flex items-center gap-2">
+                  <WifiOff className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Data Saver Mode Active: Video stream compressed. Reading notes & transcripts prioritized for low-bandwidth connections.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('notes')}
+                  className="px-2.5 py-1 rounded bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-xs font-semibold"
+                >
+                  View Notes
+                </button>
+              </div>
+            )}
+
             {/* Ambient Player Canvas */}
             <div className="relative rounded-3xl overflow-hidden bg-black border border-slate-800 shadow-2xl group">
               <div className="relative aspect-video w-full flex items-center justify-center bg-black">

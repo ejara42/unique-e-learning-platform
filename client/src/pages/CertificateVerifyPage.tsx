@@ -502,12 +502,14 @@ export const CertificateVerifyPage: React.FC = () => {
                           fontSize: '0.72rem',
                           letterSpacing: '0.18em',
                           textTransform: 'uppercase',
-                          color: '#3B82F6',
+                          color: certData.type === 'ACHIEVEMENT' ? '#D97706' : '#3B82F6',
                           fontWeight: 800,
                           marginBottom: 6,
                         }}
                       >
-                        Certificate of Academic Achievement
+                        {certData.type === 'ACHIEVEMENT'
+                          ? (certData.achievementTitle || 'Certificate of Academic Excellence with Distinction')
+                          : 'Certificate of Course Completion'}
                       </div>
                       <div
                         style={{
@@ -577,6 +579,7 @@ export const CertificateVerifyPage: React.FC = () => {
                     >
                       {[
                         { label: 'ISSUING INSTITUTION', value: certData.institutionName || 'Institutional Partner' },
+                        { label: 'CREDENTIAL TYPE', value: certData.type === 'ACHIEVEMENT' ? 'Academic Distinction' : 'Course Completion' },
                         { label: 'ISSUE DATE', value: fmtDate(certData.issueDate) },
                         {
                           label: 'CREDENTIAL ID',

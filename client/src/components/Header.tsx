@@ -19,7 +19,8 @@ import {
   Sparkles,
   User,
   Search,
-  ArrowRight
+  ArrowRight,
+  WifiOff
 } from 'lucide-react';
 import { LanguageCode } from '../i18n';
 
@@ -39,6 +40,8 @@ export const Header: React.FC = () => {
     resetFont,
     highContrast,
     toggleHighContrast,
+    lowBandwidthMode,
+    toggleLowBandwidthMode,
     isRTL,
   } = useApp();
 
@@ -307,6 +310,31 @@ export const Header: React.FC = () => {
             >
               <Eye size={12} />
               <span>{t.highContrast}</span>
+            </button>
+
+            {/* Low Bandwidth / Data Saver Toggle */}
+            <button
+              type="button"
+              onClick={toggleLowBandwidthMode}
+              aria-label={lowBandwidthMode ? 'Disable data saver mode' : 'Enable data saver mode'}
+              aria-pressed={lowBandwidthMode}
+              title="Toggle Low Bandwidth / Data Saver Mode"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                background: lowBandwidthMode ? '#059669' : 'none',
+                border: '1px solid #334155',
+                color: '#FFFFFF',
+                padding: '2px 8px',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: '0.72rem',
+                fontWeight: 600,
+              }}
+            >
+              <WifiOff size={12} />
+              <span>{t.dataSaver}</span>
             </button>
 
             <span style={{ color: '#475569' }}>|</span>

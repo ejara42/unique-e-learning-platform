@@ -201,20 +201,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setLanguageState(savedLang);
     }
 
-    // Check if user has an active session token (DO NOT auto-login as hardcoded names!)
-    const token = localStorage.getItem('edusphere_token');
-    if (token) {
-      api.getMe()
-        .then(res => {
-          if (res?.user) {
-            setCurrentUser(res.user);
-          }
-        })
-        .catch(() => {
-          localStorage.removeItem('edusphere_token');
-          setCurrentUser(null);
-        });
-    }
+    // Restore the HttpOnly cookie session; localStorage token support is legacy only.
+    Promise.resolve(api.getMe())
+      .then(res => {
+        if (res?.user?.id) setCurrentUser(res.user);
+        else setCurrentUser(null);
+      })
+      .catch(() => {
+        localStorage.removeItem('edusphere_token');
+        setCurrentUser(null);
+      });
   }, []);
 
   const setLanguage = (lang: LanguageCode) => {

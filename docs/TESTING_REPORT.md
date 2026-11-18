@@ -1,6 +1,6 @@
 # EduSphere Testing Report
 
-**Date:** 2026-11-17
+**Date:** 2026-11-18
 **Scope:** Repository test inventory and current verification status
 
 ## 1. Test Surface
@@ -27,7 +27,7 @@
 - Production smoke test exercises health, catalog, certificate, registration and security headers.
 - Backup/restore and DR scripts exist.
 
-## 2. Verified Baseline (2026-11-17)
+## 2. Verified Baseline (2026-11-18)
 
 | Area | Evidence | Status |
 |---|---|---|
@@ -36,7 +36,7 @@
 | Frontend build | `client/package.json`, Vite/TSC | **PASS** |
 | Frontend unit | Vitest | **PASS: 8 files, 28 tests** |
 | Role guard | `RoleGuard.test.tsx` | Covered by Vitest |
-| Multi-tenant HTTP | `server/tests/api/multi_tenant_http.test.ts` | **PASS: 13/13**; includes restricted live-session detail barrier |
+| Multi-tenant HTTP | `server/tests/api/multi_tenant_http.test.ts` | **PASS: 17/17**; includes restricted live-session detail barrier |
 | Adversarial security | `server/tests/production_security_suite.test.ts` | **PASS: 34/34** |
 | Tenant API | `server/tests/api/multi_tenant_http.test.ts` | Present |
 | Mongo/replica | Server test files | Present; unavailable infrastructure is explicitly blocked |

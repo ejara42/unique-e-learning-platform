@@ -536,7 +536,7 @@ export const Header: React.FC = () => {
                     fontSize: '0.78rem',
                     fontWeight: 800
                   }}>
-                    {currentUser.fullName.charAt(0)}
+                    {(currentUser.fullName || 'U').charAt(0)}
                   </div>
                   <div style={{ textAlign: isRTL ? 'right' : 'left' }}>
                     <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0F172A', lineHeight: 1.2 }}>

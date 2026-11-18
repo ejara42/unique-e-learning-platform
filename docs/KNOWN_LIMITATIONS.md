@@ -1,6 +1,6 @@
 # EduSphere Known Limitations
 
-**Date:** 2026-11-17
+**Date:** 2026-11-18
 
 ## 1. Feature Limitations
 
@@ -27,7 +27,8 @@
 
 ## 3. Security Limitations
 
-- JWT in `localStorage` is exposed to XSS theft risk.
+- New login/register/role-switch flows use an HttpOnly cookie and CSP is enabled, but legacy bearer-token/local-storage compatibility remains until all clients and sessions migrate.
+- Production secrets must be rotated if `.env` or source history has contained real credentials; never copy credential values into reports or source control.
 - Public live/search routes need stronger explicit tenant visibility tests.
 - Several multi-document writes are not transactional.
 - Detailed health/telemetry should be restricted from public access.

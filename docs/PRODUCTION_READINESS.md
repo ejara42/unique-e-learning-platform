@@ -1,6 +1,6 @@
 # EduSphere Production Readiness
 
-**Date:** 2026-11-17
+**Date:** 2026-11-18
 **Status:** Not production-ready until P0/P1 gates pass
 
 ## 1. Readiness Summary
@@ -34,7 +34,7 @@ EduSphere has substantial implementation and infrastructure documentation, but s
 |---|---|---|
 | P0 | Public live/search tenant isolation | Risk of cross-tenant disclosure |
 | P0 | Payment/enrollment and assessment/certificate partial writes | Risk of false billing/completion/credential state |
-| P0 | XSS-sensitive bearer token storage | High-impact session compromise if XSS occurs |
+| P0 (mitigated) | XSS-sensitive bearer token storage | New login/register/role-switch responses set an HttpOnly cookie and CSP is enabled; legacy bearer support remains for migration |
 | P1 | Assignment/manual grade workflow | Core institutional LMS capability absent |
 | P1 | Live room media/recording lifecycle | UI-only or token-only implementation |
 | P1 | Progress integrity and retake semantics | Academic state may be incorrect |

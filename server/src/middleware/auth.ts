@@ -19,16 +19,49 @@ export interface AuthRequest extends Request {
   user?: AuthenticatedUser;
 }
 
-export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+export function getRequestBearerToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header. Bearer token required.' });
-    return;
+  if (authHeader?.startsWith('Bearer ')) {
+    const bearerToken = authHeader.slice('Bearer '.length).trim();
+    if (bearerToken) return bearerToken;
   }
 
-  const token = authHeader.split(' ')[1];
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+
+  const cookie = cookieHeader
+    .split(';')
+    .map(part => part.trim())
+    .find(part => part.startsWith('edusphere_session='));
+
+  return cookie ? decodeURIComponent(cookie.slice('edusphere_session='.length)) : null;
+}
+
+export function setAuthCookie(res: Response, token: string): void {
+  const secure = config.isProduction;
+  res.cookie('edusphere_session', token, {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+}
+
+export function clearAuthCookie(res: Response): void {
+  const secure = config.isProduction;
+  res.clearCookie('edusphere_session', {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? 'none' : 'lax',
+    path: '/',
+  });
+}
+
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  const token = getRequestBearerToken(req);
   if (!token) {
-    res.status(401).json({ message: 'Unauthorized: Missing Bearer token' });
+    res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header. Bearer token required.' });
     return;
   }
 
@@ -55,19 +88,14 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
 }
 
 export async function optionalAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
+  const token = getRequestBearerToken(req);
+  if (!token) {
     next();
     return;
   }
-  if (!authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ message: 'Unauthorized: Invalid token format' });
-    return;
-  }
-
   let decoded: AuthenticatedUser;
   try {
-    decoded = jwt.verify(authHeader.slice(7), config.jwtSecret) as AuthenticatedUser;
+    decoded = jwt.verify(token, config.jwtSecret) as AuthenticatedUser;
   } catch {
     res.status(401).json({ message: 'Unauthorized: Token expired or invalid' });
     return;

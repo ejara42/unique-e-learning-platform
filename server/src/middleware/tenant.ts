@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AsyncLocalStorage } from 'async_hooks';
 import jwt from 'jsonwebtoken';
 import { config } from '../config';
+import { getRequestBearerToken } from './auth';
 
 export interface TenantContext {
   tenantId?: string | null;
@@ -27,9 +28,8 @@ export function tenantMiddleware(req: Request, res: Response, next: NextFunction
     tenantSlug,
   };
 
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice('Bearer '.length).trim();
+  const token = getRequestBearerToken(req);
+  if (token) {
     try {
       const decoded = jwt.verify(token, config.jwtSecret) as { institutionId?: string | null };
       if (decoded.institutionId) {

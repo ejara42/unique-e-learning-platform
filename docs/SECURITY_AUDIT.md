@@ -1,6 +1,6 @@
 # EduSphere Security Audit
 
-**Date:** 2026-11-17
+**Date:** 2026-11-18
 **Scope:** Authentication, authorization, tenant isolation, input, uploads, payment, live, media, operations, and frontend storage
 
 ## 1. Security Strengths
@@ -15,12 +15,14 @@
 - Media playback key requests include authentication and authorization middleware.
 - Role middleware and institution-confinement checks exist in admin, course, assessment and certificate routes.
 - Seeder/seed operations contain production guards.
+- HttpOnly, Secure (production), SameSite session cookies are now issued for login, registration, and role switching; bearer authorization remains backward-compatible.
+- A restrictive Content-Security-Policy header is applied to API responses.
 
 ## 2. Findings
 
 | Severity | Finding | Evidence | Impact | Remediation |
 |---|---|---|---|---|
-| Critical | JWT in browser local storage | `client/src/api/index.ts` stores `edusphere_token` | XSS can reveal bearer credentials | Move to secure HttpOnly cookie where possible; add CSP and same-site/origin policy |
+| Critical (mitigated) | JWT in browser local storage | Legacy `edusphere_token` is no longer written by login/register/role-switch flows; legacy bearer support remains for compatibility | Existing or external clients can still place a bearer token in JavaScript storage | Complete cookie-only migration for all supported clients, then remove legacy local-storage behavior |
 | High (mitigated) | Public live detail/list routes | `server/src/routes/liveRoutes.ts` | Restricted courses are now filtered by course visibility; real-room lifecycle remains separate | Keep negative tests for authorized and wrong-tenant participants |
 | Critical | Public search/tenant discovery | `tenantRoutes.ts`, `searchRoutes.ts` | Tenant or restricted record exposure | Central visibility policy and negative tests |
 | High | Multi-document writes lack transactions | Assessment/certificate, payment/enrollment, tenant registration | Partial or inconsistent records | Mongo sessions/transactions and idempotency |

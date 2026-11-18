@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { repo } from '../data/dbRepository';
 import { config } from '../config';
-import { requireAuth, AuthRequest } from '../middleware/auth';
+import { clearAuthCookie, requireAuth, setAuthCookie, AuthRequest } from '../middleware/auth';
 import { UserRole } from '../types';
 import { SecurityTokenModel, UserModel } from '../models';
 import { emailService } from '../services/emailService';
@@ -22,6 +22,12 @@ import {
 } from '../validation/schemas';
 
 const router = Router();
+
+// POST /api/auth/logout - Clear browser session cookie
+router.post('/logout', (req: Request, res: Response) => {
+  clearAuthCookie(res);
+  res.json({ message: 'Logout successful' });
+});
 
 // POST /api/auth/login - Production User Authentication
 router.post('/login', validateBody(loginSchema), async (req: Request, res: Response) => {
@@ -63,6 +69,7 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     };
 
     const token = jwt.sign(tokenPayload, config.jwtSecret, { expiresIn: '7d' });
+    setAuthCookie(res, token);
 
     res.json({
       message: 'Login successful',
@@ -138,6 +145,7 @@ router.post('/register', validateBody(registerSchema), async (req: Request, res:
     };
 
     const token = jwt.sign(tokenPayload, config.jwtSecret, { expiresIn: '7d' });
+    setAuthCookie(res, token);
 
     res.status(201).json({
       message: 'Registration successful',
@@ -360,6 +368,7 @@ router.post('/switch-role', requireAuth, validateBody(switchRoleSchema), async (
     };
 
     const token = jwt.sign(tokenPayload, config.jwtSecret, { expiresIn: '7d' });
+    setAuthCookie(res, token);
 
     res.json({
       message: `Active role switched to ${newRole}`,

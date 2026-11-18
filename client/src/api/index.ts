@@ -67,6 +67,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       ...options,
       headers,
       signal: controller.signal,
+      credentials: 'include',
     });
 
     let data: any;
@@ -130,7 +131,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    localStorage.setItem('edusphere_token', res.token);
     return res;
   },
   async register(fullName: string, email: string, password: string, role?: string): Promise<{ token: string; user: IUser }> {
@@ -138,7 +138,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ fullName, email, password, role }),
     });
-    localStorage.setItem('edusphere_token', res.token);
     return res;
   },
   async getMe(): Promise<{ user: IUser }> {
@@ -149,7 +148,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ newRole }),
     });
-    localStorage.setItem('edusphere_token', res.token);
     return res;
   },
   async updateProfile(updates: { fullName?: string; bio?: string; avatarUrl?: string }): Promise<{ user: IUser; message: string }> {
@@ -166,6 +164,7 @@ export const api = {
   },
   logout() {
     localStorage.removeItem('edusphere_token');
+    void request('/auth/logout', { method: 'POST' }).catch(() => undefined);
   },
 
   // Courses

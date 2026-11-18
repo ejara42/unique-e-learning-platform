@@ -93,6 +93,7 @@ EduSphere is transitioning from an advanced monolithic prototype with partial cl
 | 2026-11-18 01:00 | Phase 7-8 | Server models, routes, search, repo | P0 search filter, discrete progress, dual certificates, manual grading | 157/157 Tests Passed |
 | 2026-11-18 01:25 | Phase 8-9 | Client LandingPage, Header, AppContext, i18n, LessonPlayerPage, types, useData | Removed home page verification artifacts, added Data Saver mode, added submissions API hooks | 28/28 Client Tests, 157/157 System Tests Passed |
 | 2026-11-18 02:25 | Phase 8 & AppSec | `courseRoutes.ts`, `dbRepository.ts`, `assessmentRoutes.ts`, `multi_tenant_http.test.ts`, `releaseGate.mjs` | Added PUT/DELETE course with IDOR protection, added GET /my-submission, expanded HTTP suite to 17 tests | 161/161 Tests Passed (100%) |
+| 2026-11-18 21:08 | Phase 7 Session Hardening | `auth.ts`, `tenant.ts`, `authRoutes.ts`, `api/index.ts`, `AppContext.tsx`, `server.ts` | Added HttpOnly cookie session support with legacy bearer compatibility, logout cookie clearing, credentialed browser requests, CSP headers, and a guarded session restore path | Backend security 34/34 PASS; HTTP API 17/17 PASS; frontend Vitest 28/28 PASS |
 |---|---|---|---|---|
 | 2026-11-18 00:30 | Setup | `docs/MASTER_PROGRESS.md` | Created master progress tracking ledger | Initialized |
 | 2026-11-18 01:00 | Phase 7-8 | Server models, routes, search, repo | P0 search filter, discrete progress, dual certificates, manual grading | 157/157 Tests Passed |

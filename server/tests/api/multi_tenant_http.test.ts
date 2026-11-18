@@ -46,6 +46,8 @@ async function runMultiTenantHttpSuite() {
     testUsers.set('user-student-beta', { id: 'user-student-beta', tokenVersion: 0 });
     testUsers.set('user-admin-alpha', { id: 'user-admin-alpha', tokenVersion: 0, institutionId: 'tenant-alpha-college' });
     testUsers.set('user-admin-beta', { id: 'user-admin-beta', tokenVersion: 0, institutionId: 'tenant-beta-institute' });
+    testUsers.set('instructor-alpha', { id: 'instructor-alpha', tokenVersion: 0, institutionId: 'tenant-alpha-college' });
+    testUsers.set('instructor-beta', { id: 'instructor-beta', tokenVersion: 0, institutionId: 'tenant-beta-institute' });
     testUsers.set('user-platform-root', { id: 'user-platform-root', tokenVersion: 0 });
 
     (UserModel as any).findOne = (query: any) => {
@@ -73,6 +75,7 @@ async function runMultiTenantHttpSuite() {
             slug: 'restricted-course',
             tenantId: 'tenant-alpha-college',
             visibility: 'INSTITUTION_RESTRICTED',
+            instructorId: 'instructor-alpha',
             isPublished: true,
           }
         : null;
@@ -81,6 +84,13 @@ async function runMultiTenantHttpSuite() {
         then: (resolve: any) => Promise.resolve(restrictedCourse).then(resolve),
       };
     };
+
+    (CourseModel as any).findOneAndUpdate = (query: any, update: any) => ({
+      lean: async () => ({ id: 'restricted-course', ...update?.$set }),
+      then: (resolve: any) => Promise.resolve({ id: 'restricted-course', ...update?.$set }).then(resolve),
+    });
+
+    (CourseModel as any).deleteOne = async () => ({ deletedCount: 1 });
 
     (LiveSessionModel as any).find = () => ({
       lean: async () => [],
@@ -156,6 +166,24 @@ async function runMultiTenantHttpSuite() {
     fullName: 'Provost Beta',
     globalRole: 'STANDARD_USER',
     activeRole: 'INSTITUTION_ADMIN',
+    institutionId: 'tenant-beta-institute',
+  });
+
+  const tokenInstructorA = generateToken({
+    id: 'instructor-alpha',
+    email: 'prof.alpha@alpha-college.edu',
+    fullName: 'Professor Alpha',
+    globalRole: 'STANDARD_USER',
+    activeRole: 'INSTRUCTOR',
+    institutionId: 'tenant-alpha-college',
+  });
+
+  const tokenInstructorB = generateToken({
+    id: 'instructor-beta',
+    email: 'prof.beta@beta-institute.edu',
+    fullName: 'Professor Beta',
+    globalRole: 'STANDARD_USER',
+    activeRole: 'INSTRUCTOR',
     institutionId: 'tenant-beta-institute',
   });
 
@@ -286,6 +314,39 @@ async function runMultiTenantHttpSuite() {
     const decoded: any = jwt.verify(tokenPlatformSuperAdmin, config.jwtSecret);
     assert.strictEqual(decoded.globalRole, 'PLATFORM_SUPERADMIN');
     assert.strictEqual(decoded.activeRole, 'PLATFORM_ADMIN');
+  });
+
+  // 11. Course Mutation IDOR Barrier
+  await test('Course Mutation IDOR: Instructor B cannot update Instructor A course (HTTP 403)', async () => {
+    const res = await request(app)
+      .put('/api/courses/restricted-course')
+      .set('Authorization', `Bearer ${tokenInstructorB}`)
+      .send({ title: 'Tampered Title by B' });
+    assert.strictEqual(res.status, 403, `Unauthorized instructor update must return HTTP 403, got ${res.status}`);
+  });
+
+  await test('Course Mutation: Instructor A can update their own course (HTTP 200)', async () => {
+    const res = await request(app)
+      .put('/api/courses/restricted-course')
+      .set('Authorization', `Bearer ${tokenInstructorA}`)
+      .send({ title: 'Updated Syllabus by Author' });
+    assert.strictEqual(res.status, 200, `Author update must return HTTP 200, got ${res.status}`);
+    assert.strictEqual(res.body.course.title, 'Updated Syllabus by Author');
+  });
+
+  // 12. Course Deletion IDOR Barrier
+  await test('Course Deletion IDOR: Instructor B cannot delete Instructor A course (HTTP 403)', async () => {
+    const res = await request(app)
+      .delete('/api/courses/restricted-course')
+      .set('Authorization', `Bearer ${tokenInstructorB}`);
+    assert.strictEqual(res.status, 403, `Unauthorized instructor deletion must return HTTP 403, got ${res.status}`);
+  });
+
+  // 13. Learner Assessment Submission Auth Barrier
+  await test('Assessment Submission Barrier: GET /api/assessments/:id/my-submission requires authentication', async () => {
+    const res = await request(app)
+      .get('/api/assessments/exam-123/my-submission');
+    assert.strictEqual(res.status, 401, `Unauthenticated submission lookup must return HTTP 401, got ${res.status}`);
   });
 
   console.log('\n---------------------------------------------------------------');

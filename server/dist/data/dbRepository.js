@@ -126,6 +126,16 @@ class DatabaseRepository {
         await models_1.CourseModel.create(courseData);
         return courseData;
     }
+    async updateCourse(id, updates) {
+        this.assertActiveStorage();
+        const doc = await models_1.CourseModel.findOneAndUpdate({ $or: [{ id }, { slug: id }] }, { $set: updates }, { new: true }).lean();
+        return doc;
+    }
+    async deleteCourse(id) {
+        this.assertActiveStorage();
+        const res = await models_1.CourseModel.deleteOne({ $or: [{ id }, { slug: id }] });
+        return (res.deletedCount || 0) > 0;
+    }
     // ==========================================================================
     // ENROLLMENTS & PROGRESS
     // ==========================================================================

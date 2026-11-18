@@ -153,6 +153,23 @@ router.get('/:id', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.
         res.status(500).json({ message: 'Error retrieving assessment', error: err.message });
     }
 });
+// GET /api/assessments/:id/my-submission - Retrieve authenticated learner's submission & feedback
+router.get('/:id/my-submission', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), async (req, res) => {
+    try {
+        const submission = await models_1.SubmissionModel.findOne({
+            $or: [{ assessmentId: req.params.id }, { id: req.params.id }],
+            learnerId: req.user?.id,
+        }).sort({ submittedAt: -1 }).lean();
+        if (!submission) {
+            res.status(404).json({ message: 'No submission found for this assessment' });
+            return;
+        }
+        res.json({ submission });
+    }
+    catch (err) {
+        res.status(500).json({ message: 'Failed to retrieve your submission', error: err.message });
+    }
+});
 // POST /api/assessments/:id/submit - Submit answers and auto-grade
 router.post('/:id/submit', auth_1.requireAuth, (0, validate_1.validateParams)(schemas_1.identifierParamsSchema), (0, validate_1.validateBody)(schemas_1.assessmentSubmissionSchema), async (req, res) => {
     try {

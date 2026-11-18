@@ -188,6 +188,17 @@ export const api = {
       body: JSON.stringify(courseData),
     });
   },
+  async updateCourse(id: string, data: Partial<ICourse>): Promise<{ course: ICourse; message: string }> {
+    return request(`/courses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+  async deleteCourse(id: string): Promise<{ message: string; courseId: string }> {
+    return request(`/courses/${id}`, {
+      method: 'DELETE',
+    });
+  },
   async enroll(courseId: string): Promise<{ enrollment: IEnrollment }> {
     return request(`/courses/${courseId}/enroll`, {
       method: 'POST',
@@ -240,6 +251,9 @@ export const api = {
   },
   async getAssessmentSubmissions(assessmentId: string): Promise<{ submissions: IAssessmentSubmission[]; count: number }> {
     return request(`/assessments/${assessmentId}/submissions`);
+  },
+  async getMyAssessmentSubmission(assessmentId: string): Promise<{ submission: IAssessmentSubmission }> {
+    return request(`/assessments/${assessmentId}/my-submission`);
   },
   async gradeAssessmentSubmission(submissionId: string, payload: {
     feedback?: string;

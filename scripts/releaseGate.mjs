@@ -12,7 +12,7 @@
  * 6. Infrastructure, Fallback & Storage Suite (18 tests)
  * 7. Enterprise Phase 1 Upgrades Suite (12 tests)
  * 8. Full Enterprise Subsystems Suite (13 tests)
- * 9. Multi-Tenant HTTP API Authorization Suite (12 tests)
+ * 9. Multi-Tenant HTTP API Authorization Suite (17 tests)
  * 10. DRM Playback Lifecycle & HLS Key Broker Suite (16 tests)
  * 11. Live MongoDB Replica-Set Integration Suite (4 tests)
  * 12. Queue Concurrency, Deduplication & Lease Suite (6 tests)
@@ -116,7 +116,7 @@ const SUITES = [
     name: 'Multi-Tenant HTTP API Authorization',
     command: 'node',
     args: ['./server/node_modules/tsx/dist/cli.mjs', 'server/tests/api/multi_tenant_http.test.ts'],
-    expectedUnits: 13,
+    expectedUnits: 17,
   },
   {
     id: 'drm-playback',

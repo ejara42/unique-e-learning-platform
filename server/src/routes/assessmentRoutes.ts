@@ -179,6 +179,25 @@ router.get('/:id', requireAuth, validateParams(identifierParamsSchema), async (r
   }
 });
 
+// GET /api/assessments/:id/my-submission - Retrieve authenticated learner's submission & feedback
+router.get('/:id/my-submission', requireAuth, validateParams(identifierParamsSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const submission = await SubmissionModel.findOne({
+      $or: [{ assessmentId: req.params.id as string }, { id: req.params.id as string }],
+      learnerId: req.user?.id,
+    }).sort({ submittedAt: -1 }).lean();
+
+    if (!submission) {
+      res.status(404).json({ message: 'No submission found for this assessment' });
+      return;
+    }
+
+    res.json({ submission });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to retrieve your submission', error: err.message });
+  }
+});
+
 // POST /api/assessments/:id/submit - Submit answers and auto-grade
 router.post('/:id/submit', requireAuth, validateParams(identifierParamsSchema), validateBody(assessmentSubmissionSchema), async (req: AuthRequest, res: Response) => {
   try {

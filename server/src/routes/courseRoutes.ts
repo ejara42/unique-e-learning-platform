@@ -9,6 +9,7 @@ import { eventBus } from '../events/eventBus';
 import { validateBody, validateParams, validateQuery } from '../middleware/validate';
 import {
   createCourseSchema,
+  updateCourseSchema,
   courseReviewSchema,
   courseAnnouncementSchema,
   courseProgressSchema,
@@ -198,6 +199,68 @@ router.post('/', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PL
     });
   } catch (err: any) {
     res.status(500).json({ message: 'Failed to create course', error: err.message });
+  }
+});
+
+// PUT /api/courses/:id - Update course metadata and modules (Instructor/Admin only)
+router.put('/:id', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateParams(identifierParamsSchema), validateBody(updateCourseSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const course = await repo.getCourseById(req.params.id as string);
+    if (!course) {
+      res.status(404).json({ message: 'Course not found' });
+      return;
+    }
+
+    const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
+    const isInstitutionAdmin = req.user?.activeRole === 'INSTITUTION_ADMIN' && Boolean(req.user.institutionId && req.user.institutionId === course.tenantId);
+    const isOwnerInstructor = req.user?.activeRole === 'INSTRUCTOR' && (course.instructorId === req.user.id || !course.instructorId);
+
+    if (!isPlatformAdmin && !isInstitutionAdmin && !isOwnerInstructor) {
+      res.status(403).json({ message: 'Forbidden: You do not have permission to modify this course.' });
+      return;
+    }
+
+    const updatedCourse = await repo.updateCourse(course.id, req.body);
+    await cacheService.invalidateByTag('courses:catalog');
+    eventBus.publish('COURSE_UPDATED', course.id, updatedCourse);
+
+    res.json({
+      message: 'Course updated successfully',
+      course: updatedCourse,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to update course', error: err.message });
+  }
+});
+
+// DELETE /api/courses/:id - Delete/archive course (Instructor/Admin only)
+router.delete('/:id', requireAuth, requireRole('INSTRUCTOR', 'INSTITUTION_ADMIN', 'PLATFORM_ADMIN'), validateParams(identifierParamsSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const course = await repo.getCourseById(req.params.id as string);
+    if (!course) {
+      res.status(404).json({ message: 'Course not found' });
+      return;
+    }
+
+    const isPlatformAdmin = req.user?.activeRole === 'PLATFORM_ADMIN';
+    const isInstitutionAdmin = req.user?.activeRole === 'INSTITUTION_ADMIN' && Boolean(req.user.institutionId && req.user.institutionId === course.tenantId);
+    const isOwnerInstructor = req.user?.activeRole === 'INSTRUCTOR' && (course.instructorId === req.user.id || !course.instructorId);
+
+    if (!isPlatformAdmin && !isInstitutionAdmin && !isOwnerInstructor) {
+      res.status(403).json({ message: 'Forbidden: You do not have permission to delete this course.' });
+      return;
+    }
+
+    await repo.deleteCourse(course.id);
+    await cacheService.invalidateByTag('courses:catalog');
+    eventBus.publish('COURSE_DELETED', course.id, { courseId: course.id });
+
+    res.json({
+      message: 'Course deleted successfully',
+      courseId: course.id,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: 'Failed to delete course', error: err.message });
   }
 });
 

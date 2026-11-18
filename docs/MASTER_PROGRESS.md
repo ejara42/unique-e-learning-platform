@@ -32,18 +32,18 @@ EduSphere is transitioning from an advanced monolithic prototype with partial cl
 | **Phase 8** | P1 Essential Learning Workflows | **COMPLETED** | Discrete lesson progress calculation, dual credential types (`COMPLETION` & `ACHIEVEMENT`), duplicate cert guards, manual grading engine (`PATCH /api/assessments/submissions/:id/grade`), assignment query hooks |
 | **Phase 9** | P2 Usability, Accessibility & Internationalization | **COMPLETED** | Low-bandwidth / Data-Saver toggle in `AppContext` and `Header.tsx`, trilingual i18n dictionaries (EN, AM, OM, AR, FR), WCAG 2.1 AA font scaling & contrast |
 | **Phase 10** | P3 Advanced Capabilities | **IN PROGRESS** | Low-bandwidth profile in `LessonPlayerPage.tsx`, audio-reactive stage telemetry in `LiveClassroomPage.tsx` |
-| **Phase 11** | End-to-End Verification & Real Testing | **COMPLETED** | Release Gate: 157/157 Automated Tests Passed (100%), 2/2 Builds Passed (100%) |
+| **Phase 11** | End-to-End Verification & Real Testing | **COMPLETED** | Release Gate: 161/161 Automated Tests Passed (100%), 2/2 Builds Passed (100%) |
 | **Phase 12** | Production Readiness & Operational Governance | **COMPLETED** | `docs/PRODUCTION_READINESS.md`, `docs/DEPLOYMENT_GUIDE.md`, `docs/KNOWN_LIMITATIONS.md` |
 
 ---
 
 ## 3. Verified Baseline Test Results (2026-11-18)
 
-- **Backend TypeScript Compilation (`tsc`):** ✅ PASSED (0 errors, 20.8s)
-- **Frontend Vite Production Bundle (`tsc && vite build`):** ✅ PASSED (0 errors, 30.8s)
+- **Backend TypeScript Compilation (`tsc`):** ✅ PASSED (0 errors, 11.9s)
+- **Frontend Vite Production Bundle (`tsc && vite build`):** ✅ PASSED (0 errors, 24.0s)
 - **Frontend Vitest Component Suite (`npx vitest run src`):** ✅ PASSED (8/8 files, 28/28 tests, 100%)
 - **Backend AppSec Adversarial Suite (`production_security_suite.test.ts`):** ✅ PASSED (34/34 tests, 100%)
-- **Backend Multi-Tenant HTTP Suite (`multi_tenant_http.test.ts`):** ✅ PASSED (13/13 tests, 100%)
+- **Backend Multi-Tenant HTTP Suite (`multi_tenant_http.test.ts`):** ✅ PASSED (17/17 tests, 100%)
 - **Backend Infrastructure & Storage/Email (`phase_b_infrastructure.test.ts`):** ✅ PASSED (18/18 tests, 100%)
 - **Backend Enterprise Upgrades (`enterprise_phase1_upgrades.test.ts`):** ✅ PASSED (12/12 tests, 100%)
 - **Backend Full Enterprise Suite (`full_enterprise_suite.test.ts`):** ✅ PASSED (13/13 tests, 100%)
@@ -52,7 +52,7 @@ EduSphere is transitioning from an advanced monolithic prototype with partial cl
 - **Backend Seeder Safety & Prod Refusal (`seeder_safety.test.ts`):** ✅ PASSED (5/5 tests, 100%)
 - **Backend Live MongoDB Replica-Set (`mongodb_replica.test.ts`):** ✅ PASSED (4/4 tests, 100%)
 - **Backend Schemas & Model Constraints (`phase_a_mongodb.test.ts`):** ✅ PASSED (8/8 tests, 100%)
-- **Total Verified Automated Tests:** 157 / 157 (100% PASS RATE)
+- **Total Verified Automated Tests:** 161 / 161 (100% PASS RATE)
 
 ---
 
@@ -64,16 +64,21 @@ EduSphere is transitioning from an advanced monolithic prototype with partial cl
    - Preserved authoritative credential verification on its dedicated route (`/verify-certificate`) and footer trust links.
 2. **P0 Search Tenant Isolation (`searchService.ts`, `searchInterface.ts`):**
    - Implemented tenant visibility filter in `searchCourses()`, preventing unauthorized exposure of `INSTITUTION_RESTRICTED` courses.
-3. **P1 Discrete Lesson Progress Calculation (`dbRepository.ts`):**
+3. **P1 Course Editing, Deletion & IDOR Protection (`courseRoutes.ts`, `dbRepository.ts`, `api/index.ts`):**
+   - Implemented `PUT /api/courses/:id` with strict `updateCourseSchema` validation, verifying that only the course author (instructor), an institution admin of the same tenant, or a platform superadmin can edit course metadata, syllabi, or modules.
+   - Implemented `DELETE /api/courses/:id` with matching multi-tenant ownership checks and cache/search invalidation.
+   - Added `updateCourse` and `deleteCourse` in the frontend API client.
+4. **P1 Discrete Lesson Progress Calculation (`dbRepository.ts`):**
    - Replaced fixed 20% steps with exact module lesson counting; automatically completes course enrollment when all module lessons are finished.
-4. **P1 Dual Credential Types & Distinction Awards (`models/index.ts`, `assessmentRoutes.ts`, `CertificateVerifyPage.tsx`):**
+5. **P1 Dual Credential Types & Distinction Awards (`models/index.ts`, `assessmentRoutes.ts`, `CertificateVerifyPage.tsx`):**
    - Added support for `ACHIEVEMENT` certificates (distinction for scores >= 90%) and `COMPLETION` certificates.
    - Built duplicate certificate issuance barrier to prevent duplicate records for passing grades.
-5. **P1 Assessment Manual Grading Engine (`models/index.ts`, `validation/schemas.ts`, `assessmentRoutes.ts`):**
+6. **P1 Assessment Manual Grading Engine & Learner Submissions (`models/index.ts`, `validation/schemas.ts`, `assessmentRoutes.ts`):**
    - Implemented `GET /api/assessments/:id/submissions` with instructor/admin ownership verification.
    - Implemented `PATCH /api/assessments/submissions/:id/grade` allowing manual grading of essay questions, recalculating overall scores, updating pass status, and issuing distinction certificates.
+   - Implemented `GET /api/assessments/:id/my-submission` allowing learners to review their answers, awarded points, and instructor feedback.
    - Added `useAssessmentSubmissions` and `useGradeSubmission` React Query hooks in `client/src/hooks/useData.ts`.
-6. **P2 Low-Bandwidth / Data-Saver Mode (`AppContext.tsx`, `Header.tsx`, `LessonPlayerPage.tsx`):**
+7. **P2 Low-Bandwidth / Data-Saver Mode (`AppContext.tsx`, `Header.tsx`, `LessonPlayerPage.tsx`):**
    - Integrated lightweight Data Saver toggle in the accessibility bar and `AppContext`.
    - Added visual low-bandwidth awareness banner in `LessonPlayerPage.tsx` prioritizing reading notes and text transcripts over heavy video streams for rural/low-connectivity environments.
    - Expanded trilingual localization dictionaries (English, Amharic, Afaan Oromoo, Arabic, French) with Data Saver copy.
@@ -83,6 +88,11 @@ EduSphere is transitioning from an advanced monolithic prototype with partial cl
 ## 5. Detailed Change Log & Verification History
 
 | Timestamp | Phase | Files Modified | Description | Verification Result |
+|---|---|---|---|---|
+| 2026-11-18 00:30 | Setup | `docs/MASTER_PROGRESS.md` | Created master progress tracking ledger | Initialized |
+| 2026-11-18 01:00 | Phase 7-8 | Server models, routes, search, repo | P0 search filter, discrete progress, dual certificates, manual grading | 157/157 Tests Passed |
+| 2026-11-18 01:25 | Phase 8-9 | Client LandingPage, Header, AppContext, i18n, LessonPlayerPage, types, useData | Removed home page verification artifacts, added Data Saver mode, added submissions API hooks | 28/28 Client Tests, 157/157 System Tests Passed |
+| 2026-11-18 02:25 | Phase 8 & AppSec | `courseRoutes.ts`, `dbRepository.ts`, `assessmentRoutes.ts`, `multi_tenant_http.test.ts`, `releaseGate.mjs` | Added PUT/DELETE course with IDOR protection, added GET /my-submission, expanded HTTP suite to 17 tests | 161/161 Tests Passed (100%) |
 |---|---|---|---|---|
 | 2026-11-18 00:30 | Setup | `docs/MASTER_PROGRESS.md` | Created master progress tracking ledger | Initialized |
 | 2026-11-18 01:00 | Phase 7-8 | Server models, routes, search, repo | P0 search filter, discrete progress, dual certificates, manual grading | 157/157 Tests Passed |

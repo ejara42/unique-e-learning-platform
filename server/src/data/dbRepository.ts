@@ -189,6 +189,24 @@ export class DatabaseRepository {
     return courseData;
   }
 
+  async updateCourse(id: string, updates: Partial<ICourse>): Promise<ICourse | null> {
+    this.assertActiveStorage();
+
+    const doc = await CourseModel.findOneAndUpdate(
+      { $or: [{ id }, { slug: id }] },
+      { $set: updates },
+      { new: true }
+    ).lean();
+    return doc as any;
+  }
+
+  async deleteCourse(id: string): Promise<boolean> {
+    this.assertActiveStorage();
+
+    const res = await CourseModel.deleteOne({ $or: [{ id }, { slug: id }] });
+    return (res.deletedCount || 0) > 0;
+  }
+
   // ==========================================================================
   // ENROLLMENTS & PROGRESS
   // ==========================================================================

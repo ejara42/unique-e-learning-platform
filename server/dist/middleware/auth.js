@@ -3,21 +3,54 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getRequestBearerToken = getRequestBearerToken;
+exports.setAuthCookie = setAuthCookie;
+exports.clearAuthCookie = clearAuthCookie;
 exports.requireAuth = requireAuth;
 exports.optionalAuth = optionalAuth;
 exports.requireRole = requireRole;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = require("../config");
 const dbRepository_1 = require("../data/dbRepository");
-async function requireAuth(req, res, next) {
+function getRequestBearerToken(req) {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header. Bearer token required.' });
-        return;
+    if (authHeader?.startsWith('Bearer ')) {
+        const bearerToken = authHeader.slice('Bearer '.length).trim();
+        if (bearerToken)
+            return bearerToken;
     }
-    const token = authHeader.split(' ')[1];
+    const cookieHeader = req.headers.cookie;
+    if (!cookieHeader)
+        return null;
+    const cookie = cookieHeader
+        .split(';')
+        .map(part => part.trim())
+        .find(part => part.startsWith('edusphere_session='));
+    return cookie ? decodeURIComponent(cookie.slice('edusphere_session='.length)) : null;
+}
+function setAuthCookie(res, token) {
+    const secure = config_1.config.isProduction;
+    res.cookie('edusphere_session', token, {
+        httpOnly: true,
+        secure,
+        sameSite: secure ? 'none' : 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
+    });
+}
+function clearAuthCookie(res) {
+    const secure = config_1.config.isProduction;
+    res.clearCookie('edusphere_session', {
+        httpOnly: true,
+        secure,
+        sameSite: secure ? 'none' : 'lax',
+        path: '/',
+    });
+}
+async function requireAuth(req, res, next) {
+    const token = getRequestBearerToken(req);
     if (!token) {
-        res.status(401).json({ message: 'Unauthorized: Missing Bearer token' });
+        res.status(401).json({ message: 'Unauthorized: Missing or invalid Authorization header. Bearer token required.' });
         return;
     }
     let decoded;
@@ -43,18 +76,14 @@ async function requireAuth(req, res, next) {
     }
 }
 async function optionalAuth(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
+    const token = getRequestBearerToken(req);
+    if (!token) {
         next();
-        return;
-    }
-    if (!authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ message: 'Unauthorized: Invalid token format' });
         return;
     }
     let decoded;
     try {
-        decoded = jsonwebtoken_1.default.verify(authHeader.slice(7), config_1.config.jwtSecret);
+        decoded = jsonwebtoken_1.default.verify(token, config_1.config.jwtSecret);
     }
     catch {
         res.status(401).json({ message: 'Unauthorized: Token expired or invalid' });

@@ -15,6 +15,11 @@ const emailService_1 = require("../services/emailService");
 const validate_1 = require("../middleware/validate");
 const schemas_1 = require("../validation/schemas");
 const router = (0, express_1.Router)();
+// POST /api/auth/logout - Clear browser session cookie
+router.post('/logout', (req, res) => {
+    (0, auth_1.clearAuthCookie)(res);
+    res.json({ message: 'Logout successful' });
+});
 // POST /api/auth/login - Production User Authentication
 router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async (req, res) => {
     try {
@@ -49,6 +54,7 @@ router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async
             tokenVersion: user.tokenVersion ?? 0,
         };
         const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.jwtSecret, { expiresIn: '7d' });
+        (0, auth_1.setAuthCookie)(res, token);
         res.json({
             message: 'Login successful',
             token,
@@ -115,6 +121,7 @@ router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema),
             tokenVersion: newUser.tokenVersion,
         };
         const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.jwtSecret, { expiresIn: '7d' });
+        (0, auth_1.setAuthCookie)(res, token);
         res.status(201).json({
             message: 'Registration successful',
             token,
@@ -310,6 +317,7 @@ router.post('/switch-role', auth_1.requireAuth, (0, validate_1.validateBody)(sch
             tokenVersion: updatedUser.tokenVersion ?? 0,
         };
         const token = jsonwebtoken_1.default.sign(tokenPayload, config_1.config.jwtSecret, { expiresIn: '7d' });
+        (0, auth_1.setAuthCookie)(res, token);
         res.json({
             message: `Active role switched to ${newRole}`,
             token,

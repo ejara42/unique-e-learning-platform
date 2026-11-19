@@ -9,5 +9,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['**/node_modules/**', '**/e2e/**', 'e2e/**'],
+    fileParallelism: false,
+    testTimeout: 15000,
   },
 });

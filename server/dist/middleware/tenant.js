@@ -9,6 +9,7 @@ exports.tenantMiddleware = tenantMiddleware;
 const async_hooks_1 = require("async_hooks");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = require("../config");
+const auth_1 = require("./auth");
 exports.tenantStorage = new async_hooks_1.AsyncLocalStorage();
 function getTenantContext() {
     return exports.tenantStorage.getStore() || { tenantId: null, tenantSlug: null };
@@ -24,9 +25,8 @@ function tenantMiddleware(req, res, next) {
         tenantId: null,
         tenantSlug,
     };
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.slice('Bearer '.length).trim();
+    const token = (0, auth_1.getRequestBearerToken)(req);
+    if (token) {
         try {
             const decoded = jsonwebtoken_1.default.verify(token, config_1.config.jwtSecret);
             if (decoded.institutionId) {
